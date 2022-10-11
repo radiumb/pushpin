@@ -38,94 +38,94 @@ namespace Jwt {
 
 EncodingKey::~EncodingKey()
 {
-    jwt_encoding_key_destroy(raw_);
+	jwt_encoding_key_destroy(raw_);
 }
 
 EncodingKey EncodingKey::fromSecret(const QByteArray &key)
 {
-    EncodingKey k;
-    k.raw_ = jwt_encoding_key_from_secret((const quint8 *)key.data(), key.size());
-    return k;
+	EncodingKey k;
+	k.raw_ = jwt_encoding_key_from_secret((const quint8 *)key.data(), key.size());
+	return k;
 }
 
 EncodingKey EncodingKey::fromEcPem(const QByteArray &key)
 {
-    EncodingKey k;
-    k.raw_ = jwt_encoding_key_from_ec_pem((const quint8 *)key.data(), key.size());
-    return k;
+	EncodingKey k;
+	k.raw_ = jwt_encoding_key_from_ec_pem((const quint8 *)key.data(), key.size());
+	return k;
 }
 
 EncodingKey EncodingKey::fromEcPemFile(const QString &fileName)
 {
-    QFile f(fileName);
-    if(!f.open(QFile::ReadOnly))
-    {
-        return EncodingKey();
-    }
+	QFile f(fileName);
+	if(!f.open(QFile::ReadOnly))
+	{
+		return EncodingKey();
+	}
 
-    return fromEcPem(f.readAll());
+	return fromEcPem(f.readAll());
 }
 
 DecodingKey::~DecodingKey()
 {
-    jwt_decoding_key_destroy(raw_);
+	jwt_decoding_key_destroy(raw_);
 }
 
 DecodingKey DecodingKey::fromSecret(const QByteArray &key)
 {
-    DecodingKey k;
-    k.raw_ = jwt_decoding_key_from_secret((const quint8 *)key.data(), key.size());
-    return k;
+	DecodingKey k;
+	k.raw_ = jwt_decoding_key_from_secret((const quint8 *)key.data(), key.size());
+	return k;
 }
 
 DecodingKey DecodingKey::fromEcPem(const QByteArray &key)
 {
-    DecodingKey k;
-    k.raw_ = jwt_decoding_key_from_ec_pem((const quint8 *)key.data(), key.size());
-    return k;
+	DecodingKey k;
+	k.raw_ = jwt_decoding_key_from_ec_pem((const quint8 *)key.data(), key.size());
+	return k;
 }
 
 DecodingKey DecodingKey::fromEcPemFile(const QString &fileName)
 {
-    QFile f(fileName);
-    if(!f.open(QFile::ReadOnly))
-    {
-        return DecodingKey();
-    }
+	QFile f(fileName);
+	if(!f.open(QFile::ReadOnly))
+	{
+		return DecodingKey();
+	}
 
-    return fromEcPem(f.readAll());
+	return fromEcPem(f.readAll());
 }
 
 QByteArray encodeWithAlgorithm(Algorithm alg, const QByteArray &claim, const EncodingKey &key)
 {
-    char *token;
+	char *token;
 
-    if(jwt_encode((int)alg, (const char *)claim.data(), key.raw(), &token) != 0)
-    {
-        // error
-        return QByteArray();
-    }
+	if(jwt_encode((int)alg, (const char *)claim.data(), key.raw(), &token) != 0)
+	{
+		// error
+		return QByteArray();
+	}
 
-    QByteArray out = QByteArray(token);
-    jwt_str_destroy(token);
+	QByteArray out = QByteArray(token);
+	jwt_str_destroy(token);
 
-    return out;
+	return out;
 }
 
 QByteArray decodeWithAlgorithm(Algorithm alg, const QByteArray &token, const DecodingKey &key)
 {
-    char *claim;
+	char *claim;
 
-    if(jwt_decode((int)alg, (const char *)token.data(), key.raw(), &claim) != 0)
-    {
-        // error
-        return QByteArray();
-    }
+	if(jwt_decode((int)alg, (const char *)token.data(), key.raw(), &claim) != 0)
+	{
+		// error
+		return QByteArray();
+	}
 
-    QByteArray out = QByteArray(claim);
-    jwt_str_destroy(claim);
+	QByteArray out = QByteArray(claim);
+	jwt_str_destroy(claim);
 
-    return out;
+	return out;
 }
 
 QByteArray encode(const QVariant &claim, const QByteArray &key)
@@ -134,16 +134,16 @@ QByteArray encode(const QVariant &claim, const QByteArray &key)
 	if(claimJson.isNull())
 		return QByteArray();
 
-    return encodeWithAlgorithm(HS256, claimJson, EncodingKey::fromSecret(key));
+	return encodeWithAlgorithm(HS256, claimJson, EncodingKey::fromSecret(key));
 }
 
 QVariant decode(const QByteArray &token, const QByteArray &key)
 {
-    QByteArray claimJson = decodeWithAlgorithm(HS256, token, DecodingKey::fromSecret(key));
+	QByteArray claimJson = decodeWithAlgorithm(HS256, token, DecodingKey::fromSecret(key));
 	if(claimJson.isEmpty())
 		return QVariant();
 
-    QJsonParseError error;
+	QJsonParseError error;
 	QJsonDocument doc = QJsonDocument::fromJson(claimJson, &error);
 	if(error.error != QJsonParseError::NoError || !doc.isObject())
 		return QVariant();

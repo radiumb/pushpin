@@ -39,45 +39,45 @@ namespace Jwt {
 // NOTE: must match values on the rust side
 enum Algorithm
 {
-    HS256 = 0,
-    ES256 = 1,
-    RS256 = 2,
+	HS256 = 0,
+	ES256 = 1,
+	RS256 = 2,
 };
 
 class EncodingKey
 {
 public:
-    ~EncodingKey();
+	~EncodingKey();
 
-    bool isNull() const { return (bool)(!raw_); }
-    const void *raw() const { return raw_; }
+	bool isNull() const { return (bool)(!raw_); }
+	const void *raw() const { return raw_; }
 
-    static EncodingKey fromSecret(const QByteArray &key);
-    static EncodingKey fromEcPem(const QByteArray &key);
-    static EncodingKey fromEcPemFile(const QString &fileName);
+	static EncodingKey fromSecret(const QByteArray &key);
+	static EncodingKey fromEcPem(const QByteArray &key);
+	static EncodingKey fromEcPemFile(const QString &fileName);
 
 private:
-    void *raw_;
+	void *raw_;
 
-    EncodingKey() { raw_ = 0; }
+	EncodingKey() { raw_ = 0; }
 };
 
 class DecodingKey
 {
 public:
-    ~DecodingKey();
+	~DecodingKey();
 
-    bool isNull() const { return (bool)(!raw_); }
-    const void *raw() const { return raw_; }
+	bool isNull() const { return (bool)(!raw_); }
+	const void *raw() const { return raw_; }
 
-    static DecodingKey fromSecret(const QByteArray &key);
-    static DecodingKey fromEcPem(const QByteArray &key);
-    static DecodingKey fromEcPemFile(const QString &fileName);
+	static DecodingKey fromSecret(const QByteArray &key);
+	static DecodingKey fromEcPem(const QByteArray &key);
+	static DecodingKey fromEcPemFile(const QString &fileName);
 
 private:
-    void *raw_;
+	void *raw_;
 
-    DecodingKey() { raw_ = 0; }
+	DecodingKey() { raw_ = 0; }
 };
 
 // returns token, null on error

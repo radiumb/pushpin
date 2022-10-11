@@ -35,22 +35,22 @@ extern "C"
 {
 	struct JwtBuffer
 	{
-        quint8 *data;
-        size_t len;
+		quint8 *data;
+		size_t len;
 	};
 
-    void *jwt_encoding_key_from_secret(const quint8 *data, size_t len);
-    void *jwt_encoding_key_from_ec_pem(const quint8 *data, size_t len);
-    void jwt_encoding_key_destroy(void *key);
+	void *jwt_encoding_key_from_secret(const quint8 *data, size_t len);
+	void *jwt_encoding_key_from_ec_pem(const quint8 *data, size_t len);
+	void jwt_encoding_key_destroy(void *key);
 
-    void *jwt_decoding_key_from_secret(const quint8 *data, size_t len);
-    void *jwt_decoding_key_from_ec_pem(const quint8 *data, size_t len);
-    void jwt_decoding_key_destroy(void *key);
+	void *jwt_decoding_key_from_secret(const quint8 *data, size_t len);
+	void *jwt_decoding_key_from_ec_pem(const quint8 *data, size_t len);
+	void jwt_decoding_key_destroy(void *key);
 
-    void jwt_str_destroy(char *s);
+	void jwt_str_destroy(char *s);
 
-    int jwt_encode(int alg, const char *claim, const void *key, char **out_token);
-    int jwt_decode(int alg, const char *token, const void *key, char **out_claim);
+	int jwt_encode(int alg, const char *claim, const void *key, char **out_token);
+	int jwt_decode(int alg, const char *token, const void *key, char **out_claim);
 }
 
 #endif

@@ -90,7 +90,7 @@ private slots:
 		QByteArray claimJson = QJsonDocument(QJsonObject::fromVariantMap(claim)).toJson(QJsonDocument::Compact);
 		QVERIFY(!claimJson.isNull());
 
-    	QByteArray token = Jwt::encodeWithAlgorithm(Jwt::ES256, claimJson, privateKey);
+		QByteArray token = Jwt::encodeWithAlgorithm(Jwt::ES256, claimJson, privateKey);
 		QVERIFY(!token.isNull());
 
 		QByteArray resultJson = Jwt::decodeWithAlgorithm(Jwt::ES256, token, publicKey);
