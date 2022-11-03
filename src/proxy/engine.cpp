@@ -29,6 +29,7 @@
 #include "engine.h"
 
 #include <assert.h>
+#include <sys/shm.h>
 #include "qzmqsocket.h"
 #include "qzmqvalve.h"
 #include "tnetstring.h"
@@ -60,6 +61,8 @@
 #include "logutil.h"
 
 #define DEFAULT_HWM 1000
+
+static long wsConnectCount = 0;
 
 class Engine::Private : public QObject
 {
@@ -580,6 +583,15 @@ public:
 		QUrl requestUri = sock->requestUri();
 
 		log_debug("IN ws id=%s, %s", sock->rid().second.data(), requestUri.toEncoded().data());
+
+		// count ws connect count
+		wsConnectCount++;
+		// Write to shared memory
+		key_t key = ftok("shmfile",65);
+		int shmid = shmget(key,100,0666|IPC_CREAT);
+		char *str = (char*) shmat(shmid,(void*)0,0);
+		memcpy(&str[4], (char *)&wsConnectCount, 4);
+		shmdt(str);
 
 		bool isSecure = (requestUri.scheme() == "wss");
 		QString host = requestUri.host();

@@ -33,6 +33,8 @@
 #include <QHash>
 #include <QPointer>
 #include <QTimer>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include "qzmqsocket.h"
 #include "qzmqvalve.h"
 #include "tnetstring.h"
@@ -59,6 +61,13 @@
 
 // needs to match the peer
 #define ZHTTP_IDS_MAX 128
+
+// variable to count ws
+static long wsRequestCount = 0, wsMessageSentCount = 0;
+static long wsRpcAuthorCount = 0, wsRpcBabeCount = 0, wsRpcBeefyCount = 0, wsRpcChainCount = 0, wsRpcChildStateCount = 0;
+static long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
+static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
+static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
 
 class ZhttpManager::Private : public QObject
 {
@@ -398,6 +407,18 @@ public:
 	{
 		assert(server_out_sock);
 		const char *logprefix = logPrefixForType(type);
+
+		// Count (ws messages sent)
+		if (type == 2 && packet.type == 0 && packet.credits == -1)
+		{
+			wsMessageSentCount++;
+			// Write to shared memory
+			key_t key = ftok("shmfile",65);
+			int shmid = shmget(key,100,0666|IPC_CREAT);
+			char *str = (char*) shmat(shmid,(void*)0,0);
+			memcpy(&str[8], (char *)&wsMessageSentCount, 4);
+			shmdt(str);
+		}
 
 		QVariant vpacket = packet.toVariant();
 		QByteArray buf = instanceAddress + " T" + TnetString::fromVariant(vpacket);
@@ -768,6 +789,142 @@ public slots:
 			ZWebSocket *sock = serverSocksByRid.value(ZWebSocket::Rid(p.from, id.id));
 			if(sock)
 			{
+				if (p.type == 0)
+				{
+					// parse JSON-RPC 
+					{
+						// convert to string
+						QVariantHash hdata = data.toHash();
+						const char *str = qPrintable(hdata.value("body").toString());
+						int strLen = strlen(str);
+						char *strBuf = (char *)malloc(strLen+1);
+						memcpy(strBuf, str, strLen);
+						strBuf[strLen] = '\0';
+						log_debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx %s", strBuf);
+						// remove space
+						int count = 0;
+						for (int i = 0; strBuf[i]; i++)
+						{
+							if (strBuf[i] != ' ')
+								strBuf[count++] = strBuf[i];
+						}
+						strBuf[count] = '\0';
+						char *tokenStr, *methodBuf;
+						tokenStr = strstr (strBuf, "\"method\":\"");
+						if (tokenStr != NULL)
+						{
+							methodBuf = tokenStr+10;
+							count = 0;
+							while (methodBuf[count] != '\0')
+							{
+								if (methodBuf[count] == '\"')
+								{
+									methodBuf[count] = '\0';
+									break;
+								}
+								else
+								{
+									methodBuf[count] = tolower(methodBuf[count]);
+								}
+								count++;
+							}
+							log_debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx %s", methodBuf);
+							char methodStr[65];
+							strncpy(methodStr, methodBuf, 64);
+
+							if (!memcmp(methodStr, "author_", 7)) {
+								wsRpcAuthorCount++;
+								if (!memcmp(&methodStr[7], "submitandwatchextrinsic", 23)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "babe_", 5)) {
+								wsRpcBabeCount++;
+								if (!memcmp(&methodStr[5], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "beefy_", 6)) {
+								wsRpcBeefyCount++;
+								if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "chain_", 6)) {
+								wsRpcChainCount++;
+								if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "childstate_", 11)) {
+								wsRpcChildStateCount++;
+								if (!memcmp(&methodStr[11], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "contracts_", 10)) {
+								wsRpcContractsCount++;
+								if (!memcmp(&methodStr[10], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "dev_", 4)) {
+								wsRpcDevCount++;
+								if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "engine_", 7)) {
+								wsRpcEngineCount++;
+								if (!memcmp(&methodStr[7], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "eth_", 4)) {
+								wsRpcEthCount++;
+								if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "net_", 4)) {
+								wsRpcNetCount++;
+								if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "web3_", 5)) {
+								wsRpcWeb3Count++;
+								if (!memcmp(&methodStr[5], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "grandpa_", 8)) {
+								wsRpcGrandpaCount++;
+								if (!memcmp(&methodStr[8], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "mmr_", 4)) {
+								wsRpcMmrCount++;
+								if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "offchain_", 9)) {
+								wsRpcOffchainCount++;
+								if (!memcmp(&methodStr[9], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "payment_", 8)) {
+								wsRpcPaymentCount++;
+								if (!memcmp(&methodStr[8], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "rpc_", 4)) {
+								wsRpcRpcCount++;
+								if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "state_", 6)) {
+								wsRpcStateCount++;
+								if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "sync_state_", 11)) {
+								wsRpcSyncstateCount++;
+								if (!memcmp(&methodStr[11], "subscribe", 9)) wsRpcSubscribeCount++;
+							} else if (!memcmp(methodStr, "system_", 7)) {
+								wsRpcSystemCount++;
+								if (!memcmp(&methodStr[7], "subscribe", 9)) wsRpcSubscribeCount++;
+							}
+						}
+
+						free(strBuf);
+					}
+
+					// Count WS request
+					wsRequestCount++;
+					// Write to shared memory
+					key_t key = ftok("shmfile",65);
+					int shmid = shmget(key,100,0666|IPC_CREAT);
+					char *str = (char*) shmat(shmid,(void*)0,0);
+					memcpy(&str[0], (char *)&wsRequestCount, 4);
+					memcpy(&str[20], (char *)&wsRpcAuthorCount, 4);
+					memcpy(&str[24], (char *)&wsRpcBabeCount, 4);
+					memcpy(&str[28], (char *)&wsRpcBeefyCount, 4);
+					memcpy(&str[32], (char *)&wsRpcChainCount, 4);
+					memcpy(&str[36], (char *)&wsRpcChildStateCount, 4);
+					memcpy(&str[40], (char *)&wsRpcContractsCount, 4);
+					memcpy(&str[44], (char *)&wsRpcDevCount, 4);
+					memcpy(&str[48], (char *)&wsRpcEngineCount, 4);
+					memcpy(&str[52], (char *)&wsRpcEthCount, 4);
+					memcpy(&str[56], (char *)&wsRpcNetCount, 4);
+					memcpy(&str[60], (char *)&wsRpcWeb3Count, 4);
+					memcpy(&str[64], (char *)&wsRpcGrandpaCount, 4);
+					memcpy(&str[68], (char *)&wsRpcMmrCount, 4);
+					memcpy(&str[72], (char *)&wsRpcOffchainCount, 4);
+					memcpy(&str[76], (char *)&wsRpcPaymentCount, 4);
+					memcpy(&str[80], (char *)&wsRpcRpcCount, 4);
+					memcpy(&str[84], (char *)&wsRpcStateCount, 4);
+					memcpy(&str[88], (char *)&wsRpcSyncstateCount, 4);
+					memcpy(&str[92], (char *)&wsRpcSystemCount, 4);
+					memcpy(&str[96], (char *)&wsRpcSubscribeCount, 4);
+					shmdt(str);
+				}
+				
 				sock->handle(id.id, id.seq, p);
 				if(!self)
 					return;
