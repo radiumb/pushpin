@@ -29,10 +29,15 @@
 #include "zhttpmanager.h"
 
 #include <assert.h>
+#include <QCoreApplication>
+#include <QCommandLineParser>
+#include <QFile>
+#include <QFileInfo>
 #include <QStringList>
 #include <QHash>
 #include <QPointer>
 #include <QTimer>
+#include <QCryptographicHash>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include "qzmqsocket.h"
@@ -414,7 +419,7 @@ public:
 			wsMessageSentCount++;
 			// Write to shared memory
 			key_t key = ftok("shmfile",65);
-			int shmid = shmget(key,100,0666|IPC_CREAT);
+			int shmid = shmget(key,0,0666|IPC_CREAT);
 			char *str = (char*) shmat(shmid,(void*)0,0);
 			memcpy(&str[8], (char *)&wsMessageSentCount, 4);
 			shmdt(str);
@@ -791,6 +796,7 @@ public slots:
 			{
 				if (p.type == 0)
 				{
+					char methodStr[256];
 					// parse JSON-RPC 
 					{
 						// convert to string
@@ -829,8 +835,9 @@ public slots:
 								count++;
 							}
 							log_debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx %s", methodBuf);
-							char methodStr[65];
-							strncpy(methodStr, methodBuf, 64);
+							
+							strncpy(methodStr, methodBuf, count > 256 ? 256 : count);
+							methodStr[count] = 0;
 
 							if (!memcmp(methodStr, "author_", 7)) {
 								wsRpcAuthorCount++;
@@ -890,39 +897,73 @@ public slots:
 								wsRpcSystemCount++;
 								if (!memcmp(&methodStr[7], "subscribe", 9)) wsRpcSubscribeCount++;
 							}
+
+							// read shared memory
+							// Count WS request
+							wsRequestCount++;
+							// Write to shared memory
+							key_t shm_key = ftok("shmfile",65);
+							int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+							char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+							memcpy(&shm_str[0], (char *)&wsRequestCount, 4);
+							memcpy(&shm_str[20], (char *)&wsRpcAuthorCount, 4);
+							memcpy(&shm_str[24], (char *)&wsRpcBabeCount, 4);
+							memcpy(&shm_str[28], (char *)&wsRpcBeefyCount, 4);
+							memcpy(&shm_str[32], (char *)&wsRpcChainCount, 4);
+							memcpy(&shm_str[36], (char *)&wsRpcChildStateCount, 4);
+							memcpy(&shm_str[40], (char *)&wsRpcContractsCount, 4);
+							memcpy(&shm_str[44], (char *)&wsRpcDevCount, 4);
+							memcpy(&shm_str[48], (char *)&wsRpcEngineCount, 4);
+							memcpy(&shm_str[52], (char *)&wsRpcEthCount, 4);
+							memcpy(&shm_str[56], (char *)&wsRpcNetCount, 4);
+							memcpy(&shm_str[60], (char *)&wsRpcWeb3Count, 4);
+							memcpy(&shm_str[64], (char *)&wsRpcGrandpaCount, 4);
+							memcpy(&shm_str[68], (char *)&wsRpcMmrCount, 4);
+							memcpy(&shm_str[72], (char *)&wsRpcOffchainCount, 4);
+							memcpy(&shm_str[76], (char *)&wsRpcPaymentCount, 4);
+							memcpy(&shm_str[80], (char *)&wsRpcRpcCount, 4);
+							memcpy(&shm_str[84], (char *)&wsRpcStateCount, 4);
+							memcpy(&shm_str[88], (char *)&wsRpcSyncstateCount, 4);
+							memcpy(&shm_str[92], (char *)&wsRpcSystemCount, 4);
+							memcpy(&shm_str[96], (char *)&wsRpcSubscribeCount, 4);
+
+							// Group
+							int shm_read_count = 100;
+							long groupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+							QString methodName = QString(methodStr);
+							QByteArray hash = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
+							
+							int gCnt = (int)groupCount;
+							for (int i = 0; i < gCnt; i++)
+							{
+								long methodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+								int mCnt = (int)methodCount;
+								char groupName[256];
+								memcpy(groupName, &shm_str[shm_read_count], 256); shm_read_count += 256;	
+								long eventCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+								int shm_write_point = shm_read_count - 4;								
+								for (int j = 0; j < mCnt; j++)
+								{
+									char methodNameHash[20];
+									memcpy(methodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;	
+									if (!memcmp(methodNameHash, hash.data(), 20))
+									{
+										eventCount++;
+										memcpy(&shm_str[shm_write_point], (char *)&eventCount, 4);
+										log_debug("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz %d", shm_write_point);
+										shm_read_count += 20*(mCnt-j-1);
+										break;
+									}
+								}
+									
+							}
+							shmdt(shm_str);
+
 						}
 
 						free(strBuf);
 					}
-
-					// Count WS request
-					wsRequestCount++;
-					// Write to shared memory
-					key_t key = ftok("shmfile",65);
-					int shmid = shmget(key,100,0666|IPC_CREAT);
-					char *str = (char*) shmat(shmid,(void*)0,0);
-					memcpy(&str[0], (char *)&wsRequestCount, 4);
-					memcpy(&str[20], (char *)&wsRpcAuthorCount, 4);
-					memcpy(&str[24], (char *)&wsRpcBabeCount, 4);
-					memcpy(&str[28], (char *)&wsRpcBeefyCount, 4);
-					memcpy(&str[32], (char *)&wsRpcChainCount, 4);
-					memcpy(&str[36], (char *)&wsRpcChildStateCount, 4);
-					memcpy(&str[40], (char *)&wsRpcContractsCount, 4);
-					memcpy(&str[44], (char *)&wsRpcDevCount, 4);
-					memcpy(&str[48], (char *)&wsRpcEngineCount, 4);
-					memcpy(&str[52], (char *)&wsRpcEthCount, 4);
-					memcpy(&str[56], (char *)&wsRpcNetCount, 4);
-					memcpy(&str[60], (char *)&wsRpcWeb3Count, 4);
-					memcpy(&str[64], (char *)&wsRpcGrandpaCount, 4);
-					memcpy(&str[68], (char *)&wsRpcMmrCount, 4);
-					memcpy(&str[72], (char *)&wsRpcOffchainCount, 4);
-					memcpy(&str[76], (char *)&wsRpcPaymentCount, 4);
-					memcpy(&str[80], (char *)&wsRpcRpcCount, 4);
-					memcpy(&str[84], (char *)&wsRpcStateCount, 4);
-					memcpy(&str[88], (char *)&wsRpcSyncstateCount, 4);
-					memcpy(&str[92], (char *)&wsRpcSystemCount, 4);
-					memcpy(&str[96], (char *)&wsRpcSubscribeCount, 4);
-					shmdt(str);
 				}
 				
 				sock->handle(id.id, id.seq, p);

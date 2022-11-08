@@ -388,6 +388,25 @@ public:
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcSyncstateCount, "json_method_count_syncstate", "counter", "Number of websocket JSON-RPC syncstate method group");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcSystemCount, "json_method_count_system", "counter", "Number of websocket JSON-RPC system method group");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcSubscribeCount, "json_method_count_subscribe", "counter", "Number of websocket JSON-RPC subscribe method group");
+		// Group count add
+		key_t shm_key = ftok("shmfile",65);
+		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+		int shm_read_count = 100;
+		long groupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+		int gCnt = (int)groupCount;
+		for (int i = 0; i < gCnt; i++)
+		{
+			long methodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			int mCnt = (int)methodCount;
+			char groupName[256];
+			memcpy(groupName, &shm_str[shm_read_count], 256); shm_read_count += 256;	
+			shm_read_count += 4; // event skip
+			shm_read_count += 20*mCnt;	
+			PrometheusMetric::Type groupType = (PrometheusMetric::Type)(PrometheusMetric::wsRpcSubscribeCount+i+1);
+			prometheusMetrics += PrometheusMetric(groupType, groupName, "counter", groupName);	
+		}
+		shmdt(shm_str);
 
 		startTime = QDateTime::currentMSecsSinceEpoch();
 	}
@@ -1198,7 +1217,7 @@ private slots:
 
 			// read shared memory
 			key_t key = ftok("shmfile",65);
-			int shmid = shmget(key,100,0666|IPC_CREAT);
+			int shmid = shmget(key,0,0666|IPC_CREAT);
 			char *str = (char*) shmat(shmid,(void*)0,0);
 			wsRequestCount = *(long *)&str[0];
 			wsConnectCount = *(long *)&str[4];
@@ -1256,6 +1275,29 @@ private slots:
 				case PrometheusMetric::wsRpcSyncstateCount: value = QVariant((int)wsRpcSyncstateCount); break;
 				case PrometheusMetric::wsRpcSystemCount: value = QVariant((int)wsRpcSystemCount); break;
 				case PrometheusMetric::wsRpcSubscribeCount: value = QVariant((int)wsRpcSubscribeCount); break;
+				default: {
+					// Group count add
+					key_t shm_key = ftok("shmfile",65);
+					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+					int shm_read_count = 100;
+					long groupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+					int gCnt = (int)groupCount;
+					for (int i = 0; i < gCnt; i++)
+					{
+						long methodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						int mCnt = (int)methodCount;
+						shm_read_count += 256;	// skip name
+						long eventCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						shm_read_count += 20*mCnt;	
+						if (m.mtype == (PrometheusMetric::wsRpcSubscribeCount+i+1))
+						{
+							value = QVariant((int)eventCount); break;
+						}						
+					}
+					shmdt(shm_str);
+					break;
+				}
 			}
 
 			if(value.isNull())

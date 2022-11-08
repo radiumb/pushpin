@@ -34,6 +34,8 @@
 #include <QStringList>
 #include <QFile>
 #include <QFileInfo>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include "processquit.h"
 #include "log.h"
 #include "settings.h"
@@ -257,6 +259,65 @@ public:
 		if(!args.ipcPrefix.isEmpty())
 			settings.setIpcPrefix(args.ipcPrefix);
 
+		// Parse websocket count group
+		//////////////////////////////////////////////////////////////
+		// group count (4byte)
+		// group1 method count (4byte), group1 name (256byte), group1 count value while running (4byte)
+		// group2
+		// ...
+		
+		// Delete shared memory created in previous run
+		key_t shm_key = ftok("shmfile",65);
+		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+		shmctl(shm_id,IPC_RMID,NULL);
+
+		QStringList ws_groups = settings.value("websocket/ws_count_groups").toStringList();
+		int total_byte_count = 4;
+		long group_count = ws_groups.count();
+		for (int i = 0; i < group_count; i++)
+		{
+			QStringList group_methods = settings.value("websocket/" + ws_groups[i]).toStringList();
+			total_byte_count += 264;
+			total_byte_count += group_methods.count() * 20;
+		}
+		// add 100 for others
+		total_byte_count += 100;
+
+		// Write to shared memory
+		int shm_write_count = 100;
+		shm_key = ftok("shmfile",65);
+		shm_id = shmget(shm_key,total_byte_count,0666|IPC_CREAT);
+		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+		memcpy(&shm_str[shm_write_count], (char *)&group_count, 4); shm_write_count += 4;
+		for (int i = 0; i < group_count; i++)
+		{
+			QStringList group_methods = settings.value("websocket/" + ws_groups[i]).toStringList();
+			long method_count = group_methods.count();
+			memcpy(&shm_str[shm_write_count], (char *)&method_count, 4); shm_write_count += 4;
+			char group_name[256];
+			int name_size = ws_groups[i].size();
+			if (name_size > 255)
+			{
+				memcpy(group_name, qPrintable(ws_groups[i]), 255);
+				group_name[255] = 0;
+			}
+			else
+			{
+				memcpy(group_name, qPrintable(ws_groups[i]), name_size);
+				group_name[name_size] = 0;
+			}
+			memcpy(&shm_str[shm_write_count], group_name, 256); shm_write_count += 256;
+			int count_value = 0;
+			memcpy(&shm_str[shm_write_count], (char *)&count_value, 4); shm_write_count += 4;
+			for (int j = 0; j < method_count; j++)
+			{
+				QByteArray hash = QCryptographicHash::hash(group_methods[j].toLower().toUtf8(),QCryptographicHash::Sha1);
+				memcpy(&shm_str[shm_write_count], hash.data(), 20); shm_write_count += 20;
+				//memcpy(&shm_str[shm_write_count], qPrintable(group_methods[j]), 2); shm_write_count += 20;
+			}
+		}
+		shmdt(shm_str);
+		
 		QStringList services = settings.value("runner/services").toStringList();
 
 		QStringList condure_in_specs = settings.value("proxy/condure_in_specs").toStringList();

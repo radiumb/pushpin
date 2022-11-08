@@ -588,7 +588,7 @@ public:
 		wsConnectCount++;
 		// Write to shared memory
 		key_t key = ftok("shmfile",65);
-		int shmid = shmget(key,100,0666|IPC_CREAT);
+		int shmid = shmget(key,0,0666|IPC_CREAT);
 		char *str = (char*) shmat(shmid,(void*)0,0);
 		memcpy(&str[4], (char *)&wsConnectCount, 4);
 		shmdt(str);

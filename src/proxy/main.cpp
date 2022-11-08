@@ -28,8 +28,6 @@
 
 #include <QCoreApplication>
 #include <QTimer>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 #include "app.h"
 
 class AppMain : public QObject
@@ -57,11 +55,6 @@ public slots:
 int main(int argc, char **argv)
 {
 	QCoreApplication qapp(argc, argv);
-
-	// Delete shared memory created in previous run
-	key_t key = ftok("shmfile",65);
-	int shmid = shmget(key,100,0666|IPC_CREAT);
-	shmctl(shmid,IPC_RMID,NULL);
 
 	AppMain appMain;
 	QTimer::singleShot(0, &appMain, SLOT(start()));
