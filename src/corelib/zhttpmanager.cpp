@@ -74,6 +74,24 @@ static long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, ws
 static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
 
+// cache variables
+struct CacheItem {
+	int id;
+	char hashVal[20];
+	ZhttpResponsePacket priorPacket;
+	QByteArray priorAddress;
+	bool priorExistFlag;
+	ZhttpResponsePacket responsePacket;
+	QByteArray instanceAddress;
+	time_t createdSeconds;
+	bool cachedFlag;
+};
+
+QList<CacheItem> gCacheList;
+static ZhttpResponsePacket gBackupPacket;
+static QByteArray gBackupInstanceAddress;
+static QString gBackupSubscription;
+
 class ZhttpManager::Private : public QObject
 {
 	Q_OBJECT
@@ -413,6 +431,12 @@ public:
 		assert(server_out_sock);
 		const char *logprefix = logPrefixForType(type);
 
+		QVariant vpacket = packet.toVariant();
+		QByteArray buf = instanceAddress + " T" + TnetString::fromVariant(vpacket);
+
+		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s server: OUT %s", logprefix, instanceAddress.data());
+
 		// Count (ws messages sent)
 		if (type == 2 && packet.type == 0 && packet.credits == -1)
 		{
@@ -423,14 +447,60 @@ public:
 			char *str = (char*) shmat(shmid,(void*)0,0);
 			memcpy(&str[8], (char *)&wsMessageSentCount, 4);
 			shmdt(str);
+
+			// Cache the repsonse packet
+			// parse.
+			QVariantHash hdata = vpacket.toHash();
+			// parse body as JSON string
+			QJsonParseError error;
+			QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
+			if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
+				goto RESPONSE_WRITE;
+
+			QVariantMap jsonData = jsonDoc.object().toVariantMap();
+			// id
+			if(!jsonData.contains("id") || jsonData["id"].type() != QVariant::LongLong)
+			{
+				// get subscription for backup
+				if(jsonData.contains("params") && jsonData["params"].type() == QVariant::Map)
+				{
+					QVariantMap jsonBackupData = jsonData["params"].toMap();
+					if(jsonBackupData.contains("subscription") && jsonBackupData["subscription"].type() == QVariant::String)
+					{
+						// Backup
+						gBackupSubscription = jsonBackupData["subscription"].toString();
+						gBackupPacket = packet;
+						gBackupInstanceAddress = instanceAddress;
+					}
+				}
+				goto RESPONSE_WRITE;
+			}
+			int jId = jsonData["id"].toInt();
+			int cacheListCount = gCacheList.count();
+			for (int i = 0; i < cacheListCount; i++)
+			{
+				if ((gCacheList[i].id == jId) && (gCacheList[i].cachedFlag == false))
+				{
+					// check whether the prior packet is valid or not
+					if(jsonData.contains("result") && jsonData["result"].type() == QVariant::String)
+					{
+						QString jResult = jsonData["result"].toString();
+						if (jResult == gBackupSubscription)
+						{
+							gCacheList[i].priorPacket = gBackupPacket;
+							gCacheList[i].priorAddress = gBackupInstanceAddress;
+							gCacheList[i].priorExistFlag = true;
+						}
+					}
+
+					gCacheList[i].responsePacket = packet;
+					gCacheList[i].instanceAddress = instanceAddress;
+					gCacheList[i].cachedFlag = true;
+					break;
+				}
+			}
 		}
-
-		QVariant vpacket = packet.toVariant();
-		QByteArray buf = instanceAddress + " T" + TnetString::fromVariant(vpacket);
-
-		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s server: OUT %s", logprefix, instanceAddress.data());
-
+RESPONSE_WRITE:
 		server_out_sock->write(QList<QByteArray>() << buf);
 	}
 
@@ -796,176 +866,256 @@ public slots:
 			{
 				if (p.type == 0)
 				{
-					char methodStr[256];
 					// parse JSON-RPC 
 					{
 						// convert to string
 						QVariantHash hdata = data.toHash();
-						const char *str = qPrintable(hdata.value("body").toString());
-						int strLen = strlen(str);
-						char *strBuf = (char *)malloc(strLen+1);
-						memcpy(strBuf, str, strLen);
-						strBuf[strLen] = '\0';
-						log_debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx %s", strBuf);
-						// remove space
-						int count = 0;
-						for (int i = 0; strBuf[i]; i++)
-						{
-							if (strBuf[i] != ' ')
-								strBuf[count++] = strBuf[i];
+						// parse body as JSON string
+						QJsonParseError error;
+						QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
+						if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
+							goto SOCK_HANDLE;
+
+						QVariantMap jsonData = jsonDoc.object().toVariantMap();
+						if(!jsonData.contains("method") || jsonData["method"].type() != QVariant::String)
+							goto SOCK_HANDLE;
+
+						QString jMethod = jsonData["method"].toString();
+						char methodStr[256];
+						strncpy(methodStr, qPrintable(jMethod.toLower()), jMethod.length()>255?255:jMethod.length());
+
+						if (!memcmp(methodStr, "author_", 7)) {
+							wsRpcAuthorCount++;
+							if (!memcmp(&methodStr[7], "submitandwatchextrinsic", 23)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "babe_", 5)) {
+							wsRpcBabeCount++;
+							if (!memcmp(&methodStr[5], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "beefy_", 6)) {
+							wsRpcBeefyCount++;
+							if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "chain_", 6)) {
+							wsRpcChainCount++;
+							if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "childstate_", 11)) {
+							wsRpcChildStateCount++;
+							if (!memcmp(&methodStr[11], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "contracts_", 10)) {
+							wsRpcContractsCount++;
+							if (!memcmp(&methodStr[10], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "dev_", 4)) {
+							wsRpcDevCount++;
+							if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "engine_", 7)) {
+							wsRpcEngineCount++;
+							if (!memcmp(&methodStr[7], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "eth_", 4)) {
+							wsRpcEthCount++;
+							if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "net_", 4)) {
+							wsRpcNetCount++;
+							if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "web3_", 5)) {
+							wsRpcWeb3Count++;
+							if (!memcmp(&methodStr[5], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "grandpa_", 8)) {
+							wsRpcGrandpaCount++;
+							if (!memcmp(&methodStr[8], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "mmr_", 4)) {
+							wsRpcMmrCount++;
+							if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "offchain_", 9)) {
+							wsRpcOffchainCount++;
+							if (!memcmp(&methodStr[9], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "payment_", 8)) {
+							wsRpcPaymentCount++;
+							if (!memcmp(&methodStr[8], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "rpc_", 4)) {
+							wsRpcRpcCount++;
+							if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "state_", 6)) {
+							wsRpcStateCount++;
+							if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "sync_state_", 11)) {
+							wsRpcSyncstateCount++;
+							if (!memcmp(&methodStr[11], "subscribe", 9)) wsRpcSubscribeCount++;
+						} else if (!memcmp(methodStr, "system_", 7)) {
+							wsRpcSystemCount++;
+							if (!memcmp(&methodStr[7], "subscribe", 9)) wsRpcSubscribeCount++;
 						}
-						strBuf[count] = '\0';
-						char *tokenStr, *methodBuf;
-						tokenStr = strstr (strBuf, "\"method\":\"");
-						if (tokenStr != NULL)
+
+						// read shared memory
+						// Count WS request
+						wsRequestCount++;
+						// Write to shared memory
+						key_t shm_key = ftok("shmfile",65);
+						int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+						char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+						memcpy(&shm_str[0], (char *)&wsRequestCount, 4);
+						memcpy(&shm_str[20], (char *)&wsRpcAuthorCount, 4);
+						memcpy(&shm_str[24], (char *)&wsRpcBabeCount, 4);
+						memcpy(&shm_str[28], (char *)&wsRpcBeefyCount, 4);
+						memcpy(&shm_str[32], (char *)&wsRpcChainCount, 4);
+						memcpy(&shm_str[36], (char *)&wsRpcChildStateCount, 4);
+						memcpy(&shm_str[40], (char *)&wsRpcContractsCount, 4);
+						memcpy(&shm_str[44], (char *)&wsRpcDevCount, 4);
+						memcpy(&shm_str[48], (char *)&wsRpcEngineCount, 4);
+						memcpy(&shm_str[52], (char *)&wsRpcEthCount, 4);
+						memcpy(&shm_str[56], (char *)&wsRpcNetCount, 4);
+						memcpy(&shm_str[60], (char *)&wsRpcWeb3Count, 4);
+						memcpy(&shm_str[64], (char *)&wsRpcGrandpaCount, 4);
+						memcpy(&shm_str[68], (char *)&wsRpcMmrCount, 4);
+						memcpy(&shm_str[72], (char *)&wsRpcOffchainCount, 4);
+						memcpy(&shm_str[76], (char *)&wsRpcPaymentCount, 4);
+						memcpy(&shm_str[80], (char *)&wsRpcRpcCount, 4);
+						memcpy(&shm_str[84], (char *)&wsRpcStateCount, 4);
+						memcpy(&shm_str[88], (char *)&wsRpcSyncstateCount, 4);
+						memcpy(&shm_str[92], (char *)&wsRpcSystemCount, 4);
+						memcpy(&shm_str[96], (char *)&wsRpcSubscribeCount, 4);
+
+						// Group
+						int shm_read_count = 100;
+						long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						long groupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						QString methodName = QString(methodStr);
+						QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
+
+						char methodNameHash[20];
+						memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
+						
+						int gCnt = (int)groupCount;
+						for (int i = 0; i < gCnt; i++)
 						{
-							methodBuf = tokenStr+10;
-							count = 0;
-							while (methodBuf[count] != '\0')
+							long methodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+							int mCnt = (int)methodCount;
+							char groupName[256];
+							memcpy(groupName, &shm_str[shm_read_count], 256); shm_read_count += 256;	
+							long eventCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+							int shm_write_point = shm_read_count - 4;								
+							for (int j = 0; j < mCnt; j++)
 							{
-								if (methodBuf[count] == '\"')
+								char groupMethodNameHash[20];
+								memcpy(groupMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;	
+								if (!memcmp(groupMethodNameHash, methodNameHash, 20))
 								{
-									methodBuf[count] = '\0';
+									eventCount++;
+									memcpy(&shm_str[shm_write_point], (char *)&eventCount, 4);
+									shm_read_count += 20*(mCnt-j-1);
 									break;
 								}
-								else
-								{
-									methodBuf[count] = tolower(methodBuf[count]);
-								}
-								count++;
 							}
-							log_debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx %s", methodBuf);
-							
-							strncpy(methodStr, methodBuf, count > 256 ? 256 : count);
-							methodStr[count] = 0;
-
-							if (!memcmp(methodStr, "author_", 7)) {
-								wsRpcAuthorCount++;
-								if (!memcmp(&methodStr[7], "submitandwatchextrinsic", 23)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "babe_", 5)) {
-								wsRpcBabeCount++;
-								if (!memcmp(&methodStr[5], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "beefy_", 6)) {
-								wsRpcBeefyCount++;
-								if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "chain_", 6)) {
-								wsRpcChainCount++;
-								if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "childstate_", 11)) {
-								wsRpcChildStateCount++;
-								if (!memcmp(&methodStr[11], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "contracts_", 10)) {
-								wsRpcContractsCount++;
-								if (!memcmp(&methodStr[10], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "dev_", 4)) {
-								wsRpcDevCount++;
-								if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "engine_", 7)) {
-								wsRpcEngineCount++;
-								if (!memcmp(&methodStr[7], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "eth_", 4)) {
-								wsRpcEthCount++;
-								if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "net_", 4)) {
-								wsRpcNetCount++;
-								if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "web3_", 5)) {
-								wsRpcWeb3Count++;
-								if (!memcmp(&methodStr[5], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "grandpa_", 8)) {
-								wsRpcGrandpaCount++;
-								if (!memcmp(&methodStr[8], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "mmr_", 4)) {
-								wsRpcMmrCount++;
-								if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "offchain_", 9)) {
-								wsRpcOffchainCount++;
-								if (!memcmp(&methodStr[9], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "payment_", 8)) {
-								wsRpcPaymentCount++;
-								if (!memcmp(&methodStr[8], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "rpc_", 4)) {
-								wsRpcRpcCount++;
-								if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "state_", 6)) {
-								wsRpcStateCount++;
-								if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "sync_state_", 11)) {
-								wsRpcSyncstateCount++;
-								if (!memcmp(&methodStr[11], "subscribe", 9)) wsRpcSubscribeCount++;
-							} else if (!memcmp(methodStr, "system_", 7)) {
-								wsRpcSystemCount++;
-								if (!memcmp(&methodStr[7], "subscribe", 9)) wsRpcSubscribeCount++;
-							}
-
-							// read shared memory
-							// Count WS request
-							wsRequestCount++;
-							// Write to shared memory
-							key_t shm_key = ftok("shmfile",65);
-							int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-							char *shm_str = (char*) shmat(shm_id,(void*)0,0);
-							memcpy(&shm_str[0], (char *)&wsRequestCount, 4);
-							memcpy(&shm_str[20], (char *)&wsRpcAuthorCount, 4);
-							memcpy(&shm_str[24], (char *)&wsRpcBabeCount, 4);
-							memcpy(&shm_str[28], (char *)&wsRpcBeefyCount, 4);
-							memcpy(&shm_str[32], (char *)&wsRpcChainCount, 4);
-							memcpy(&shm_str[36], (char *)&wsRpcChildStateCount, 4);
-							memcpy(&shm_str[40], (char *)&wsRpcContractsCount, 4);
-							memcpy(&shm_str[44], (char *)&wsRpcDevCount, 4);
-							memcpy(&shm_str[48], (char *)&wsRpcEngineCount, 4);
-							memcpy(&shm_str[52], (char *)&wsRpcEthCount, 4);
-							memcpy(&shm_str[56], (char *)&wsRpcNetCount, 4);
-							memcpy(&shm_str[60], (char *)&wsRpcWeb3Count, 4);
-							memcpy(&shm_str[64], (char *)&wsRpcGrandpaCount, 4);
-							memcpy(&shm_str[68], (char *)&wsRpcMmrCount, 4);
-							memcpy(&shm_str[72], (char *)&wsRpcOffchainCount, 4);
-							memcpy(&shm_str[76], (char *)&wsRpcPaymentCount, 4);
-							memcpy(&shm_str[80], (char *)&wsRpcRpcCount, 4);
-							memcpy(&shm_str[84], (char *)&wsRpcStateCount, 4);
-							memcpy(&shm_str[88], (char *)&wsRpcSyncstateCount, 4);
-							memcpy(&shm_str[92], (char *)&wsRpcSystemCount, 4);
-							memcpy(&shm_str[96], (char *)&wsRpcSubscribeCount, 4);
-
-							// Group
-							int shm_read_count = 100;
-							long groupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-							QString methodName = QString(methodStr);
-							QByteArray hash = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
-							
-							int gCnt = (int)groupCount;
-							for (int i = 0; i < gCnt; i++)
+								
+						}
+						
+						// Cache
+						if(!jsonData.contains("id") || jsonData["id"].type() != QVariant::LongLong)
+							goto SOCK_HANDLE;
+						int jId = jsonData["id"].toInt();
+						QString jParams(methodStr);
+						if (jsonData.contains("params"))
+						{
+							if (jsonData["params"].type() == QVariant::List)
 							{
-								long methodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-								int mCnt = (int)methodCount;
-								char groupName[256];
-								memcpy(groupName, &shm_str[shm_read_count], 256); shm_read_count += 256;	
-								long eventCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-
-								int shm_write_point = shm_read_count - 4;								
-								for (int j = 0; j < mCnt; j++)
+								for (QVariant m : jsonData["params"].toList())
 								{
-									char methodNameHash[20];
-									memcpy(methodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;	
-									if (!memcmp(methodNameHash, hash.data(), 20))
+									if (m.type() == QVariant::String)
 									{
-										eventCount++;
-										memcpy(&shm_str[shm_write_point], (char *)&eventCount, 4);
-										log_debug("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz %d", shm_write_point);
-										shm_read_count += 20*(mCnt-j-1);
-										break;
+										jParams += m.toString();
+									}
+									else if (m.type() == QVariant::List)
+									{
+										for (QVariant n : m.toList())
+										{
+											if (n.type() == QVariant::String)
+												jParams += n.toString();
+										}
 									}
 								}
-									
 							}
-							shmdt(shm_str);
-
+							else if (jsonData["params"].type() == QVariant::String)
+							{
+								jParams += jsonData["params"].toString();
+							}
+							
 						}
+						
+						QByteArray paramsHashByteArray = QCryptographicHash::hash(jParams.toUtf8(),QCryptographicHash::Sha1);
+						char paramsHash[20];
+						memcpy(paramsHash, paramsHashByteArray.data(), 20);
+						
+						// read shm file 
+						shm_read_count = 100 + groupByteCount;
+						int cacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
-						free(strBuf);
+						// delete old cache items
+						int cacheListCount;
+						time_t currSeconds = time(NULL);
+DELETE_OLD_CACHE_ITEMS:
+						cacheListCount = gCacheList.count();
+						for (int i = 0; i < cacheListCount; i++)
+						{
+							int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
+							if (diff > cacheTimeoutSeconds)
+							{
+								gCacheList.removeAt(i);
+								goto DELETE_OLD_CACHE_ITEMS;
+							}
+						}
+						
+						cacheListCount = gCacheList.count();
+
+						for (int i = 0; i < cacheMethodCount; i++)
+						{
+							char cacheMethodNameHash[20];
+							memcpy(cacheMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
+
+							if (!memcmp(cacheMethodNameHash, methodNameHash, 20))
+							{
+								for (int j = 0; j < cacheListCount; j++)
+								{
+									if (!memcmp(gCacheList[j].hashVal, paramsHash, 20))
+									{
+										if (gCacheList[j].cachedFlag == true)
+										{
+											ZhttpResponsePacket packet = gCacheList[j].responsePacket;
+											QByteArray instanceAddress = gCacheList[j].instanceAddress;
+
+											if (gCacheList[j].priorExistFlag == true)
+											{
+												gBackupPacket.ids[0].id = id.id;
+												gBackupPacket.ids[0].seq = -1;
+												write(SessionType::WebSocketSession, gBackupPacket, gBackupInstanceAddress);
+											}
+											
+
+											packet.ids[0].id = id.id;
+											packet.ids[0].seq = -1;
+											write(SessionType::WebSocketSession, packet, instanceAddress);
+											p.type = ZhttpRequestPacket::KeepAlive;
+										}
+										goto SOCK_HANDLE;
+									}
+								}
+
+								// create new cache item
+								struct CacheItem cacheItem;
+								cacheItem.id = jId;
+								cacheItem.cachedFlag = false;
+								cacheItem.priorExistFlag = false;
+								cacheItem.createdSeconds = time(NULL);
+								memcpy(cacheItem.hashVal, paramsHash, 20);
+								gCacheList.append(cacheItem);
+
+								break;
+							}
+							
+						}
+						shmdt(shm_str);
 					}
 				}
-				
+SOCK_HANDLE:				
 				sock->handle(id.id, id.seq, p);
 				if(!self)
 					return;

@@ -261,6 +261,7 @@ public:
 
 		// Parse websocket count group
 		//////////////////////////////////////////////////////////////
+		// group byte count (4byte)
 		// group count (4byte)
 		// group1 method count (4byte), group1 name (256byte), group1 count value while running (4byte)
 		// group2
@@ -271,23 +272,39 @@ public:
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 		shmctl(shm_id,IPC_RMID,NULL);
 
+		// Calculate the total shared memory byte count
+		int total_shm_byte_count = 100; // for others = 100
+
+		// Group
 		QStringList ws_groups = settings.value("websocket/ws_count_groups").toStringList();
-		int total_byte_count = 4;
+		int group_byte_count = 4; // for group byte count
+		group_byte_count += 4; // for group count
 		long group_count = ws_groups.count();
 		for (int i = 0; i < group_count; i++)
 		{
 			QStringList group_methods = settings.value("websocket/" + ws_groups[i]).toStringList();
-			total_byte_count += 264;
-			total_byte_count += group_methods.count() * 20;
+			group_byte_count += 264;
+			group_byte_count += group_methods.count() * 20;
 		}
-		// add 100 for others
-		total_byte_count += 100;
+		
+		total_shm_byte_count += group_byte_count;
+
+		// Cache
+		int cache_byte_count = 4; // for cache byte count
+		cache_byte_count += 4; // for cache timeout value
+		cache_byte_count += 4; // for cache method count
+		QStringList ws_chche_methods = settings.value("websocket/ws_cache_methods").toStringList();
+		long cache_method_count = ws_chche_methods.count();
+		cache_byte_count += cache_method_count*20; // for cache methods
+		
+		total_shm_byte_count += cache_byte_count;
 
 		// Write to shared memory
 		int shm_write_count = 100;
 		shm_key = ftok("shmfile",65);
-		shm_id = shmget(shm_key,total_byte_count,0666|IPC_CREAT);
+		shm_id = shmget(shm_key,total_shm_byte_count,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+		memcpy(&shm_str[shm_write_count], (char *)&group_byte_count, 4); shm_write_count += 4;
 		memcpy(&shm_str[shm_write_count], (char *)&group_count, 4); shm_write_count += 4;
 		for (int i = 0; i < group_count; i++)
 		{
@@ -315,6 +332,25 @@ public:
 				memcpy(&shm_str[shm_write_count], hash.data(), 20); shm_write_count += 20;
 				//memcpy(&shm_str[shm_write_count], qPrintable(group_methods[j]), 2); shm_write_count += 20;
 			}
+		}
+		// Parse websocket cache config
+		//////////////////////////////////////////////////////////////
+		// cache byte count (4byte)
+		// cache timeout seconds (4byte)
+		// cache method count (4byte)
+		// cache method1 hash (20byte)
+		// cache method2 hash (20byte)
+		// ...
+		memcpy(&shm_str[shm_write_count], (char *)&cache_byte_count, 4); shm_write_count += 4;
+
+		long ws_chche_timeout_seconds = (long)settings.value("websocket/ws_cache_timeout_seconds").toInt();
+		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_timeout_seconds, 4); shm_write_count += 4;
+		
+		memcpy(&shm_str[shm_write_count], (char *)&cache_method_count, 4); shm_write_count += 4;
+		for (int i = 0; i < cache_method_count; i++)
+		{
+			QByteArray hash = QCryptographicHash::hash(ws_chche_methods[i].toLower().toUtf8(),QCryptographicHash::Sha1);
+			memcpy(&shm_str[shm_write_count], hash.data(), 20); shm_write_count += 20;
 		}
 		shmdt(shm_str);
 		
