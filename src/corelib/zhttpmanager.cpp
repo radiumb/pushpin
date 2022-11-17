@@ -31,6 +31,9 @@
 #include <assert.h>
 #include <QCoreApplication>
 #include <QCommandLineParser>
+#include <QSet>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QFile>
 #include <QFileInfo>
 #include <QStringList>
