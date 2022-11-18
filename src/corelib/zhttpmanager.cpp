@@ -462,7 +462,7 @@ public:
 
 			QVariantMap jsonData = jsonDoc.object().toVariantMap();
 			// id
-			if(!jsonData.contains("id") || jsonData["id"].type() != QVariant::LongLong)
+			if(!jsonData.contains("id"))// || jsonData["id"].type() != QVariant::LongLong)
 			{
 				// get subscription for backup
 				if(jsonData.contains("params") && jsonData["params"].type() == QVariant::Map)
@@ -499,7 +499,7 @@ public:
 					gCacheList[i].responsePacket = packet;
 					gCacheList[i].instanceAddress = instanceAddress;
 					gCacheList[i].cachedFlag = true;
-					log_debug("Added Cache content for method id %d", jId);
+					log_debug("[CACHE] Added Cache content for method id %d", jId);
 					break;
 				}
 			}
@@ -1012,7 +1012,7 @@ public slots:
 						}
 						
 						// Cache
-						if(!jsonData.contains("id") || jsonData["id"].type() != QVariant::LongLong)
+						if(!jsonData.contains("id"))// || jsonData["id"].type() != QVariant::LongLong)
 							goto SOCK_HANDLE;
 						int jId = jsonData["id"].toInt();
 						QString jParams(methodStr);
@@ -1098,7 +1098,7 @@ DELETE_OLD_CACHE_ITEMS:
 											packet.ids[0].seq = -1;
 											write(SessionType::WebSocketSession, packet, instanceAddress);
 											p.type = ZhttpRequestPacket::KeepAlive;
-											log_debug("Replied with Cache content for method %s", methodStr);
+											log_debug("[CACHE] Replied with Cache content for method \"%s\"", methodStr);
 										}
 										goto SOCK_HANDLE;
 									}
@@ -1112,7 +1112,7 @@ DELETE_OLD_CACHE_ITEMS:
 								cacheItem.createdSeconds = time(NULL);
 								memcpy(cacheItem.hashVal, paramsHash, 20);
 								gCacheList.append(cacheItem);
-								log_debug("Registered Cache for method %s", methodStr);
+								log_debug("[CACHE] Registered Cache for method \"%s\"", methodStr);
 
 								break;
 							}
