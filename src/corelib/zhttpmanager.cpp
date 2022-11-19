@@ -1092,8 +1092,12 @@ DELETE_OLD_CACHE_ITEMS:
 												gBackupPacket.ids[0].seq = -1;
 												write(SessionType::WebSocketSession, gBackupPacket, gBackupInstanceAddress);
 											}
-											
 
+											// replace id str
+											char oldIdStr[64], newIdStr[64];
+											qsnprintf(oldIdStr, 64, "\"id\":%d", gCacheList[j].id);
+											qsnprintf(newIdStr, 64, "\"id\":%d", jId);
+											packet.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 											packet.ids[0].id = id.id;
 											packet.ids[0].seq = -1;
 											write(SessionType::WebSocketSession, packet, instanceAddress);
