@@ -1093,6 +1093,7 @@ DELETE_OLD_CACHE_ITEMS:
 											creditPacket.credits = hdata.value("body").toByteArray().size();
 											creditPacket.type = ZhttpResponsePacket::Type::Credit;
 											creditPacket.body.clear();
+											creditPacket.contentType.clear();
 											creditPacket.from = packet.from;
 											QByteArray creditAddress = gCacheList[j].instanceAddress;
 											write(SessionType::WebSocketSession, creditPacket, creditAddress);
