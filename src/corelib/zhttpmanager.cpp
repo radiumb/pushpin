@@ -1086,6 +1086,18 @@ DELETE_OLD_CACHE_ITEMS:
 											ZhttpResponsePacket packet = gCacheList[j].responsePacket;
 											QByteArray instanceAddress = gCacheList[j].instanceAddress;
 
+											// first, send credit packet
+											ZhttpResponsePacket creditPacket = packet;
+											creditPacket.ids[0].id = id.id;
+											creditPacket.ids[0].seq = -1;
+											creditPacket.credits = hdata.value("body").toByteArray().size();
+											creditPacket.contentType = "credit";
+											creditPacket.body.clear();
+											creditPacket.from = packet.from;
+											QByteArray creditAddress = gCacheList[j].instanceAddress;
+											write(SessionType::WebSocketSession, creditPacket, creditAddress);
+
+											// send prior packet
 											if (gCacheList[j].priorExistFlag == true)
 											{
 												gBackupPacket.ids[0].id = id.id;
