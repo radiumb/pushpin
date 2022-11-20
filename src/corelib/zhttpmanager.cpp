@@ -1091,7 +1091,7 @@ DELETE_OLD_CACHE_ITEMS:
 											creditPacket.ids[0].id = id.id;
 											creditPacket.ids[0].seq = -1;
 											creditPacket.credits = hdata.value("body").toByteArray().size();
-											creditPacket.contentType = "credit";
+											creditPacket.type = ZhttpResponsePacket::Type::Credit;
 											creditPacket.body.clear();
 											creditPacket.from = packet.from;
 											QByteArray creditAddress = gCacheList[j].instanceAddress;
