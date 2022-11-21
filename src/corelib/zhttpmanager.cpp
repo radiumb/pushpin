@@ -43,6 +43,7 @@
 #include <QCryptographicHash>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <unistd.h>
 #include "qzmqsocket.h"
 #include "qzmqvalve.h"
 #include "tnetstring.h"
@@ -146,6 +147,7 @@ public:
 	QHash<void*, KeepAliveRegistration*> keepAliveRegistrations;
 	QSet<KeepAliveRegistration*> sessionRefreshBuckets[ZHTTP_REFRESH_BUCKETS];
 	int currentSessionRefreshBucket;
+	int write_sync_flag;
 
 	Private(ZhttpManager *_q) :
 		QObject(_q),
@@ -162,7 +164,8 @@ public:
 		server_in_stream_valve(0),
 		ipcFileMode(-1),
 		doBind(false),
-		currentSessionRefreshBucket(0)
+		currentSessionRefreshBucket(0),
+		write_sync_flag(0)
 	{
 		refreshTimer = new QTimer(this);
 		connect(refreshTimer, &QTimer::timeout, this, &Private::refresh_timeout);
@@ -505,7 +508,48 @@ public:
 			}
 		}
 RESPONSE_WRITE:
+
+		while (write_sync_flag == 1)
+		{
+			usleep(1000);
+		}
+
+		write_sync_flag = 1;
 		server_out_sock->write(QList<QByteArray>() << buf);
+		write_sync_flag = 0;
+	}
+
+	void write_cache(SessionType type, const ZhttpResponsePacket &packet, const QByteArray &instanceAddress)
+	{
+		assert(server_out_sock);
+		const char *logprefix = logPrefixForType(type);
+
+		QVariant vpacket = packet.toVariant();
+		QByteArray buf = instanceAddress + " T" + TnetString::fromVariant(vpacket);
+
+		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s server: OUT %s", logprefix, instanceAddress.data());
+
+		// Count (ws messages sent)
+		if (type == 2 && packet.type == 0 && packet.credits == -1)
+		{
+			wsMessageSentCount++;
+			// Write to shared memory
+			key_t key = ftok("shmfile",65);
+			int shmid = shmget(key,0,0666|IPC_CREAT);
+			char *str = (char*) shmat(shmid,(void*)0,0);
+			memcpy(&str[8], (char *)&wsMessageSentCount, 4);
+			shmdt(str);
+		}
+
+		while (write_sync_flag == 1)
+		{
+			usleep(1000);
+		}
+
+		write_sync_flag = 1;
+		server_out_sock->write(QList<QByteArray>() << buf);
+		write_sync_flag = 0;
 	}
 
 	static const char *logPrefixForType(SessionType type)
@@ -1096,14 +1140,14 @@ DELETE_OLD_CACHE_ITEMS:
 											creditPacket.contentType.clear();
 											creditPacket.from = packet.from;
 											QByteArray creditAddress = gCacheList[j].instanceAddress;
-											write(SessionType::WebSocketSession, creditPacket, creditAddress);
+											write_cache(SessionType::WebSocketSession, creditPacket, creditAddress);
 
 											// send prior packet
 											if (gCacheList[j].priorExistFlag == true)
 											{
 												gBackupPacket.ids[0].id = id.id;
 												gBackupPacket.ids[0].seq = -1;
-												write(SessionType::WebSocketSession, gBackupPacket, gBackupInstanceAddress);
+												write_cache(SessionType::WebSocketSession, gBackupPacket, gBackupInstanceAddress);
 											}
 
 											// replace id str
@@ -1113,7 +1157,7 @@ DELETE_OLD_CACHE_ITEMS:
 											packet.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 											packet.ids[0].id = id.id;
 											packet.ids[0].seq = -1;
-											write(SessionType::WebSocketSession, packet, instanceAddress);
+											write_cache(SessionType::WebSocketSession, packet, instanceAddress);
 											p.type = ZhttpRequestPacket::KeepAlive;
 											log_debug("[CACHE] Replied with Cache content for method \"%s\"", methodStr);
 										}
