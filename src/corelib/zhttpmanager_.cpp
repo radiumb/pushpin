@@ -82,7 +82,11 @@ static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsR
 struct CacheItem {
 	int id;
 	char hashVal[20];
+	ZhttpResponsePacket priorPacket;
+	QByteArray priorAddress;
+	bool priorExistFlag;
 	ZhttpResponsePacket responsePacket;
+	QByteArray instanceAddress;
 	time_t createdSeconds;
 	bool cachedFlag;
 };
@@ -397,7 +401,7 @@ public:
 		if(client_out_sock)
 		{
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
+				LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 
 			client_out_sock->write(QList<QByteArray>() << buf);
 		}
@@ -421,200 +425,6 @@ public:
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data());
 
-		// Cache
-		{
-			// convert to string
-			QVariantHash hdata = vpacket.toHash();
-			// parse body as JSON string
-			QJsonParseError error;
-			//QString temp = hdata.value("body").toString().mid(9, 134);
-			//QJsonDocument jsonDoc = QJsonDocument::fromJson(temp.toUtf8(), &error);
-			QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
-			
-			if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
-			{
-				goto OUT_STREAM_SOCK_WRITE;
-			}
-					
-			QVariantMap jsonData = jsonDoc.object().toVariantMap();
-			if(!jsonData.contains("method") || jsonData["method"].type() != QVariant::String)
-			{
-				goto OUT_STREAM_SOCK_WRITE;
-			}
-			
-			QString jMethod = jsonData["method"].toString();
-			char methodStr[256];
-			strncpy(methodStr, qPrintable(jMethod.toLower()), jMethod.length()>255?255:jMethod.length());
-			
-			// read shared memory
-			key_t shm_key = ftok("shmfile",65);
-			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
-			int shm_read_count = 100;
-			long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			QString methodName = QString(methodStr);
-			QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
-			char methodNameHash[20];
-			memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
-
-			// Cache
-			if(!jsonData.contains("id"))// || jsonData["id"].type() != QVariant::LongLong)
-			{
-				goto OUT_STREAM_SOCK_WRITE;
-			}
-
-			int jId = jsonData["id"].toInt();
-			QString jParams(methodStr);
-			if (jsonData.contains("params"))
-			{
-				if (jsonData["params"].type() == QVariant::List)
-				{
-					for (QVariant m : jsonData["params"].toList())
-					{
-						if (m.type() == QVariant::String)
-						{
-							jParams += m.toString();
-						}
-						else if (m.type() == QVariant::List)
-						{
-							for (QVariant n : m.toList())
-							{
-								if (n.type() == QVariant::String)
-									jParams += n.toString();
-							}
-						}
-					}
-				}
-				else if (jsonData["params"].type() == QVariant::String)
-				{
-					jParams += jsonData["params"].toString();
-				}
-			}
-			
-			QByteArray paramsHashByteArray = QCryptographicHash::hash(jParams.toUtf8(),QCryptographicHash::Sha1);
-			char paramsHash[20];
-			memcpy(paramsHash, paramsHashByteArray.data(), 20);
-			
-			// read shm file 
-			shm_read_count = 100 + groupByteCount;
-			int cacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			
-			// delete old cache items
-			int cacheListCount;
-			time_t currSeconds = time(NULL);
-DELETE_OLD_CACHE_ITEMS:
-			cacheListCount = gCacheList.count();
-			for (int i = 0; i < cacheListCount; i++)
-			{
-				int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
-				if (diff > cacheTimeoutSeconds)
-				{
-					gCacheList.removeAt(i);
-					goto DELETE_OLD_CACHE_ITEMS;
-				}
-			}
-			cacheListCount = gCacheList.count();
-			for (int i = 0; i < cacheMethodCount; i++)
-			{
-				char cacheMethodNameHash[20];
-				memcpy(cacheMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
-				
-				if (!memcmp(cacheMethodNameHash, methodNameHash, 20))
-				{
-					for (int j = 0; j < cacheListCount; j++)
-					{
-						if (!memcmp(gCacheList[j].hashVal, paramsHash, 20))
-						{
-							if (gCacheList[j].cachedFlag == true)
-							{
-								ZhttpResponsePacket responsePacket = gCacheList[j].responsePacket;
-								
-								// first, send credit packet
-								ZhttpResponsePacket creditPacket = responsePacket;
-								creditPacket.ids[0].id = packet.ids[0].id;
-								creditPacket.ids[0].seq = -1;
-								creditPacket.from = instanceAddress.data();
-								creditPacket.credits = hdata.value("body").toByteArray().size();
-								creditPacket.type = ZhttpResponsePacket::Type::Credit;
-								creditPacket.body.clear();
-								creditPacket.contentType.clear();
-								if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-									LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, creditPacket.toVariant(), "body", "%s CACHE: IN  %s", logprefix, creditPacket.from.data());
-								foreach(const ZhttpResponsePacket::Id &id, creditPacket.ids)
-								{
-									// is this for a websocket?
-									ZWebSocket *sock = clientSocksByRid.value(ZWebSocket::Rid(instanceId, id.id));
-									if(sock)
-									{
-										sock->handle(id.id, id.seq, creditPacket);
-										continue;
-									}
-
-									// is this for an http request?
-									ZhttpRequest *req = clientReqsByRid.value(ZhttpRequest::Rid(instanceId, id.id));
-									if(req)
-									{
-										req->handle(id.id, id.seq, creditPacket);
-										continue;
-									}
-								}
-								
-								// replace id str
-								char oldIdStr[64], newIdStr[64];
-								qsnprintf(oldIdStr, 64, "\"id\":%d", gCacheList[j].id);
-								qsnprintf(newIdStr, 64, "\"id\":%d", jId);
-								responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-								responsePacket.ids[0].id = packet.ids[0].id;
-								responsePacket.ids[0].seq = -1;
-								responsePacket.from = instanceAddress.data();
-								if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-									LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, responsePacket.toVariant(), "body", "%s CACHE: IN %s", logprefix, responsePacket.from.data());
-								foreach(const ZhttpResponsePacket::Id &id, responsePacket.ids)
-								{
-									// is this for a websocket?
-									ZWebSocket *sock = clientSocksByRid.value(ZWebSocket::Rid(instanceId, id.id));
-									if(sock)
-									{
-										sock->handle(id.id, id.seq, responsePacket);
-										continue;
-									}
-
-									// is this for an http request?
-									ZhttpRequest *req = clientReqsByRid.value(ZhttpRequest::Rid(instanceId, id.id));
-									if(req)
-									{
-										req->handle(id.id, id.seq, responsePacket);
-										continue;
-									}
-								}
-								log_debug("[CACHE] Replied with Cache content for method \"%s\"", methodStr);
-
-								ZhttpRequestPacket tempPacket = packet;
-								tempPacket.type = ZhttpRequestPacket::KeepAlive;
-								buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
-							}
-							shmdt(shm_str);
-							goto OUT_STREAM_SOCK_WRITE;
-						}
-					}
-
-					// create new cache item
-					struct CacheItem cacheItem;
-					cacheItem.id = jId;
-					cacheItem.cachedFlag = false;
-					cacheItem.createdSeconds = time(NULL);
-					memcpy(cacheItem.hashVal, paramsHash, 20);
-					gCacheList.append(cacheItem);
-					log_debug("[CACHE] Registered Cache for method for id=%d method=\"%s\"", jId, methodStr);
-
-					break;
-				}
-			}
-			shmdt(shm_str);
-		}
-OUT_STREAM_SOCK_WRITE:
 		QList<QByteArray> msg;
 		msg += instanceAddress;
 		msg += QByteArray();
@@ -643,9 +453,70 @@ OUT_STREAM_SOCK_WRITE:
 			char *str = (char*) shmat(shmid,(void*)0,0);
 			memcpy(&str[8], (char *)&wsMessageSentCount, 4);
 			shmdt(str);
+
+			// Cache the repsonse packet
+			// parse.
+			QVariantHash hdata = vpacket.toHash();
+			// parse body as JSON string
+			QJsonParseError error;
+			QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
+			if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
+				goto RESPONSE_WRITE;
+
+			QVariantMap jsonData = jsonDoc.object().toVariantMap();
+			// id
+			if(!jsonData.contains("id"))// || jsonData["id"].type() != QVariant::LongLong)
+			{
+				// get subscription for backup
+				if(jsonData.contains("params") && jsonData["params"].type() == QVariant::Map)
+				{
+					QVariantMap jsonBackupData = jsonData["params"].toMap();
+					if(jsonBackupData.contains("subscription") && jsonBackupData["subscription"].type() == QVariant::String)
+					{
+						// Backup
+						gBackupSubscription = jsonBackupData["subscription"].toString();
+						gBackupPacket = packet;
+						gBackupInstanceAddress = instanceAddress;
+					}
+				}
+				goto RESPONSE_WRITE;
+			}
+			int jId = jsonData["id"].toInt();
+			int cacheListCount = gCacheList.count();
+			for (int i = 0; i < cacheListCount; i++)
+			{
+				if ((gCacheList[i].id == jId) && (gCacheList[i].cachedFlag == false))
+				{
+					// check whether the prior packet is valid or not
+					if(jsonData.contains("result") && jsonData["result"].type() == QVariant::String)
+					{
+						QString jResult = jsonData["result"].toString();
+						if (jResult == gBackupSubscription)
+						{
+							gCacheList[i].priorPacket = gBackupPacket;
+							gCacheList[i].priorAddress = gBackupInstanceAddress;
+							gCacheList[i].priorExistFlag = true;
+						}
+					}
+
+					gCacheList[i].responsePacket = packet;
+					gCacheList[i].instanceAddress = instanceAddress;
+					gCacheList[i].cachedFlag = true;
+					log_debug("[CACHE] Added Cache content for method id %d", jId);
+					break;
+				}
+			}
+		}
+RESPONSE_WRITE:
+
+		while (write_sync_flag == 1)
+		{
+			usleep(1000);
 		}
 
+		write_sync_flag = 1;
 		server_out_sock->write(QList<QByteArray>() << buf);
+		write_sync_flag = 0;
 	}
 
 	void write_cache(SessionType type, const ZhttpResponsePacket &packet, const QByteArray &instanceAddress)
@@ -804,37 +675,6 @@ public slots:
 			return;
 		}
 
-		// Cache
-		{
-			// Cache the repsonse packet
-			// parse.
-			QVariantHash hdata = data.toHash();
-			QJsonParseError error;
-			//QString temp = hdata.value("body").toString().mid(11, 134);
-			//QJsonDocument jsonDoc = QJsonDocument::fromJson(temp.toUtf8(), &error);
-			//log_debug("%s", qPrintable(temp));
-			QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
-			// parse body as JSON string
-			if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
-				goto ZWS_CLIENT_IN_WRITE;
-
-			QVariantMap jsonData = jsonDoc.object().toVariantMap();
-			// id
-			int jId = jsonData["id"].toInt();
-			int cacheListCount = gCacheList.count();
-			for (int i = 0; i < cacheListCount; i++)
-			{
-				if ((gCacheList[i].id == jId) && (gCacheList[i].cachedFlag == false))
-				{
-					gCacheList[i].responsePacket = p;
-					//gCacheList[i].instanceAddress = instanceAddress;
-					gCacheList[i].cachedFlag = true;
-					log_debug("[CACHE] Added Cache content for method id %d", jId);
-					break;
-				}
-			}
-		}
-ZWS_CLIENT_IN_WRITE:
 		QPointer<QObject> self = this;
 
 		foreach(const ZhttpResponsePacket::Id &id, p.ids)
@@ -1214,10 +1054,135 @@ ZWS_CLIENT_IN_WRITE:
 							}
 								
 						}
+						
+						// Cache
+						if(!jsonData.contains("id"))// || jsonData["id"].type() != QVariant::LongLong)
+							goto SOCK_HANDLE;
+						int jId = jsonData["id"].toInt();
+						QString jParams(methodStr);
+						if (jsonData.contains("params"))
+						{
+							if (jsonData["params"].type() == QVariant::List)
+							{
+								for (QVariant m : jsonData["params"].toList())
+								{
+									if (m.type() == QVariant::String)
+									{
+										jParams += m.toString();
+									}
+									else if (m.type() == QVariant::List)
+									{
+										for (QVariant n : m.toList())
+										{
+											if (n.type() == QVariant::String)
+												jParams += n.toString();
+										}
+									}
+								}
+							}
+							else if (jsonData["params"].type() == QVariant::String)
+							{
+								jParams += jsonData["params"].toString();
+							}
+							
+						}
+						
+						QByteArray paramsHashByteArray = QCryptographicHash::hash(jParams.toUtf8(),QCryptographicHash::Sha1);
+						char paramsHash[20];
+						memcpy(paramsHash, paramsHashByteArray.data(), 20);
+						
+						// read shm file 
+						shm_read_count = 100 + groupByteCount;
+						int cacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+						// delete old cache items
+						int cacheListCount;
+						time_t currSeconds = time(NULL);
+DELETE_OLD_CACHE_ITEMS:
+						cacheListCount = gCacheList.count();
+						for (int i = 0; i < cacheListCount; i++)
+						{
+							int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
+							if (diff > cacheTimeoutSeconds)
+							{
+								gCacheList.removeAt(i);
+								goto DELETE_OLD_CACHE_ITEMS;
+							}
+						}
+						
+						cacheListCount = gCacheList.count();
+
+						for (int i = 0; i < cacheMethodCount; i++)
+						{
+							char cacheMethodNameHash[20];
+							memcpy(cacheMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
+
+							if (!memcmp(cacheMethodNameHash, methodNameHash, 20))
+							{
+								for (int j = 0; j < cacheListCount; j++)
+								{
+									if (!memcmp(gCacheList[j].hashVal, paramsHash, 20))
+									{
+										if (gCacheList[j].cachedFlag == true)
+										{
+											ZhttpResponsePacket packet = gCacheList[j].responsePacket;
+											QByteArray instanceAddress = gCacheList[j].instanceAddress;
+
+											// first, send credit packet
+											ZhttpResponsePacket creditPacket = packet;
+											creditPacket.ids[0].id = id.id;
+											creditPacket.ids[0].seq = -1;
+											creditPacket.credits = hdata.value("body").toByteArray().size();
+											creditPacket.type = ZhttpResponsePacket::Type::Credit;
+											creditPacket.body.clear();
+											creditPacket.contentType.clear();
+											creditPacket.from = packet.from;
+											QByteArray creditAddress = gCacheList[j].instanceAddress;
+											write_cache(SessionType::WebSocketSession, creditPacket, creditAddress);
+
+											// send prior packet
+											if (gCacheList[j].priorExistFlag == true)
+											{
+												gBackupPacket.ids[0].id = id.id;
+												gBackupPacket.ids[0].seq = -1;
+												write_cache(SessionType::WebSocketSession, gBackupPacket, gBackupInstanceAddress);
+											}
+
+											// replace id str
+											char oldIdStr[64], newIdStr[64];
+											qsnprintf(oldIdStr, 64, "\"id\":%d", gCacheList[j].id);
+											qsnprintf(newIdStr, 64, "\"id\":%d", jId);
+											packet.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+											packet.ids[0].id = id.id;
+											packet.ids[0].seq = -1;
+											write_cache(SessionType::WebSocketSession, packet, instanceAddress);
+											p.type = ZhttpRequestPacket::KeepAlive;
+											log_debug("[CACHE] Replied with Cache content for method \"%s\"", methodStr);
+										}
+										goto SOCK_HANDLE;
+									}
+								}
+
+								// create new cache item
+								struct CacheItem cacheItem;
+								cacheItem.id = jId;
+								cacheItem.cachedFlag = false;
+								cacheItem.priorExistFlag = false;
+								cacheItem.createdSeconds = time(NULL);
+								memcpy(cacheItem.hashVal, paramsHash, 20);
+								gCacheList.append(cacheItem);
+								log_debug("[CACHE] Registered Cache for method \"%s\"", methodStr);
+
+								break;
+							}
+							
+						}
 						shmdt(shm_str);
 					}
 				}
-SOCK_HANDLE:		
+SOCK_HANDLE:				
 				sock->handle(id.id, id.seq, p);
 				if(!self)
 					return;

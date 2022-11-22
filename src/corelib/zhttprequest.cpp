@@ -670,7 +670,7 @@ public:
 		}
 
 		// if non-req mode, check sequencing
-		if(!doReq && seq != inSeq)
+		if(!doReq && seq != inSeq && seq != -1)
 		{
 			log_warning("zhttp client: error id=%s received message out of sequence, canceling", id.data());
 
@@ -690,7 +690,10 @@ public:
 			return;
 		}
 
-		++inSeq;
+		if (seq != -1)
+		{
+			++inSeq;
+		}
 
 		if(!multi && packet.multi)
 		{
