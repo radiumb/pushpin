@@ -444,7 +444,9 @@ public:
 			
 			QString jMethod = jsonData["method"].toString();
 			char methodStr[256];
-			strncpy(methodStr, qPrintable(jMethod.toLower()), jMethod.length()>255?255:jMethod.length());
+			int methodLen = jMethod.length()>255?255:jMethod.length();
+			strncpy(methodStr, qPrintable(jMethod.toLower()), methodLen);
+			methodStr[methodLen] = 0;
 			
 			// read shared memory
 			key_t shm_key = ftok("shmfile",65);
@@ -1090,7 +1092,9 @@ ZWS_CLIENT_IN_WRITE:
 
 						QString jMethod = jsonData["method"].toString();
 						char methodStr[256];
-						strncpy(methodStr, qPrintable(jMethod.toLower()), jMethod.length()>255?255:jMethod.length());
+						int methodLen = jMethod.length()>255?255:jMethod.length();
+						strncpy(methodStr, qPrintable(jMethod.toLower()), methodLen);
+						methodStr[methodLen] = 0;
 
 						if (!memcmp(methodStr, "author_", 7)) {
 							wsRpcAuthorCount++;
