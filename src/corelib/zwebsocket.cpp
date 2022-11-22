@@ -603,23 +603,25 @@ public:
 		if(!packet.from.isEmpty())
 			toAddress = packet.from;
 
-		if(seq != inSeq)
+		if(seq != -1)
 		{
-			log_warning("zws client: error id=%s received message out of sequence, canceling", id.data());
+			if(seq != inSeq)
+			{
+				log_warning("zws client: error id=%s received message out of sequence, canceling", id.data());
 
-			tryRespondCancel(packet);
+				tryRespondCancel(packet);
 
-			state = Idle;
-			errorCondition = ErrorGeneric;
-			cleanup();
-			emit q->error();
-			return;
+				state = Idle;
+				errorCondition = ErrorGeneric;
+				cleanup();
+				emit q->error();
+				return;
+			}
+			++inSeq;
 		}
 
 		if(!toAddress.isEmpty())
 			startKeepAlive(); // only starts if wasn't started already
-
-		++inSeq;
 
 		if(!multi && packet.multi)
 		{
