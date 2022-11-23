@@ -77,6 +77,7 @@ static long wsRpcAuthorCount = 0, wsRpcBabeCount = 0, wsRpcBeefyCount = 0, wsRpc
 static long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
 static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
+static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0;
 
 // cache variables
 struct CacheItem {
@@ -429,43 +430,31 @@ public:
 			QJsonParseError error;
 			//QString temp = hdata.value("body").toString().mid(9, 134);
 			//QJsonDocument jsonDoc = QJsonDocument::fromJson(temp.toUtf8(), &error);
+			//log_debug("xxxxxxxxxx %s", qPrintable(temp));
 			QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
 			
 			if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
 			{
 				goto OUT_STREAM_SOCK_WRITE;
 			}
-					
+			
+			// Check id, method fields in JSON request
 			QVariantMap jsonData = jsonDoc.object().toVariantMap();
-			if(!jsonData.contains("method") || jsonData["method"].type() != QVariant::String)
+			if(!jsonData.contains("id") || !jsonData.contains("method") || jsonData["method"].type() != QVariant::String)
 			{
 				goto OUT_STREAM_SOCK_WRITE;
 			}
-			
+			// read id
+			int jId = jsonData["id"].toInt();
+
+			// read method
 			QString jMethod = jsonData["method"].toString();
 			char methodStr[256];
 			int methodLen = jMethod.length()>255?255:jMethod.length();
 			strncpy(methodStr, qPrintable(jMethod.toLower()), methodLen);
 			methodStr[methodLen] = 0;
-			
-			// read shared memory
-			key_t shm_key = ftok("shmfile",65);
-			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
-			int shm_read_count = 100;
-			long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			QString methodName = QString(methodStr);
-			QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
-			char methodNameHash[20];
-			memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
 
-			// Cache
-			if(!jsonData.contains("id"))// || jsonData["id"].type() != QVariant::LongLong)
-			{
-				goto OUT_STREAM_SOCK_WRITE;
-			}
-
-			int jId = jsonData["id"].toInt();
+			// read params
 			QString jParams(methodStr);
 			if (jsonData.contains("params"))
 			{
@@ -497,27 +486,31 @@ public:
 			char paramsHash[20];
 			memcpy(paramsHash, paramsHashByteArray.data(), 20);
 			
+			// open shared memory
+			key_t shm_key = ftok("shmfile",65);
+			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
+			// read share memory
+			int shm_read_count = 200;
+			long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			QString methodName = QString(methodStr);
+			QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
+			char methodNameHash[20];
+			memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
+
+			// add ws Cache lookup count
+			wsCacheLookup++;
+			memcpy(&shm_str[108], (char *)&wsCacheLookup, 4);
+			
 			// read shm file 
-			shm_read_count = 100 + groupByteCount;
-			int cacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			shm_read_count = 200 + groupByteCount;
+			shm_read_count += 4; // for cacheByteCount
+			shm_read_count += 4; // for cache time out seconds
 			int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 			
-			// delete old cache items
-			int cacheListCount;
-			time_t currSeconds = time(NULL);
-DELETE_OLD_CACHE_ITEMS:
-			cacheListCount = gCacheList.count();
-			for (int i = 0; i < cacheListCount; i++)
-			{
-				int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
-				if (diff > cacheTimeoutSeconds)
-				{
-					gCacheList.removeAt(i);
-					goto DELETE_OLD_CACHE_ITEMS;
-				}
-			}
-			cacheListCount = gCacheList.count();
+			// cache lookup
+			int cacheListCount = gCacheList.count();
 			for (int i = 0; i < cacheMethodCount; i++)
 			{
 				char cacheMethodNameHash[20];
@@ -592,6 +585,10 @@ DELETE_OLD_CACHE_ITEMS:
 									}
 								}
 								log_debug("[CACHE] Replied with Cache content for method \"%s\"", methodStr);
+								
+								// add ws Cache hit
+								wsCacheHit++;
+								memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
 
 								ZhttpRequestPacket tempPacket = packet;
 								tempPacket.type = ZhttpRequestPacket::KeepAlive;
@@ -610,6 +607,10 @@ DELETE_OLD_CACHE_ITEMS:
 					memcpy(cacheItem.hashVal, paramsHash, 20);
 					gCacheList.append(cacheItem);
 					log_debug("[CACHE] Registered Cache for method for id=%d method=\"%s\"", jId, methodStr);
+
+					// add ws Cache insert
+					wsCacheInsert++;
+					memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
 
 					break;
 				}
@@ -814,7 +815,7 @@ public slots:
 			QJsonParseError error;
 			//QString temp = hdata.value("body").toString().mid(11, 134);
 			//QJsonDocument jsonDoc = QJsonDocument::fromJson(temp.toUtf8(), &error);
-			//log_debug("%s", qPrintable(temp));
+			//log_debug("xxxxxxxxxx %s", qPrintable(temp));
 			QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
 			// parse body as JSON string
 			if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
@@ -1068,6 +1069,41 @@ ZWS_CLIENT_IN_WRITE:
 
 		QPointer<QObject> self = this;
 
+		// delete old cache items
+		{
+			// open shared memory
+			key_t shm_key = ftok("shmfile",65);
+			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
+			// read share memory
+			int shm_read_count = 200;
+			long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			shm_read_count = 200 + groupByteCount;
+			shm_read_count += 4; // for cacheByteCount
+			int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+			int cacheListCount;
+			time_t currSeconds = time(NULL);
+DELETE_OLD_CACHE_ITEMS:
+			cacheListCount = gCacheList.count();
+			for (int i = 0; i < cacheListCount; i++)
+			{
+				int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
+				if (diff > cacheTimeoutSeconds)
+				{
+					gCacheList.removeAt(i);
+
+					// add ws Cache expiry
+					wsCacheExpiry++;
+					memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
+
+					goto DELETE_OLD_CACHE_ITEMS;
+				}
+			}
+			shmdt(shm_str);
+		}
+
 		foreach(const ZhttpRequestPacket::Id &id, p.ids)
 		{
 			// is this for a websocket?
@@ -1185,8 +1221,8 @@ ZWS_CLIENT_IN_WRITE:
 						memcpy(&shm_str[96], (char *)&wsRpcSubscribeCount, 4);
 
 						// Group
-						int shm_read_count = 100;
-						long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						int shm_read_count = 200;
+						shm_read_count += 4; // for groupByteCount
 						long groupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						QString methodName = QString(methodStr);
 						QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);

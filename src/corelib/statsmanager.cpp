@@ -276,7 +276,11 @@ public:
 			wsRpcStateCount, 
 			wsRpcSyncstateCount, 
 			wsRpcSystemCount,
-			wsRpcSubscribeCount
+			wsRpcSubscribeCount,
+			wsCacheInsert, 
+			wsCacheHit, 
+			wsCacheLookup,
+			wsCacheExpiry
 		};
 
 		Type mtype;
@@ -388,11 +392,15 @@ public:
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcSyncstateCount, "json_method_count_syncstate", "counter", "Number of websocket JSON-RPC syncstate method group");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcSystemCount, "json_method_count_system", "counter", "Number of websocket JSON-RPC system method group");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcSubscribeCount, "json_method_count_subscribe", "counter", "Number of websocket JSON-RPC subscribe method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheInsert, "cache_insert", "counter", "Number of websocket Cache insert event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheHit, "cache_hit", "counter", "Number of websocket Cache hit event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheLookup, "cache_lookup", "counter", "Number of websocket Cache lookup event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheExpiry, "cache_expiry", "counter", "Number of websocket Cache expiry event");
 		// Group count add
 		key_t shm_key = ftok("shmfile",65);
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
-		int shm_read_count = 100;
+		int shm_read_count = 200;
 		long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 		long groupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 		int gCnt = (int)groupCount;
@@ -1215,6 +1223,7 @@ private slots:
 			long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
 			long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 			long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
+			long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0;
 
 			// read shared memory
 			key_t key = ftok("shmfile",65);
@@ -1243,6 +1252,10 @@ private slots:
 			wsRpcSyncstateCount = *(long *)&str[88];
 			wsRpcSystemCount = *(long *)&str[92];
 			wsRpcSubscribeCount = *(long *)&str[96];
+			wsCacheInsert = *(long *)&str[100];
+			wsCacheHit = *(long *)&str[104];
+			wsCacheLookup = *(long *)&str[108];
+			wsCacheExpiry = *(long *)&str[112];
 			shmdt(str);
 			//shmctl(shmid,IPC_RMID,NULL);
 
@@ -1276,12 +1289,17 @@ private slots:
 				case PrometheusMetric::wsRpcSyncstateCount: value = QVariant((int)wsRpcSyncstateCount); break;
 				case PrometheusMetric::wsRpcSystemCount: value = QVariant((int)wsRpcSystemCount); break;
 				case PrometheusMetric::wsRpcSubscribeCount: value = QVariant((int)wsRpcSubscribeCount); break;
+				case PrometheusMetric::wsCacheInsert: value = QVariant((int)wsCacheInsert); break;
+				case PrometheusMetric::wsCacheHit: value = QVariant((int)wsCacheHit); break;
+				case PrometheusMetric::wsCacheLookup: value = QVariant((int)wsCacheLookup); break;
+				case PrometheusMetric::wsCacheExpiry: value = QVariant((int)wsCacheExpiry); break;
+
 				default: {
 					// Group count add
 					key_t shm_key = ftok("shmfile",65);
 					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
-					int shm_read_count = 100;
+					int shm_read_count = 200;
 					long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 					long groupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 					int gCnt = (int)groupCount;

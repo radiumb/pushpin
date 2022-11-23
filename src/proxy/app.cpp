@@ -273,7 +273,7 @@ public:
 		shmctl(shm_id,IPC_RMID,NULL);
 
 		// Calculate the total shared memory byte count
-		int total_shm_byte_count = 100; // for others = 100
+		int total_shm_byte_count = 200; // for ws counters = 200
 
 		// Group
 		QStringList ws_groups = settings.value("websocket/ws_count_groups").toStringList();
@@ -300,7 +300,7 @@ public:
 		total_shm_byte_count += cache_byte_count;
 
 		// Write to shared memory
-		int shm_write_count = 100;
+		int shm_write_count = 200;
 		shm_key = ftok("shmfile",65);
 		shm_id = shmget(shm_key,total_shm_byte_count,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
