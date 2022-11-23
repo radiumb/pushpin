@@ -525,7 +525,7 @@ public:
 							if (gCacheList[j].cachedFlag == true)
 							{
 								ZhttpResponsePacket responsePacket = gCacheList[j].responsePacket;
-								
+/*								
 								// first, send credit packet
 								ZhttpResponsePacket creditPacket = responsePacket;
 								creditPacket.ids[0].id = packet.ids[0].id;
@@ -555,7 +555,7 @@ public:
 										continue;
 									}
 								}
-								
+*/								
 								// replace id str
 								char oldIdStr[64], newIdStr[64];
 								qsnprintf(oldIdStr, 64, "\"id\":%d", gCacheList[j].id);
