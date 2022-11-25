@@ -77,7 +77,7 @@ static long wsRpcAuthorCount = 0, wsRpcBabeCount = 0, wsRpcBeefyCount = 0, wsRpc
 static long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
 static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
-static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0;
+static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0, wsCacheExpiredMatchCount = 0;
 
 // cache variables
 struct CacheItem {
@@ -86,6 +86,7 @@ struct CacheItem {
 	ZhttpResponsePacket responsePacket;
 	time_t createdSeconds;
 	bool cachedFlag;
+	bool expiredFlag;
 };
 
 QList<CacheItem> gCacheList;
@@ -538,22 +539,37 @@ public:
 			// first, delete old cache items
 			{
 				time_t currSeconds = time(NULL);
-DELETE_OLD_CACHE_ITEMS:
+//DELETE_OLD_CACHE_ITEMS:
 				cacheListCount = gCacheList.count();
 				for (int i = 0; i < cacheListCount; i++)
 				{
 					int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
 					if (diff > cacheTimeoutSeconds)
 					{
-						gCacheList.removeAt(i);
+						//gCacheList.removeAt(i);
+						gCacheList.expiredFlag = true;
 
 						// add ws Cache expiry
 						wsCacheExpiry++;
 						memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
 
-						goto DELETE_OLD_CACHE_ITEMS;
+						//goto DELETE_OLD_CACHE_ITEMS;
 					}
 				}
+
+				if (cacheListCount >= cacheItemMaxCount)
+				{
+					for (int i = 0; i < cacheListCount; i++)
+					{
+						if (gCacheList.expiredFlag == true)
+						{
+							gCacheList.removeAt(i);
+							break;
+						}
+					}
+					cacheListCount = gCacheList.count();
+				}
+				
 			}
 			
 			for (int i = 0; i < cacheMethodCount; i++)
@@ -567,7 +583,13 @@ DELETE_OLD_CACHE_ITEMS:
 					{
 						if (!memcmp(gCacheList[j].hashVal, paramsHash, 20))
 						{
-							if (gCacheList[j].cachedFlag == true)
+							if (gCacheList[j].expiredFlag == true)
+							{
+								// add ws Cache expired match count
+								wsCacheExpiredMatchCount++;
+								memcpy(&shm_str[120], (char *)&wsCacheExpiredMatchCount, 4);
+							}
+							else if (gCacheList[j].cachedFlag == true)
 							{
 								ZhttpResponsePacket responsePacket = gCacheList[j].responsePacket;
 /*								
@@ -654,6 +676,7 @@ DELETE_OLD_CACHE_ITEMS:
 						struct CacheItem cacheItem;
 						cacheItem.id = jId;
 						cacheItem.cachedFlag = false;
+						cacheItem.expiredFlag = false;
 						cacheItem.createdSeconds = time(NULL);
 						memcpy(cacheItem.hashVal, paramsHash, 20);
 						gCacheList.append(cacheItem);
