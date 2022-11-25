@@ -535,7 +535,6 @@ public:
 
 			// cache lookup
 			int cacheListCount = gCacheList.count();
-			log_debug("zzzzzzzzzz cacheListCount=%d", cacheListCount);
 			// first, delete old cache items
 			{
 				time_t currSeconds = time(NULL);
@@ -556,7 +555,6 @@ DELETE_OLD_CACHE_ITEMS:
 					}
 				}
 			}
-			log_debug("zzzzzzzzzz cacheListCount=%d", cacheListCount);
 			
 			for (int i = 0; i < cacheMethodCount; i++)
 			{
@@ -565,6 +563,7 @@ DELETE_OLD_CACHE_ITEMS:
 				
 				if (!memcmp(cacheMethodNameHash, methodNameHash, 20))
 				{
+					log_debug("qwerqwerqwer cacheListCount=%d", cacheListCount);
 					for (int j = 0; j < cacheListCount; j++)
 					{
 						if (!memcmp(gCacheList[j].hashVal, paramsHash, 20))
