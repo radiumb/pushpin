@@ -454,6 +454,8 @@ public:
 			strncpy(methodStr, qPrintable(jMethod.toLower()), methodLen);
 			methodStr[methodLen] = 0;
 
+			log_debug("[CACHE]xxxxxxxxxxxxxxxxxxxxxx id=%d, method=%s", jId, methodStr);
+
 			// read params
 			QString jParams(methodStr);
 			if (jsonData.contains("params"))
@@ -472,14 +474,26 @@ public:
 							{
 								if (n.type() == QVariant::String)
 									jParams += n.toString();
+								else
+									log_debug("yyyyyyyyyy %d", n.type());	
 							}
 						}
+						else
+						{
+							log_debug("zzzzzzzzzzzz %d", m.type());
+						}
+						
 					}
 				}
 				else if (jsonData["params"].type() == QVariant::String)
 				{
 					jParams += jsonData["params"].toString();
 				}
+				else
+				{
+					log_debug("qqqqqqqqqqqqq %d", jsonData["params"].type());
+				}
+				
 			}
 			
 			QByteArray paramsHashByteArray = QCryptographicHash::hash(jParams.toUtf8(),QCryptographicHash::Sha1);
@@ -512,12 +526,37 @@ public:
 			{
 				cacheItemMaxCount = 64;
 			}
-			
-			shm_read_count += 4; // for cache time out seconds
+			int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			if (cacheTimeoutSeconds <= 0)
+			{
+				cacheTimeoutSeconds = 5;
+			}
 			int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			
+
 			// cache lookup
 			int cacheListCount = gCacheList.count();
+			// first, delete old cache items
+			{
+				time_t currSeconds = time(NULL);
+DELETE_OLD_CACHE_ITEMS:
+				cacheListCount = gCacheList.count();
+				for (int i = 0; i < cacheListCount; i++)
+				{
+					int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
+					if (diff > cacheTimeoutSeconds)
+					{
+						gCacheList.removeAt(i);
+
+						// add ws Cache expiry
+						wsCacheExpiry++;
+						memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
+
+						goto DELETE_OLD_CACHE_ITEMS;
+					}
+				}
+			}
+			
+			
 			for (int i = 0; i < cacheMethodCount; i++)
 			{
 				char cacheMethodNameHash[20];
@@ -1116,48 +1155,6 @@ ZWS_CLIENT_IN_WRITE:
 		}
 
 		QPointer<QObject> self = this;
-
-		// delete old cache items
-		{
-			// open shared memory
-			key_t shm_key = ftok("shmfile",65);
-			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
-
-			// read share memory
-			int shm_read_count = 200;
-			long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			shm_read_count = 200 + groupByteCount;
-			shm_read_count += 4; // for cacheByteCount
-			shm_read_count += 4; // for cacheItemMaxSizeKbytes
-			shm_read_count += 4; // for cacheItemMaxCount
-			int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			if (cacheTimeoutSeconds <= 0)
-			{
-				cacheTimeoutSeconds = 5;
-			}
-			
-
-			int cacheListCount;
-			time_t currSeconds = time(NULL);
-DELETE_OLD_CACHE_ITEMS:
-			cacheListCount = gCacheList.count();
-			for (int i = 0; i < cacheListCount; i++)
-			{
-				int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
-				if (diff > cacheTimeoutSeconds)
-				{
-					gCacheList.removeAt(i);
-
-					// add ws Cache expiry
-					wsCacheExpiry++;
-					memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
-
-					goto DELETE_OLD_CACHE_ITEMS;
-				}
-			}
-			shmdt(shm_str);
-		}
 
 		foreach(const ZhttpRequestPacket::Id &id, p.ids)
 		{
