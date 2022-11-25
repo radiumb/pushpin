@@ -464,36 +464,36 @@ public:
 				{
 					for (QVariant m : jsonData["params"].toList())
 					{
-						if (m.type() == QVariant::String)
-						{
-							jParams += m.toString();
-						}
-						else if (m.type() == QVariant::List)
+						if (m.type() == QVariant::List)
 						{
 							for (QVariant n : m.toList())
 							{
-								if (n.type() == QVariant::String)
+								if (n.canConvert<QString>())
 									jParams += n.toString();
 								else
-									log_debug("yyyyyyyyyy %d", n.type());	
+									log_debug("xyzxyzxyzxyzxyzxyzxyz %d", n.type());
 							}
+						}
+						else if (m.canConvert<QString>())
+						{
+							jParams += m.toString();
+							
 						}
 						else
 						{
-							log_debug("zzzzzzzzzzzz %d", m.type());
+							log_debug("xyzxyzxyzxyzxyzxyzxyz %d", m.type());
 						}
 						
 					}
 				}
-				else if (jsonData["params"].type() == QVariant::String)
+				else if (jsonData["params"]..canConvert<QString>())
 				{
 					jParams += jsonData["params"].toString();
 				}
 				else
 				{
-					log_debug("qqqqqqqqqqqqq %d", jsonData["params"].type());
+					log_debug("xyzxyzxyzxyzxyzxyzxyz %d", jsonData["params"].type());
 				}
-				
 			}
 			
 			QByteArray paramsHashByteArray = QCryptographicHash::hash(jParams.toUtf8(),QCryptographicHash::Sha1);
@@ -532,6 +532,8 @@ public:
 				cacheTimeoutSeconds = 5;
 			}
 			int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+			log_debug("zzzzzzzzzz cacheMethodCount=%d", cacheMethodCount);
 
 			// cache lookup
 			int cacheListCount = gCacheList.count();
