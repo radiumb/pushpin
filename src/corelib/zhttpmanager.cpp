@@ -547,7 +547,7 @@ public:
 					if (diff > cacheTimeoutSeconds)
 					{
 						//gCacheList.removeAt(i);
-						gCacheList.expiredFlag = true;
+						gCacheList[i].expiredFlag = true;
 
 						// add ws Cache expiry
 						wsCacheExpiry++;
@@ -561,7 +561,7 @@ public:
 				{
 					for (int i = 0; i < cacheListCount; i++)
 					{
-						if (gCacheList.expiredFlag == true)
+						if (gCacheList[i].expiredFlag == true)
 						{
 							gCacheList.removeAt(i);
 							break;
