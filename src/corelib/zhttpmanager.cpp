@@ -486,7 +486,7 @@ public:
 						
 					}
 				}
-				else if (jsonData["params"]..canConvert<QString>())
+				else if (jsonData["params"].canConvert<QString>())
 				{
 					jParams += jsonData["params"].toString();
 				}
