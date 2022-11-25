@@ -405,7 +405,7 @@ public:
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 		int shm_read_count = 200;
-		long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+		shm_read_count += 4; // for groupByteCount
 		long groupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 		int gCnt = (int)groupCount;
 		for (int i = 0; i < gCnt; i++)
@@ -1308,7 +1308,7 @@ private slots:
 					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 					int shm_read_count = 200;
-					long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+					shm_read_count += 4; // for groupByteCount
 					long groupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 					int gCnt = (int)groupCount;
 					for (int i = 0; i < gCnt; i++)
