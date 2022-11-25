@@ -850,7 +850,7 @@ public slots:
 
 					int shm_read_count = 200;
 					long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-					shm_read_count += groupByteCount;
+					shm_read_count = 200 + groupByteCount;
 					shm_read_count += 4; // for cacheByteCount
 					int cacheItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 					if (cacheItemMaxSizeKbytes <= 0)
