@@ -533,10 +533,9 @@ public:
 			}
 			int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
-			log_debug("zzzzzzzzzz cacheMethodCount=%d", cacheMethodCount);
-
 			// cache lookup
 			int cacheListCount = gCacheList.count();
+			log_debug("zzzzzzzzzz cacheListCount=%d", cacheListCount);
 			// first, delete old cache items
 			{
 				time_t currSeconds = time(NULL);
@@ -557,7 +556,7 @@ DELETE_OLD_CACHE_ITEMS:
 					}
 				}
 			}
-			
+			log_debug("zzzzzzzzzz cacheListCount=%d", cacheListCount);
 			
 			for (int i = 0; i < cacheMethodCount; i++)
 			{
