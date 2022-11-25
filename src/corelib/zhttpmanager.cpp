@@ -454,7 +454,7 @@ public:
 			strncpy(methodStr, qPrintable(jMethod.toLower()), methodLen);
 			methodStr[methodLen] = 0;
 
-			log_debug("[CACHE]xxxxxxxxxxxxxxxxxxxxxx id=%d, method=%s", jId, methodStr);
+			log_debug("[CACHE] entry to processing : id=%d, method=%s", jId, methodStr);
 
 			// read params
 			QString jParams(methodStr);
@@ -563,7 +563,6 @@ DELETE_OLD_CACHE_ITEMS:
 				
 				if (!memcmp(cacheMethodNameHash, methodNameHash, 20))
 				{
-					log_debug("qwerqwerqwer cacheListCount=%d", cacheListCount);
 					for (int j = 0; j < cacheListCount; j++)
 					{
 						if (!memcmp(gCacheList[j].hashVal, paramsHash, 20))
@@ -639,6 +638,10 @@ DELETE_OLD_CACHE_ITEMS:
 								ZhttpRequestPacket tempPacket = packet;
 								tempPacket.type = ZhttpRequestPacket::KeepAlive;
 								buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+							}
+							else
+							{
+								log_debug("[CACHE] Already registered, but not added content \"%s\"", methodStr);
 							}
 							shmdt(shm_str);
 							goto OUT_STREAM_SOCK_WRITE;
