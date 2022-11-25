@@ -546,12 +546,15 @@ public:
 					int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
 					if (diff > cacheTimeoutSeconds)
 					{
+						if (gCacheList[i].expiredFlag == false)
+						{
+							// add ws Cache expiry
+							wsCacheExpiry++;
+							memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
+						}
+						
 						//gCacheList.removeAt(i);
 						gCacheList[i].expiredFlag = true;
-
-						// add ws Cache expiry
-						wsCacheExpiry++;
-						memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
 
 						//goto DELETE_OLD_CACHE_ITEMS;
 					}
@@ -591,7 +594,8 @@ public:
 
 								log_debug("[CACHE] Entry is expired, but match request \"%s\"", methodStr);
 							}
-							else if (gCacheList[j].cachedFlag == true)
+
+							if (gCacheList[j].cachedFlag == true)
 							{
 								ZhttpResponsePacket responsePacket = gCacheList[j].responsePacket;
 /*								
