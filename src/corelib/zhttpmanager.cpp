@@ -77,7 +77,7 @@ static long wsRpcAuthorCount = 0, wsRpcBabeCount = 0, wsRpcBeefyCount = 0, wsRpc
 static long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
 static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
-static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0;
+static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0;
 
 // cache variables
 struct CacheItem {
@@ -506,6 +506,13 @@ public:
 			// read shm file 
 			shm_read_count = 200 + groupByteCount;
 			shm_read_count += 4; // for cacheByteCount
+			shm_read_count += 4; // for cacheItemMaxSizeKbytes
+			int cacheItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			if (cacheItemMaxCount <= 0)
+			{
+				cacheItemMaxCount = 64;
+			}
+			
 			shm_read_count += 4; // for cache time out seconds
 			int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 			
@@ -599,19 +606,26 @@ public:
 						}
 					}
 
-					// create new cache item
-					struct CacheItem cacheItem;
-					cacheItem.id = jId;
-					cacheItem.cachedFlag = false;
-					cacheItem.createdSeconds = time(NULL);
-					memcpy(cacheItem.hashVal, paramsHash, 20);
-					gCacheList.append(cacheItem);
-					log_debug("[CACHE] Registered Cache for method for id=%d method=\"%s\"", jId, methodStr);
+					if (gCacheList.count() <= cacheItemMaxCount)
+					{
+						// create new cache item
+						struct CacheItem cacheItem;
+						cacheItem.id = jId;
+						cacheItem.cachedFlag = false;
+						cacheItem.createdSeconds = time(NULL);
+						memcpy(cacheItem.hashVal, paramsHash, 20);
+						gCacheList.append(cacheItem);
+						log_debug("[CACHE] Registered Cache for method for id=%d method=\"%s\"", jId, methodStr);
 
-					// add ws Cache insert
-					wsCacheInsert++;
-					memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
-
+						// add ws Cache insert
+						wsCacheInsert++;
+						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
+					}
+					else
+					{
+						log_debug("[CACHE] Cache item count exceed Max limit=%d", cacheItemMaxCount);
+					}
+					
 					break;
 				}
 			}
@@ -829,10 +843,44 @@ public slots:
 			{
 				if ((gCacheList[i].id == jId) && (gCacheList[i].cachedFlag == false))
 				{
-					gCacheList[i].responsePacket = p;
-					//gCacheList[i].instanceAddress = instanceAddress;
-					gCacheList[i].cachedFlag = true;
-					log_debug("[CACHE] Added Cache content for method id %d", jId);
+					// open shared memory, count cache multi-part response
+					key_t shm_key = ftok("shmfile",65);
+					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
+					int shm_read_count = 200;
+					long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+					shm_read_count += groupByteCount;
+					shm_read_count += 4; // for cacheByteCount
+					int cacheItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+					if (cacheItemMaxSizeKbytes <= 0)
+					{
+						cacheItemMaxSizeKbytes = 8;
+					}
+
+					if (p.more == true)
+					{
+						// add ws Cache multi-part response
+						wsCacheMultiPart++;
+						memcpy(&shm_str[116], (char *)&wsCacheMultiPart, 4);
+
+						log_debug("[CACHE] Detected multi-parts response, no cache id %d", jId);
+					}
+					else
+					{
+						if (p.body.size() < (cacheItemMaxSizeKbytes<<10))
+						{
+							gCacheList[i].responsePacket = p;
+							gCacheList[i].cachedFlag = true;
+							log_debug("[CACHE] Added Cache content for method id %d", jId);
+						}
+						else
+						{
+							log_debug("[CACHE] Response size exceed to cache item max size=%d kytes", cacheItemMaxSizeKbytes);
+						}
+					}
+
+					shmdt(shm_str);
 					break;
 				}
 			}
@@ -1081,7 +1129,14 @@ ZWS_CLIENT_IN_WRITE:
 			long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 			shm_read_count = 200 + groupByteCount;
 			shm_read_count += 4; // for cacheByteCount
+			shm_read_count += 4; // for cacheItemMaxSizeKbytes
+			shm_read_count += 4; // for cacheItemMaxCount
 			int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			if (cacheTimeoutSeconds <= 0)
+			{
+				cacheTimeoutSeconds = 5;
+			}
+			
 
 			int cacheListCount;
 			time_t currSeconds = time(NULL);
