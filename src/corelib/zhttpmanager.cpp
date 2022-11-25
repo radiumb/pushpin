@@ -593,6 +593,8 @@ public:
 								memcpy(&shm_str[120], (char *)&wsCacheExpiredMatchCount, 4);
 
 								log_debug("[CACHE] Entry is expired, but match request \"%s\"", methodStr);
+
+								gCacheList[j].cachedFlag = false;
 							}
 
 							if (gCacheList[j].cachedFlag == true)
