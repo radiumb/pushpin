@@ -79,17 +79,28 @@ static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcO
 static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
 static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0, wsCacheExpiredMatchCount = 0;
 
-// cache variables
+// cache item struct
 struct CacheItem {
 	int id;
-	char hashVal[20];
+	char methodNameParamHashVal[20];
 	ZhttpResponsePacket responsePacket;
 	time_t createdSeconds;
 	bool cachedFlag;
-	bool expiredFlag;
+//	bool expiredFlag;
+	bool subscribeFlag;
+	char resultHashVal[20];
+	ZhttpResponsePacket subscriptionPacket;
 };
-
 QList<CacheItem> gCacheList;
+
+// subscription item struct
+struct SubscriptionItem {
+	char subscriptionHashVal[20];
+	time_t createdSeconds;
+	ZhttpResponsePacket subscriptionPacket;
+};
+QList<SubscriptionItem> gSubscriptionList;
+
 static ZhttpResponsePacket gBackupPacket;
 static QByteArray gBackupInstanceAddress;
 static QString gBackupSubscription;
@@ -447,7 +458,6 @@ public:
 			}
 			// read id
 			int jId = jsonData["id"].toInt();
-
 			// read method
 			QString jMethod = jsonData["method"].toString();
 			char methodStr[256];
@@ -539,24 +549,25 @@ public:
 			// first, delete old cache items
 			{
 				time_t currSeconds = time(NULL);
-//DELETE_OLD_CACHE_ITEMS:
+DELETE_OLD_CACHE_ITEMS:
 				cacheListCount = gCacheList.count();
 				for (int i = 0; i < cacheListCount; i++)
 				{
 					int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
 					if (diff > cacheTimeoutSeconds)
 					{
+/*
 						if (gCacheList[i].expiredFlag == false)
 						{
 							// add ws Cache expiry
 							wsCacheExpiry++;
 							memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
 						}
-						
-						//gCacheList.removeAt(i);
-						gCacheList[i].expiredFlag = true;
+*/						
+						gCacheList.removeAt(i);
+						//gCacheList[i].expiredFlag = true;
 
-						//goto DELETE_OLD_CACHE_ITEMS;
+						goto DELETE_OLD_CACHE_ITEMS;
 					}
 				}
 
@@ -564,15 +575,33 @@ public:
 				{
 					for (int i = 0; i < cacheListCount; i++)
 					{
-						if (gCacheList[i].expiredFlag == true)
-						{
+//						if (gCacheList[i].expiredFlag == true)
+//						{
 							gCacheList.removeAt(i);
 							break;
-						}
+//						}
 					}
 					cacheListCount = gCacheList.count();
 				}
 				
+			}
+
+			// subscription lookup
+			int subscriptionListCount = gSubscriptionList.count();
+			// first, delete old cache items
+			{
+				time_t currSeconds = time(NULL);
+DELETE_OLD_SUBSCRIPTION_ITEMS:
+				subscriptionListCount = gSubscriptionList.count();
+				for (int i = 0; i < subscriptionListCount; i++)
+				{
+					int diff = (int)(currSeconds - gSubscriptionList[i].createdSeconds);
+					if (diff > cacheTimeoutSeconds)
+					{
+						gSubscriptionList.removeAt(i);
+						goto DELETE_OLD_SUBSCRIPTION_ITEMS;
+					}
+				}
 			}
 			
 			for (int i = 0; i < cacheMethodCount; i++)
@@ -584,8 +613,9 @@ public:
 				{
 					for (int j = 0; j < cacheListCount; j++)
 					{
-						if (!memcmp(gCacheList[j].hashVal, paramsHash, 20))
+						if (!memcmp(gCacheList[j].methodNameParamHashVal, paramsHash, 20))
 						{
+/*
 							if (gCacheList[j].expiredFlag == true)
 							{
 								// add ws Cache expired match count
@@ -596,41 +626,11 @@ public:
 
 								gCacheList[j].cachedFlag = false;
 							}
-
+*/
 							if (gCacheList[j].cachedFlag == true)
 							{
 								ZhttpResponsePacket responsePacket = gCacheList[j].responsePacket;
-/*								
-								// first, send credit packet
-								ZhttpResponsePacket creditPacket = responsePacket;
-								creditPacket.ids[0].id = packet.ids[0].id;
-								creditPacket.ids[0].seq = -1;
-								creditPacket.from = instanceAddress.data();
-								creditPacket.credits = hdata.value("body").toByteArray().size();
-								creditPacket.type = ZhttpResponsePacket::Type::Credit;
-								creditPacket.body.clear();
-								creditPacket.contentType.clear();
-								if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-									LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, creditPacket.toVariant(), "body", "%s CACHE: IN  %s", logprefix, creditPacket.from.data());
-								foreach(const ZhttpResponsePacket::Id &id, creditPacket.ids)
-								{
-									// is this for a websocket?
-									ZWebSocket *sock = clientSocksByRid.value(ZWebSocket::Rid(instanceId, id.id));
-									if(sock)
-									{
-										sock->handle(id.id, id.seq, creditPacket);
-										continue;
-									}
-
-									// is this for an http request?
-									ZhttpRequest *req = clientReqsByRid.value(ZhttpRequest::Rid(instanceId, id.id));
-									if(req)
-									{
-										req->handle(id.id, id.seq, creditPacket);
-										continue;
-									}
-								}
-*/								
+						
 								// replace id str
 								char oldIdStr[64], newIdStr[64];
 								qsnprintf(oldIdStr, 64, "\"id\":%d", gCacheList[j].id);
@@ -684,11 +684,21 @@ public:
 						struct CacheItem cacheItem;
 						cacheItem.id = jId;
 						cacheItem.cachedFlag = false;
-						cacheItem.expiredFlag = false;
+//						cacheItem.expiredFlag = false;
+						if (strstr(methodStr, "_subscribe"))
+						{
+							cacheItem.subscribeFlag = true;
+							memset(cacheItem.resultHashVal, 0, 20);
+						}
+						else
+						{
+							cacheItem.subscribeFlag = false;
+						}
+						
 						cacheItem.createdSeconds = time(NULL);
-						memcpy(cacheItem.hashVal, paramsHash, 20);
+						memcpy(cacheItem.methodNameParamHashVal, paramsHash, 20);
 						gCacheList.append(cacheItem);
-						log_debug("[CACHE] Registered Cache for method for id=%d method=\"%s\"", jId, methodStr);
+						log_debug("[CACHE] Registered Cache for %s method for id=%d method=\"%s\"", cacheItem.subscribeFlag?"subscribe":"general", jId, methodStr);
 
 						// add ws Cache insert
 						wsCacheInsert++;
@@ -896,6 +906,9 @@ public slots:
 
 		// Cache
 		{
+			// get cache list count
+			int cacheListCount = gCacheList.count();
+
 			// Cache the repsonse packet
 			// parse.
 			QVariantHash hdata = data.toHash();
@@ -909,9 +922,53 @@ public slots:
 				goto ZWS_CLIENT_IN_WRITE;
 
 			QVariantMap jsonData = jsonDoc.object().toVariantMap();
+			// Search subscirption field first
+			if (jsonData.contains("params"))
+			{
+				if (jsonData["params"].type() == QVariant::Map)
+				{
+					QVariantMap jsonParamsData = jsonData["params"].toMap();
+					if (jsonParamsData.contains("subscription")  && jsonParamsData["subscription"].canConvert<QString>())
+					{
+						QString subscriptionString = jsonParamsData["subscription"].toString();
+						QByteArray subscriptionHashByteArray = QCryptographicHash::hash(subscriptionString.toUtf8(),QCryptographicHash::Sha1);
+						char subscriptionHashVal[20];
+						memcpy(subscriptionHashVal, subscriptionHashByteArray.data(), 20);
+						// Search item in cache list
+						bool subscriptionCachedFlag = false;
+						for (int i = 0; i < cacheListCount; i++)
+						{
+							if (gCacheList[i].subscribeFlag && !memcmp(gCacheList[i].resultHashVal, subscriptionHashVal, 20))
+							{
+								gCacheList[i].subscriptionPacket = p;
+								gCacheList[i].cachedFlag = true;
+								log_debug("[CACHE] Added Cache content for subscription method id %d", gCacheList[i].id);
+								subscriptionCachedFlag = true;
+								break;
+							}
+						}
+
+						if (subscriptionCachedFlag == false)
+						{
+							// create new subscription item
+							struct SubscriptionItem subscriptionItem;
+							subscriptionItem.createdSeconds = time(NULL);
+							subscriptionItem.subscriptionPacket = p;
+							
+							memcpy(subscriptionItem.subscriptionHashVal, subscriptionHashByteArray.data(), 20);
+							gSubscriptionList.append(subscriptionItem);
+							log_debug("[CACHE] Registered Subscription for \"%s\"", qPrintable(subscriptionString));
+						}
+					}
+				}
+			}
 			// id
+			if(!jsonData.contains("id"))
+			{
+				goto ZWS_CLIENT_IN_WRITE;
+			}
+			// read id
 			int jId = jsonData["id"].toInt();
-			int cacheListCount = gCacheList.count();
 			for (int i = 0; i < cacheListCount; i++)
 			{
 				if ((gCacheList[i].id == jId) && (gCacheList[i].cachedFlag == false))
@@ -944,8 +1001,35 @@ public slots:
 						if (p.body.size() < (cacheItemMaxSizeKbytes<<10))
 						{
 							gCacheList[i].responsePacket = p;
-							gCacheList[i].cachedFlag = true;
-							log_debug("[CACHE] Added Cache content for method id %d", jId);
+							if (gCacheList[i].subscribeFlag == false)
+							{
+								gCacheList[i].cachedFlag = true;
+								log_debug("[CACHE] Added Cache content for method id %d", jId);
+							}
+							else	// subsribe response
+							{
+								// read result
+								if (jsonData.contains("result") && jsonData["result"].type() == QVariant::String)
+								{
+									QString jResult = jsonData["result"].toString();
+									QByteArray resultHashByteArray = QCryptographicHash::hash(jResult.toUtf8(),QCryptographicHash::Sha1);
+									char resultHashVal[20];
+									memcpy(resultHashVal, resultHashByteArray.data(), 20);
+									memcpy(gCacheList[i].resultHashVal, resultHashVal, 20);
+									log_debug("[CACHE] Registered subscription result for \"%s\"", qPrintable(jResult));
+									// Search in SubscriptionList
+									for (int j = 0; j < gSubscriptionList.count(); j++)
+									{
+										if (!memcmp(resultHashVal, gSubscriptionList[j].subscriptionHashVal, 20))
+										{
+											gCacheList[i].subscriptionPacket = gSubscriptionList[j].subscriptionPacket;
+											gCacheList[i].cachedFlag = true;
+											log_debug("[CACHE] Added Cache content for subscription method id %d", gCacheList[i].id);
+											break;
+										}
+									}
+								}
+							}
 						}
 						else
 						{
