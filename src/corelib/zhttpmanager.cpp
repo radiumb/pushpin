@@ -641,6 +641,15 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 								responsePacket.from = instanceAddress.data();
 								if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 									LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, responsePacket.toVariant(), "body", "%s CACHE: IN %s", logprefix, responsePacket.from.data());
+								
+								ZhttpResponsePacket subscriptionPacket;
+								if (gCacheList[j].subscribeFlag)
+								{
+									subscriptionPacket = gCacheList[j].subscriptionPacket;
+									subscriptionPacket.ids[0].id = packet.ids[0].id;
+									subscriptionPacket.ids[0].seq = -1;
+								}
+
 								foreach(const ZhttpResponsePacket::Id &id, responsePacket.ids)
 								{
 									// is this for a websocket?
@@ -648,6 +657,10 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 									if(sock)
 									{
 										sock->handle(id.id, id.seq, responsePacket);
+										if (gCacheList[j].subscribeFlag)
+										{
+											sock->handle(id.id, id.seq, subscriptionPacket);
+										}
 										continue;
 									}
 
@@ -656,6 +669,10 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 									if(req)
 									{
 										req->handle(id.id, id.seq, responsePacket);
+										if (gCacheList[j].subscribeFlag)
+										{
+											req->handle(id.id, id.seq, subscriptionPacket);
+										}
 										continue;
 									}
 								}
