@@ -535,12 +535,17 @@ public:
 			int cacheItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 			if (cacheItemMaxCount <= 0)
 			{
-				cacheItemMaxCount = 64;
+				cacheItemMaxCount = 64;		// default
 			}
 			int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 			if (cacheTimeoutSeconds <= 0)
 			{
-				cacheTimeoutSeconds = 5;
+				cacheTimeoutSeconds = 5;	// default
+			}
+			int cacheSubscribeTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			if (cacheSubscribeTimeoutSeconds <= 0)
+			{
+				cacheSubscribeTimeoutSeconds = 3600;	// default
 			}
 			int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
@@ -596,7 +601,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 				for (int i = 0; i < subscriptionListCount; i++)
 				{
 					int diff = (int)(currSeconds - gSubscriptionList[i].createdSeconds);
-					if (diff > cacheTimeoutSeconds)
+					if (diff > cacheSubscribeTimeoutSeconds)
 					{
 						gSubscriptionList.removeAt(i);
 						goto DELETE_OLD_SUBSCRIPTION_ITEMS;

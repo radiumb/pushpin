@@ -341,6 +341,7 @@ public:
 		// cache item maxsize kbytes (4byte)
 		// cache item maxcount (4byte)
 		// cache timeout seconds (4byte)
+		// cache subscribe timeout seconds (4byte)
 		// cache method count (4byte)
 		// cache method1 hash (20byte)
 		// cache method2 hash (20byte)
@@ -355,6 +356,9 @@ public:
 		
 		long ws_chche_timeout_seconds = (long)settings.value("websocket/ws_cache_timeout_seconds").toInt();
 		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_timeout_seconds, 4); shm_write_count += 4;
+
+		long ws_chche_subscribe_timeout_seconds = (long)settings.value("websocket/ws_cache_subscribe_timeout_seconds").toInt();
+		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_subscribe_timeout_seconds, 4); shm_write_count += 4;
 		
 		memcpy(&shm_str[shm_write_count], (char *)&cache_method_count, 4); shm_write_count += 4;
 		for (int i = 0; i < cache_method_count; i++)
