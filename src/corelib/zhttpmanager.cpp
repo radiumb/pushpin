@@ -82,6 +82,7 @@ static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry 
 // cache item struct
 struct CacheItem {
 	int id;
+	char idHashVal[20];
 	char methodNameParamHashVal[20];
 	ZhttpResponsePacket responsePacket;
 	time_t createdSeconds;
@@ -506,7 +507,8 @@ public:
 					log_debug("xyzxyzxyzxyzxyzxyzxyz %d", jsonData["params"].type());
 				}
 			}
-			
+
+			// Params hash val
 			QByteArray paramsHashByteArray = QCryptographicHash::hash(jParams.toUtf8(),QCryptographicHash::Sha1);
 			char paramsHash[20];
 			memcpy(paramsHash, paramsHashByteArray.data(), 20);
@@ -519,6 +521,8 @@ public:
 			// read share memory
 			int shm_read_count = 200;
 			long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			
+			// Build method name hash value
 			QString methodName = QString(methodStr);
 			QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
 			char methodNameHash[20];
@@ -707,6 +711,13 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						struct CacheItem cacheItem;
 						cacheItem.id = jId;
 						cacheItem.cachedFlag = false;
+
+						// Id hash val
+						QString idHashString = QString::number(jId);
+						idHashString += QString(packet.ids[0].id);
+						QByteArray idHashByteArray = QCryptographicHash::hash(idHashString.toUtf8(),QCryptographicHash::Sha1);
+						memcpy(cacheItem.idHashVal, idHashByteArray.data(), 20);
+
 //						cacheItem.expiredFlag = false;
 						if (strstr(methodStr, "_subscribe"))
 						{
@@ -721,7 +732,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						cacheItem.createdSeconds = time(NULL);
 						memcpy(cacheItem.methodNameParamHashVal, paramsHash, 20);
 						gCacheList.append(cacheItem);
-						log_debug("[CACHE] Registered Cache for %s method for id=%d method=\"%s\"", cacheItem.subscribeFlag?"subscribe":"general", jId, methodStr);
+						log_debug("[CACHE] Registered Cache for %s method for id=%d idHashString=%s method=\"%s\"", cacheItem.subscribeFlag?"subscribe":"general", jId, qPrintable(idHashString), methodStr);
 
 						// add ws Cache insert
 						wsCacheInsert++;
@@ -920,7 +931,7 @@ public slots:
 							{
 								gCacheList[i].subscriptionPacket = p;
 								gCacheList[i].cachedFlag = true;
-								log_debug("[CACHE] Added Cache content for subscription method id %d", gCacheList[i].id);
+								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gCacheList[i].id, qPrintable(subscriptionString));
 								subscriptionCachedFlag = true;
 								break;
 							}
@@ -948,6 +959,13 @@ public slots:
 			// read id
 			int jId = jsonData["id"].toInt();
 
+			// Id hash val
+			QString idHashString = QString::number(jId);
+			idHashString += QString(p.ids[0].id);
+			QByteArray idHashByteArray = QCryptographicHash::hash(idHashString.toUtf8(),QCryptographicHash::Sha1);
+			char idHashVal[20];
+			memcpy(idHashVal, idHashByteArray.data(), 20);
+
 			// Count (ws messages sent)
 			wsMessageSentCount++;
 			// Write to shared memory
@@ -959,7 +977,7 @@ public slots:
 
 			for (int i = 0; i < cacheListCount; i++)
 			{
-				if ((gCacheList[i].id == jId) && (gCacheList[i].cachedFlag == false))
+				if ((gCacheList[i].id == jId) && !memcmp(gCacheList[i].idHashVal, idHashVal, 20) && (gCacheList[i].cachedFlag == false))
 				{
 					// open shared memory, count cache multi-part response
 					key_t shm_key = ftok("shmfile",65);
@@ -992,7 +1010,7 @@ public slots:
 							if (gCacheList[i].subscribeFlag == false)
 							{
 								gCacheList[i].cachedFlag = true;
-								log_debug("[CACHE] Added Cache content for method id %d", jId);
+								log_debug("[CACHE] Added Cache content for method id=%d idHashString=%s", jId, qPrintable(idHashString));
 							}
 							else	// subsribe response
 							{
@@ -1012,7 +1030,7 @@ public slots:
 										{
 											gCacheList[i].subscriptionPacket = gSubscriptionList[j].subscriptionPacket;
 											gCacheList[i].cachedFlag = true;
-											log_debug("[CACHE] Added Cache content for subscription method id %d", gCacheList[i].id);
+											log_debug("[CACHE] Added Cache content for subscription method id=%d idHashString=%s result=%s", jId, qPrintable(idHashString), qPrintable(jResult));
 											break;
 										}
 									}
