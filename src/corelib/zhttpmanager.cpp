@@ -750,52 +750,7 @@ OUT_STREAM_SOCK_WRITE:
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s server: OUT %s", logprefix, instanceAddress.data());
 
-		// Count (ws messages sent)
-		if (type == 2 && packet.type == 0 && packet.credits == -1)
-		{
-			wsMessageSentCount++;
-			// Write to shared memory
-			key_t key = ftok("shmfile",65);
-			int shmid = shmget(key,0,0666|IPC_CREAT);
-			char *str = (char*) shmat(shmid,(void*)0,0);
-			memcpy(&str[8], (char *)&wsMessageSentCount, 4);
-			shmdt(str);
-		}
-
 		server_out_sock->write(QList<QByteArray>() << buf);
-	}
-
-	void write_cache(SessionType type, const ZhttpResponsePacket &packet, const QByteArray &instanceAddress)
-	{
-		assert(server_out_sock);
-		const char *logprefix = logPrefixForType(type);
-
-		QVariant vpacket = packet.toVariant();
-		QByteArray buf = instanceAddress + " T" + TnetString::fromVariant(vpacket);
-
-		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s server: OUT %s", logprefix, instanceAddress.data());
-
-		// Count (ws messages sent)
-		if (type == 2 && packet.type == 0 && packet.credits == -1)
-		{
-			wsMessageSentCount++;
-			// Write to shared memory
-			key_t key = ftok("shmfile",65);
-			int shmid = shmget(key,0,0666|IPC_CREAT);
-			char *str = (char*) shmat(shmid,(void*)0,0);
-			memcpy(&str[8], (char *)&wsMessageSentCount, 4);
-			shmdt(str);
-		}
-
-		while (write_sync_flag == 1)
-		{
-			usleep(1000);
-		}
-
-		write_sync_flag = 1;
-		server_out_sock->write(QList<QByteArray>() << buf);
-		write_sync_flag = 0;
 	}
 
 	static const char *logPrefixForType(SessionType type)
@@ -986,6 +941,16 @@ public slots:
 			}
 			// read id
 			int jId = jsonData["id"].toInt();
+
+			// Count (ws messages sent)
+			wsMessageSentCount++;
+			// Write to shared memory
+			key_t key = ftok("shmfile",65);
+			int shmid = shmget(key,0,0666|IPC_CREAT);
+			char *str = (char*) shmat(shmid,(void*)0,0);
+			memcpy(&str[8], (char *)&wsMessageSentCount, 4);
+			shmdt(str);
+
 			for (int i = 0; i < cacheListCount; i++)
 			{
 				if ((gCacheList[i].id == jId) && (gCacheList[i].cachedFlag == false))
