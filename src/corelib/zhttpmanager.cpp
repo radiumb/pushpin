@@ -648,6 +648,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 									subscriptionPacket = gCacheList[j].subscriptionPacket;
 									subscriptionPacket.ids[0].id = packet.ids[0].id;
 									subscriptionPacket.ids[0].seq = -1;
+									subscriptionPacket.from = instanceAddress.data();
 								}
 
 								foreach(const ZhttpResponsePacket::Id &id, responsePacket.ids)
