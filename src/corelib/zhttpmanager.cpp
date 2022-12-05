@@ -97,6 +97,7 @@ QList<CacheItem> gCacheList;
 // subscription item struct
 struct SubscriptionItem {
 	char subscriptionHashVal[20];
+	time_t createdSeconds;
 	ZhttpResponsePacket subscriptionPacket;
 };
 QList<SubscriptionItem> gSubscriptionList;
