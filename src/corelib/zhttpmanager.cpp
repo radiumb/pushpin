@@ -97,7 +97,6 @@ QList<CacheItem> gCacheList;
 // subscription item struct
 struct SubscriptionItem {
 	char subscriptionHashVal[20];
-	time_t createdSeconds;
 	ZhttpResponsePacket subscriptionPacket;
 };
 QList<SubscriptionItem> gSubscriptionList;
@@ -563,20 +562,31 @@ DELETE_OLD_CACHE_ITEMS:
 				for (int i = 0; i < cacheListCount; i++)
 				{
 					int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
-					if (diff > cacheTimeoutSeconds)
+					if (!gCacheList[i].subscribeFlag)
 					{
-/*
-						if (gCacheList[i].expiredFlag == false)
+						if (diff > cacheTimeoutSeconds)
 						{
-							// add ws Cache expiry
-							wsCacheExpiry++;
-							memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
-						}
-*/						
-						gCacheList.removeAt(i);
-						//gCacheList[i].expiredFlag = true;
+							/*
+							if (gCacheList[i].expiredFlag == false)
+							{
+								// add ws Cache expiry
+								wsCacheExpiry++;
+								memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
+							}
+							*/						
+							gCacheList.removeAt(i);
+							//gCacheList[i].expiredFlag = true;
 
-						goto DELETE_OLD_CACHE_ITEMS;
+							goto DELETE_OLD_CACHE_ITEMS;
+						}
+					}
+					else
+					{
+						if (diff > cacheSubscribeTimeoutSeconds)
+						{
+							gCacheList.removeAt(i);
+							goto DELETE_OLD_CACHE_ITEMS;
+						}
 					}
 				}
 
@@ -584,11 +594,11 @@ DELETE_OLD_CACHE_ITEMS:
 				{
 					for (int i = 0; i < cacheListCount; i++)
 					{
-//						if (gCacheList[i].expiredFlag == true)
-//						{
+						//if (gCacheList[i].expiredFlag == true)
+						{
 							gCacheList.removeAt(i);
 							break;
-//						}
+						}
 					}
 					cacheListCount = gCacheList.count();
 				}
