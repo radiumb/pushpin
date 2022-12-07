@@ -527,8 +527,6 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 	{
 		ZhttpResponsePacket responsePacket = gCacheList[listId].responsePacket;
 
-		log_debug("xxxxxxxxxxxx %s - %s", packetId.data(), instanceAddress.data());
-							
 		// replace id str
 		char oldIdStr[64], newIdStr[64];
 		qsnprintf(oldIdStr, 64, "\"id\":%d", oldId);
@@ -1018,9 +1016,6 @@ public slots:
 			// parse.
 			QVariantHash hdata = data.toHash();
 			QJsonParseError error;
-			//QString temp = hdata.value("body").toString().mid(11, 134);
-			//QJsonDocument jsonDoc = QJsonDocument::fromJson(temp.toUtf8(), &error);
-			//log_debug("xxxxxxxxxx %s", qPrintable(temp));
 			QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
 			// parse body as JSON string
 			if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
@@ -1047,7 +1042,7 @@ public slots:
 							{
 								gSubscriptionList[i].subscriptionPacket = p;
 								gSubscriptionList[i].cachedFlag = true;
-								//p.ids[0].id = gSubscriptionList[i].pktId;
+								p.ids[0].id = gSubscriptionList[i].pktId;
 								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gSubscriptionList[i].id, qPrintable(subscriptionString));
 								subscriptionCachedFlag = true;
 								break;
@@ -1161,7 +1156,7 @@ public slots:
 										gSubscriptionList[i].subscriptionPacket = gSubscriptionList[j].subscriptionPacket;
 										gSubscriptionList[i].cachedFlag = true;
 										gSubscriptionList.removeAt(j);
-										//p.ids[0].id = gSubscriptionList[i].pktId;
+										p.ids[0].id = gSubscriptionList[i].pktId;
 										log_debug("[CACHE] Added Cache content for subscription method id=%d idHashString=%s result=%s", jId, qPrintable(idHashString), qPrintable(jResult));
 										break;
 									}
