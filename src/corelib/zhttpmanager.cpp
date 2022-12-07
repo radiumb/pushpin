@@ -1042,7 +1042,7 @@ public slots:
 							{
 								gSubscriptionList[i].subscriptionPacket = p;
 								gSubscriptionList[i].cachedFlag = true;
-								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gCacheList[i].id, qPrintable(subscriptionString));
+								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gSubscriptionList[i].id, qPrintable(subscriptionString));
 								subscriptionCachedFlag = true;
 								break;
 							}
