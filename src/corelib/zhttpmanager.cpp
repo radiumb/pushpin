@@ -529,6 +529,8 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 	void replyCachedContent(int listId, int oldId, int newId, const QByteArray &packetId, const QByteArray &instanceAddress)
 	{
 		ZhttpResponsePacket responsePacket = gCacheList[listId].responsePacket;
+
+		log_debug("xxxxxxxxxxxx %s - %s", packetId.data(), instanceAddress.data());
 							
 		// replace id str
 		char oldIdStr[64], newIdStr[64];
