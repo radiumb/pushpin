@@ -1053,6 +1053,8 @@ public slots:
 										{
 											continue;
 										}
+
+										log_debug("[CACHE] Sending Cache content to client id=%d", (const char *)p.ids[0].id);
 										
 										ZhttpResponsePacket clientPacket = p;
 										clientPacket.ids[0].id = gSubscriptionList[i].clientList[j].id;
@@ -1088,7 +1090,7 @@ public slots:
 								}
 								else
 									gSubscriptionList[i].cachedFlag = true;
-								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s, sent %d clients", gSubscriptionList[i].id, qPrintable(subscriptionString), gSubscriptionList[i].clientList.count());
+								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gSubscriptionList[i].id, qPrintable(subscriptionString));
 								subscriptionCachedFlag = true;
 								break;
 							}
