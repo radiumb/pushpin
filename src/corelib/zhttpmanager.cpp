@@ -98,7 +98,7 @@ struct ClientItem {
 // subscription item struct
 struct SubscriptionItem {
 	int id;
-	QByteArray pktId;
+	//QByteArray pktId;
 	char idHashVal[20];
 	char methodNameParamHashVal[20];
 	ZhttpResponsePacket responsePacket;
@@ -513,7 +513,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		// create new subscription item
 		struct SubscriptionItem subscriptionItem;
 		subscriptionItem.id = reqId;
-		subscriptionItem.pktId = pktId;
+		//subscriptionItem.pktId = pktId;
 		subscriptionItem.cachedFlag = false;
 		memcpy(subscriptionItem.idHashVal, idHashVal, 20);
 		subscriptionItem.createdSeconds = time(NULL);
@@ -1046,7 +1046,7 @@ public slots:
 							{
 								gSubscriptionList[i].subscriptionPacket = p;
 								gSubscriptionList[i].cachedFlag = true;
-								p.ids[0].id = gSubscriptionList[i].pktId;
+								//p.ids[0].id = gSubscriptionList[i].pktId;
 								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gSubscriptionList[i].id, qPrintable(subscriptionString));
 								subscriptionCachedFlag = true;
 								break;
@@ -1161,7 +1161,7 @@ public slots:
 										gSubscriptionList[i].subscriptionPacket = gSubscriptionList[j].subscriptionPacket;
 										gSubscriptionList[i].cachedFlag = true;
 										gSubscriptionList.removeAt(j);
-										p.ids[0].id = gSubscriptionList[i].pktId;
+										//p.ids[0].id = gSubscriptionList[i].pktId;
 										subscriptionCachedFlag = true;
 										log_debug("[CACHE] Added Cache content for subscription method id=%d idHashString=%s result=%s", jId, qPrintable(idHashString), qPrintable(jResult));
 										break;
