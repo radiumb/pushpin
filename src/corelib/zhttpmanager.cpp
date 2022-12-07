@@ -422,7 +422,7 @@ public:
 			if (packet.uri.path() == "/cache_client")
 			{
 				gCacheClientId = packet.ids[0].id;
-				log_debug("xxxxxxxxxxxxxxxxxxxx %s", gCacheClientId.toStdString());
+				log_debug("xxxxxxxxxxxxxxxxxxxx %s", (const char *)gCacheClientId);
 			}
 			
 			client_out_sock->write(QList<QByteArray>() << buf);
