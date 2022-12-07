@@ -418,7 +418,9 @@ public:
 		if(client_out_sock)
 		{
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT1", logprefix);
+					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
+			
+			log_debug("xxxxxxxxxxxxxxxxxxxx %s", qPrintable(packet.uri.path()));
 
 			client_out_sock->write(QList<QByteArray>() << buf);
 		}
@@ -607,7 +609,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		QByteArray buf = QByteArray("T") + TnetString::fromVariant(vpacket);
 
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT2 %s", logprefix, instanceAddress.data());
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data());
 
 		// Cache
 		{
