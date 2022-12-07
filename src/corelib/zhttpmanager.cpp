@@ -98,7 +98,7 @@ struct ClientItem {
 // subscription item struct
 struct SubscriptionItem {
 	int id;
-	QByteArray packetId;
+	QByteArray pktId;
 	char idHashVal[20];
 	char methodNameParamHashVal[20];
 	ZhttpResponsePacket responsePacket;
@@ -419,7 +419,8 @@ public:
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 			
-			if (packet.uri.path() == "/cache_client")
+			//if (packet.uri.path() == "/cache_client")
+			if (gCacheClientId == NULL)
 			{
 				gCacheClientId = packet.ids[0].id;
 			}
@@ -508,12 +509,12 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		gCacheList.append(cacheItem);
 	}
 
-	void registerSubscriptionItem(int reqId, QByteArray packetId, char *idHashVal, char *methodNameParamsHashVal, char *clientHashVal)
+	void registerSubscriptionItem(int reqId, QByteArray pktId, char *idHashVal, char *methodNameParamsHashVal, char *clientHashVal)
 	{
 		// create new subscription item
 		struct SubscriptionItem subscriptionItem;
 		subscriptionItem.id = reqId;
-		subscriptionItem.packetId = packetId;
+		subscriptionItem.pktId = pktId;
 		subscriptionItem.cachedFlag = false;
 		memcpy(subscriptionItem.idHashVal, idHashVal, 20);
 		subscriptionItem.createdSeconds = time(NULL);
@@ -525,7 +526,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		gSubscriptionList.append(subscriptionItem);
 	}
 
-	void replyCachedContent(int listId, int oldId, int newId, const QByteArray &packetId, const QByteArray &instanceAddress)
+	void replyCachedContent(int listId, int oldId, int newId, const QByteArray packetId, const QByteArray &instanceAddress)
 	{
 		ZhttpResponsePacket responsePacket = gCacheList[listId].responsePacket;
 							
@@ -560,7 +561,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		}
 	}
 
-	void replySubscriptionContent(int listId, int oldId, int newId, const QByteArray &packetId, const QByteArray &instanceAddress)
+	void replySubscriptionContent(int listId, int oldId, int newId, const QByteArray packetId, const QByteArray &instanceAddress)
 	{
 		ZhttpResponsePacket responsePacket = gSubscriptionList[listId].responsePacket;
 							
@@ -1048,7 +1049,7 @@ public slots:
 							{
 								gSubscriptionList[i].subscriptionPacket = p;
 								gSubscriptionList[i].cachedFlag = true;
-								p.ids[0].id = gSubscriptionList[i].packetId;
+								//p.ids[0].id = gSubscriptionList[i].pktId;
 								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gSubscriptionList[i].id, qPrintable(subscriptionString));
 								subscriptionCachedFlag = true;
 								break;
@@ -1162,7 +1163,7 @@ public slots:
 										gSubscriptionList[i].subscriptionPacket = gSubscriptionList[j].subscriptionPacket;
 										gSubscriptionList[i].cachedFlag = true;
 										gSubscriptionList.removeAt(j);
-										p.ids[0].id = gSubscriptionList[i].packetId;
+										//p.ids[0].id = gSubscriptionList[i].pktId;
 										log_debug("[CACHE] Added Cache content for subscription method id=%d idHashString=%s result=%s", jId, qPrintable(idHashString), qPrintable(jResult));
 										break;
 									}
