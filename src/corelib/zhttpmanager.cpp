@@ -109,9 +109,7 @@ struct SubscriptionItem {
 };
 QList<SubscriptionItem> gSubscriptionList;
 
-static ZhttpResponsePacket gBackupPacket;
-static QByteArray gBackupInstanceAddress;
-static QString gBackupSubscription;
+static QByteArray gCacheClientId;
 
 class ZhttpManager::Private : public QObject
 {
@@ -421,7 +419,12 @@ public:
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 			
 			log_debug("xxxxxxxxxxxxxxxxxxxx %s", qPrintable(packet.uri.path()));
-
+			if (packet.uri.path() == "/cache_client")
+			{
+				gCacheClientId = packet.ids[0].id;
+				log_debug("xxxxxxxxxxxxxxxxxxxx %s", gCacheClientId.toStdString());
+			}
+			
 			client_out_sock->write(QList<QByteArray>() << buf);
 		}
 		else
