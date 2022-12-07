@@ -526,7 +526,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		gSubscriptionList.append(subscriptionItem);
 	}
 
-	void replyCachedContent(int listId, int oldId, int newId, const QByteArray packetId, const QByteArray &instanceAddress)
+	void replyCachedContent(int listId, int oldId, int newId, const QByteArray &packetId, const QByteArray &instanceAddress)
 	{
 		ZhttpResponsePacket responsePacket = gCacheList[listId].responsePacket;
 							
@@ -561,7 +561,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		}
 	}
 
-	void replySubscriptionContent(int listId, int oldId, int newId, const QByteArray packetId, const QByteArray &instanceAddress)
+	void replySubscriptionContent(int listId, int oldId, int newId, const QByteArray &packetId, const QByteArray &instanceAddress)
 	{
 		ZhttpResponsePacket responsePacket = gSubscriptionList[listId].responsePacket;
 							
