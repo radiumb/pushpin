@@ -447,13 +447,10 @@ DELETE_OLD_CACHE_ITEMS:
 		for (int i = 0; i < cacheListCount; i++)
 		{
 			int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
-			if (diff > timeoutVal)
+			if ((diff > timeoutVal) && (gCacheList[i].expiredFlag == false))
 			{
-				if (gCacheList[i].expiredFlag == false)
-				{
-					// add ws Cache expiry
-					wsCacheExpiry++;
-				}
+				// add ws Cache expiry
+				wsCacheExpiry++;
 				//gCacheList.removeAt(i);
 				gCacheList[i].expiredFlag = true;
 
