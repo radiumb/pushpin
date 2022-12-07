@@ -535,7 +535,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		qsnprintf(oldIdStr, 64, "\"id\":%d", oldId);
 		qsnprintf(newIdStr, 64, "\"id\":%d", newId);
 		responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-		responsePacket.ids[0].id = packetId;
+		responsePacket.ids[0].id = packetId.data();
 		responsePacket.ids[0].seq = -1;
 		responsePacket.from = instanceAddress.data();
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
@@ -570,15 +570,14 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		qsnprintf(oldIdStr, 64, "\"id\":%d", oldId);
 		qsnprintf(newIdStr, 64, "\"id\":%d", newId);
 		responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-		responsePacket.ids[0].id = packetId;
+		responsePacket.ids[0].id = packetId.data();
 		responsePacket.ids[0].seq = -1;
 		responsePacket.from = instanceAddress.data();
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, responsePacket.toVariant(), "body", "%s CACHE: IN %s", "[CACHE]", responsePacket.from.data());
 		
-		ZhttpResponsePacket subscriptionPacket;
-		subscriptionPacket = gSubscriptionList[listId].subscriptionPacket;
-		subscriptionPacket.ids[0].id = packetId;
+		ZhttpResponsePacket subscriptionPacket = gSubscriptionList[listId].subscriptionPacket;
+		subscriptionPacket.ids[0].id = packetId.data();
 		subscriptionPacket.ids[0].seq = -1;
 		subscriptionPacket.from = instanceAddress.data();
 
