@@ -1153,6 +1153,7 @@ public slots:
 								memcpy(resultHashVal, resultHashByteArray.data(), 20);
 								log_debug("[CACHE] Registered subscription result for \"%s\"", qPrintable(jResult));
 								// Search in SubscriptionList
+								bool subscriptionCachedFlag = false;
 								for (int j = 0; j < gSubscriptionList.count(); j++)
 								{
 									if (!memcmp(resultHashVal, gSubscriptionList[j].subscriptionHashVal, 20))
@@ -1161,10 +1162,16 @@ public slots:
 										gSubscriptionList[i].cachedFlag = true;
 										gSubscriptionList.removeAt(j);
 										p.ids[0].id = gSubscriptionList[i].pktId;
+										subscriptionCachedFlag = true;
 										log_debug("[CACHE] Added Cache content for subscription method id=%d idHashString=%s result=%s", jId, qPrintable(idHashString), qPrintable(jResult));
 										break;
 									}
 								}
+								if (subscriptionCachedFlag == false)
+								{
+									memcpy(gSubscriptionList[i].subscriptionHashVal, resultHashVal, 20);
+								}
+								
 							}
 						}
 						else
