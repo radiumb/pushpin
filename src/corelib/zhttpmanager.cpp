@@ -92,13 +92,12 @@ struct CacheItem {
 QList<CacheItem> gCacheList;
 
 struct ClientItem {
-	char idHashVal[20];
+	QByteArray id;
 };
 
 // subscription item struct
 struct SubscriptionItem {
 	int id;
-	//QByteArray pktId;
 	char idHashVal[20];
 	char methodNameParamHashVal[20];
 	ZhttpResponsePacket responsePacket;
@@ -109,8 +108,6 @@ struct SubscriptionItem {
 	QList<ClientItem> clientList;
 };
 QList<SubscriptionItem> gSubscriptionList;
-
-static QByteArray gCacheClientId = NULL;
 
 class ZhttpManager::Private : public QObject
 {
@@ -419,12 +416,6 @@ public:
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 			
-			//if (packet.uri.path() == "/cache_client")
-			if (gCacheClientId == NULL)
-			{
-				gCacheClientId = packet.ids[0].id;
-			}
-			
 			client_out_sock->write(QList<QByteArray>() << buf);
 		}
 		else
@@ -508,19 +499,18 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		gCacheList.append(cacheItem);
 	}
 
-	void registerSubscriptionItem(int reqId, QByteArray pktId, char *idHashVal, char *methodNameParamsHashVal, char *clientHashVal)
+	void registerSubscriptionItem(int reqId, const QByteArray &packetId, char *idHashVal, char *methodNameParamsHashVal, char *clientHashVal)
 	{
 		// create new subscription item
 		struct SubscriptionItem subscriptionItem;
 		subscriptionItem.id = reqId;
-		//subscriptionItem.pktId = pktId;
 		subscriptionItem.cachedFlag = false;
 		memcpy(subscriptionItem.idHashVal, idHashVal, 20);
 		subscriptionItem.createdSeconds = time(NULL);
 		memcpy(subscriptionItem.methodNameParamHashVal, methodNameParamsHashVal, 20);
 		memset(subscriptionItem.subscriptionHashVal, 0, 20);
 		struct ClientItem clientItem;
-		memcpy(clientItem.idHashVal, clientHashVal, 20);
+		clientItem.id = packetId.data();
 		subscriptionItem.clientList.append(clientItem);
 		gSubscriptionList.append(subscriptionItem);
 	}
@@ -799,6 +789,20 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 								{
 									replySubscriptionContent(j, gSubscriptionList[j].id, jId, packet.ids[0].id, instanceAddress);
 									log_debug("[CACHE] Replied with Cache content for method \"%s\"", methodStr);
+
+									// add client to list
+									int k;
+									for (k = 0; k < gSubscriptionList[j].clientList.count(); k++)
+									{
+										if (gSubscriptionList[j].clientList[k].id == packet.ids[0].id)
+											break;
+									}
+									if (k != gSubscriptionList[j].clientList.count())
+									{
+										ClientItem subscriptionClient;
+										subscriptionClient.id = packet.ids[0].id;
+										gSubscriptionList[j].clientList.append(subscriptionClient);
+									}
 									
 									// add ws Cache hit
 									wsCacheHit++;
@@ -812,6 +816,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 								{
 									log_debug("[CACHE] Already registered, but not added content \"%s\"", methodStr);
 								}
+								
 								shmdt(shm_str);
 								goto OUT_STREAM_SOCK_WRITE;
 							}
@@ -841,12 +846,6 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						else
 						{
 							registerSubscriptionItem(jId, packet.ids[0].id, idHashVal, paramsHash, clientHashVal);
-							if (gCacheClientId != NULL)
-							{
-								ZhttpRequestPacket tempPacket = packet;
-								tempPacket.ids[0].id = gCacheClientId;
-								buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
-							}
 						}
 						
 						log_debug("[CACHE] Registered Cache for id=%d idHashString=%s method=\"%s\"", jId, qPrintable(idHashString), methodStr);
@@ -1045,9 +1044,51 @@ public slots:
 							if (!memcmp(gSubscriptionList[i].subscriptionHashVal, subscriptionHashVal, 20))
 							{
 								gSubscriptionList[i].subscriptionPacket = p;
-								gSubscriptionList[i].cachedFlag = true;
-								//p.ids[0].id = gSubscriptionList[i].pktId;
-								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gSubscriptionList[i].id, qPrintable(subscriptionString));
+								if (gSubscriptionList[i].cachedFlag == true)
+								{
+									// send update subscribe to all clients
+									for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
+									{
+										if (gSubscriptionList[i].clientList[j].id == p.ids[0].id)
+										{
+											continue;
+										}
+										
+										ZhttpResponsePacket clientPacket = p;
+										clientPacket.ids[0].id = gSubscriptionList[i].clientList[j].id;
+										clientPacket.ids[0].seq = -1;
+										QPointer<QObject> self = this;
+										foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
+										{
+											// is this for a websocket?
+											ZWebSocket *sock = clientSocksByRid.value(ZWebSocket::Rid(instanceId, id.id));
+											if(sock)
+											{
+												sock->handle(id.id, id.seq, clientPacket);
+												if(!self)
+													return;
+
+												continue;
+											}
+
+											// is this for an http request?
+											ZhttpRequest *req = clientReqsByRid.value(ZhttpRequest::Rid(instanceId, id.id));
+											if(req)
+											{
+												req->handle(id.id, id.seq, clientPacket);
+												if(!self)
+													return;
+
+												continue;
+											}
+
+											log_debug("zhttp/zws client: received message for unknown request id, skipping");
+										}
+									}
+								}
+								else
+									gSubscriptionList[i].cachedFlag = true;
+								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s, sent %d clients", gSubscriptionList[i].id, qPrintable(subscriptionString), gSubscriptionList[i].clientList.count());
 								subscriptionCachedFlag = true;
 								break;
 							}
@@ -1161,7 +1202,6 @@ public slots:
 										gSubscriptionList[i].subscriptionPacket = gSubscriptionList[j].subscriptionPacket;
 										gSubscriptionList[i].cachedFlag = true;
 										gSubscriptionList.removeAt(j);
-										//p.ids[0].id = gSubscriptionList[i].pktId;
 										subscriptionCachedFlag = true;
 										log_debug("[CACHE] Added Cache content for subscription method id=%d idHashString=%s result=%s", jId, qPrintable(idHashString), qPrintable(jResult));
 										break;
