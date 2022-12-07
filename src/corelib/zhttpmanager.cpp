@@ -87,7 +87,7 @@ struct CacheItem {
 	ZhttpResponsePacket responsePacket;
 	time_t createdSeconds;
 	bool cachedFlag;
-	bool expiredFlag;
+	//bool expiredFlag;
 };
 QList<CacheItem> gCacheList;
 
@@ -447,17 +447,18 @@ DELETE_OLD_CACHE_ITEMS:
 		for (int i = 0; i < cacheListCount; i++)
 		{
 			int diff = (int)(currSeconds - gCacheList[i].createdSeconds);
-			if ((diff > timeoutVal) && (gCacheList[i].expiredFlag == false))
+			//if ((diff > timeoutVal) && (gCacheList[i].expiredFlag == false))
+			if (diff > timeoutVal)
 			{
 				// add ws Cache expiry
 				wsCacheExpiry++;
-				//gCacheList.removeAt(i);
-				gCacheList[i].expiredFlag = true;
+				gCacheList.removeAt(i);
+				//gCacheList[i].expiredFlag = true;
 
 				goto DELETE_OLD_CACHE_ITEMS;
 			}
 		}
-
+		/*
 		if (cacheListCount >= itemMaxCount)
 		{
 			for (int i = 0; i < cacheListCount; i++)
@@ -470,6 +471,7 @@ DELETE_OLD_CACHE_ITEMS:
 			}
 			cacheListCount = gCacheList.count();
 		}
+		*/
 	}
 
 	void deleteOldSubscriptionItem(int timeoutVal)
@@ -500,7 +502,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		cacheItem.id = reqId;
 		cacheItem.cachedFlag = false;
 		memcpy(cacheItem.idHashVal, idHashVal, 20);
-		cacheItem.expiredFlag = false;
+		//cacheItem.expiredFlag = false;
 		cacheItem.createdSeconds = time(NULL);
 		memcpy(cacheItem.methodNameParamHashVal, methodNameParamsHashVal, 20);
 		gCacheList.append(cacheItem);
@@ -750,6 +752,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							// if method name is in cache config list
 							if (!memcmp(gCacheList[j].methodNameParamHashVal, paramsHash, 20))
 							{
+								/*
 								if (gCacheList[j].expiredFlag == true)
 								{
 									// add ws Cache expired match count
@@ -760,6 +763,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 
 									gCacheList[j].cachedFlag = false;
 								}
+								*/
 
 								if (gCacheList[j].cachedFlag == true)
 								{
