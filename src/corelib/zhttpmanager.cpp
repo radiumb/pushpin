@@ -100,6 +100,7 @@ struct SubscriptionItem {
 	int id;
 	char idHashVal[20];
 	char methodNameParamHashVal[20];
+	ZhttpRequestPacket requestPacket;
 	ZhttpResponsePacket responsePacket;
 	time_t createdSeconds;
 	bool cachedFlag;
@@ -499,7 +500,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		gCacheList.append(cacheItem);
 	}
 
-	void registerSubscriptionItem(int reqId, const QByteArray &packetId, char *idHashVal, char *methodNameParamsHashVal, char *clientHashVal)
+	void registerSubscriptionItem(int reqId, const ZhttpRequestPacket &packet, char *idHashVal, char *methodNameParamsHashVal, char *clientHashVal)
 	{
 		// create new subscription item
 		struct SubscriptionItem subscriptionItem;
@@ -510,7 +511,8 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		memcpy(subscriptionItem.methodNameParamHashVal, methodNameParamsHashVal, 20);
 		memset(subscriptionItem.subscriptionHashVal, 0, 20);
 		struct ClientItem clientItem;
-		clientItem.id = packetId.data();
+		clientItem.id = packet.ids[0].id;
+		subscriptionItem.requestPacket = packet;
 		subscriptionItem.clientList.append(clientItem);
 		gSubscriptionList.append(subscriptionItem);
 	}
@@ -603,7 +605,24 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data());
 
-		// Cache
+		if ((packet.type == ZhttpRequestPacket::Cancel) || (packet.type == ZhttpRequestPacket::Close))
+		{
+			QByteArray cancelPacketId = packet.ids[0].id;
+			for (int i = 0; i < gSubscriptionList.count(); i++)
+			{
+				if (gSubscriptionList[i].clientList[0].id == cancelPacketId)
+				{
+					gSubscriptionList[i].clientList.removeAt(0);
+					log_debug("asdfasdfasdfasdfasdf %d", gSubscriptionList[i].clientList.count());
+					if (gSubscriptionList[i].clientList.count() > 0)
+					{
+						ZhttpRequestPacket requestPacket = gSubscriptionList[i].requestPacket;
+					}
+					
+				}
+			}
+		}
+		else 	// Cache
 		{
 			// convert to string
 			QVariantHash hdata = vpacket.toHash();
@@ -845,7 +864,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						}
 						else
 						{
-							registerSubscriptionItem(jId, packet.ids[0].id, idHashVal, paramsHash, clientHashVal);
+							registerSubscriptionItem(jId, packet, idHashVal, paramsHash, clientHashVal);
 						}
 						
 						log_debug("[CACHE] Registered Cache for id=%d idHashString=%s method=\"%s\"", jId, qPrintable(idHashString), methodStr);
@@ -1090,6 +1109,7 @@ public slots:
 								}
 								else
 									gSubscriptionList[i].cachedFlag = true;
+								
 								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gSubscriptionList[i].id, qPrintable(subscriptionString));
 								subscriptionCachedFlag = true;
 								break;
@@ -1209,7 +1229,7 @@ public slots:
 										break;
 									}
 								}
-								if (subscriptionCachedFlag == false)
+								if (subscriptionCachedFlag == true)
 								{
 									memcpy(gSubscriptionList[i].subscriptionHashVal, resultHashVal, 20);
 								}
