@@ -607,6 +607,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 
 		if ((packet.type == ZhttpRequestPacket::Cancel) || (packet.type == ZhttpRequestPacket::Close))
 		{
+			/*
 			QByteArray cancelPacketId = packet.ids[0].id;
 			for (int i = 0; i < gSubscriptionList.count(); i++)
 			{
@@ -623,6 +624,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 					}
 				}
 			}
+			*/
 		}
 		else 	// Cache
 		{
@@ -1071,7 +1073,7 @@ public slots:
 											continue;
 										}
 
-										log_debug("[CACHE] Sending Cache content to client id=%d", (const char *)p.ids[0].id);
+										log_debug("[CACHE] Sending Cache content to client id=%s", (const char *)gSubscriptionList[i].clientList[j].id);
 										
 										ZhttpResponsePacket clientPacket = p;
 										clientPacket.ids[0].id = gSubscriptionList[i].clientList[j].id;
