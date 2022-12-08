@@ -610,15 +610,17 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 			QByteArray cancelPacketId = packet.ids[0].id;
 			for (int i = 0; i < gSubscriptionList.count(); i++)
 			{
-				if (gSubscriptionList[i].clientList[0].id == cancelPacketId)
+				if (gSubscriptionList[i].clientList.count() > 0)
 				{
-					gSubscriptionList[i].clientList.removeAt(0);
-					log_debug("asdfasdfasdfasdfasdf %d", gSubscriptionList[i].clientList.count());
-					if (gSubscriptionList[i].clientList.count() > 0)
+					if (gSubscriptionList[i].clientList[0].id == cancelPacketId)
 					{
-						ZhttpRequestPacket requestPacket = gSubscriptionList[i].requestPacket;
+						gSubscriptionList[i].clientList.removeAt(0);
+						log_debug("asdfasdfasdfasdfasdf %d", gSubscriptionList[i].clientList.count());
+						if (gSubscriptionList[i].clientList.count() > 0)
+						{
+							ZhttpRequestPacket requestPacket = gSubscriptionList[i].requestPacket;
+						}
 					}
-					
 				}
 			}
 		}
