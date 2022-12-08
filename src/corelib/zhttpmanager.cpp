@@ -744,7 +744,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 			// delete old cache items
 			deleteOldCacheItem(cacheTimeoutSeconds, cacheItemMaxCount);
 			memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
-			deleteOldSubscriptionItem(cacheSubscribeTimeoutSeconds);
+			//deleteOldSubscriptionItem(cacheSubscribeTimeoutSeconds);
 
 			// get item count
 			int cacheListCount = gCacheList.count();
@@ -1063,7 +1063,6 @@ public slots:
 							if (!memcmp(gSubscriptionList[i].subscriptionHashVal, subscriptionHashVal, 20))
 							{
 								gSubscriptionList[i].subscriptionPacket = p;
-								/*
 								if (gSubscriptionList[i].cachedFlag == true)
 								{
 									// send update subscribe to all clients
@@ -1079,7 +1078,6 @@ public slots:
 										ZhttpResponsePacket clientPacket = p;
 										clientPacket.ids[0].id = gSubscriptionList[i].clientList[j].id;
 										clientPacket.ids[0].seq = -1;
-										QPointer<QObject> self = this;
 										foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
 										{
 											// is this for a websocket?
@@ -1087,9 +1085,6 @@ public slots:
 											if(sock)
 											{
 												sock->handle(id.id, id.seq, clientPacket);
-												if(!self)
-													return;
-
 												continue;
 											}
 
@@ -1098,9 +1093,6 @@ public slots:
 											if(req)
 											{
 												req->handle(id.id, id.seq, clientPacket);
-												if(!self)
-													return;
-
 												continue;
 											}
 
@@ -1110,7 +1102,7 @@ public slots:
 								}
 								else
 									gSubscriptionList[i].cachedFlag = true;
-								*/
+
 								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gSubscriptionList[i].id, qPrintable(subscriptionString));
 								subscriptionCachedFlag = true;
 								break;
@@ -1121,6 +1113,7 @@ public slots:
 						{
 							// create new subscription item
 							struct SubscriptionItem subscriptionItem;
+							subscriptionItem.id = -1;
 							subscriptionItem.createdSeconds = time(NULL);
 							subscriptionItem.subscriptionPacket = p;
 							memcpy(subscriptionItem.subscriptionHashVal, subscriptionHashVal, 20);
@@ -1221,7 +1214,7 @@ public slots:
 								{
 									if (i == j)
 										continue;
-									if (!memcmp(resultHashVal, gSubscriptionList[j].subscriptionHashVal, 20))
+									if (!memcmp(resultHashVal, gSubscriptionList[j].subscriptionHashVal, 20) && (gSubscriptionList[j].id == -1))
 									{
 										gSubscriptionList[i].subscriptionPacket = gSubscriptionList[j].subscriptionPacket;
 										gSubscriptionList[i].cachedFlag = true;
