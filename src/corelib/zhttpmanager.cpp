@@ -552,13 +552,13 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		}
 	}
 
-	void replySubscriptionContent(int listId, int oldId, int newId, const QByteArray &packetId, const QByteArray &instanceAddress)
+	void replySubscriptionContent(int listId, int newId, const QByteArray &packetId, const QByteArray &instanceAddress)
 	{
 		ZhttpResponsePacket responsePacket = gSubscriptionList[listId].responsePacket;
 							
 		// replace id str
 		char oldIdStr[64], newIdStr[64];
-		qsnprintf(oldIdStr, 64, "\"id\":%d", oldId);
+		qsnprintf(oldIdStr, 64, "\"id\":%d", gSubscriptionList[listId].id);
 		qsnprintf(newIdStr, 64, "\"id\":%d", newId);
 		responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 		responsePacket.ids[0].id = packetId.data();
@@ -810,8 +810,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							{
 								if (gSubscriptionList[j].cachedFlag == true)
 								{
-									/*
-									replySubscriptionContent(j, gSubscriptionList[j].id, jId, packet.ids[0].id, instanceAddress);
+									replySubscriptionContent(j, jId, packet.ids[0].id, instanceAddress);
 									log_debug("[CACHE] Replied with Cache content for method \"%s\"", methodStr);
 
 									// add client to list
@@ -837,7 +836,6 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 									ZhttpRequestPacket tempPacket = packet;
 									tempPacket.type = ZhttpRequestPacket::KeepAlive;
 									buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
-									*/
 								}
 								else
 								{
