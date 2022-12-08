@@ -501,7 +501,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		gCacheList.append(cacheItem);
 	}
 
-	void registerSubscriptionItem(int reqId, QByteArray &instanceAddress, const ZhttpRequestPacket &packet, char *idHashVal, char *methodNameParamsHashVal)
+	void registerSubscriptionItem(int reqId, const QByteArray &instanceAddress, const ZhttpRequestPacket &packet, char *idHashVal, char *methodNameParamsHashVal)
 	{
 		// create new subscription item
 		struct SubscriptionItem subscriptionItem;
@@ -834,7 +834,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 										clientItem.instanceAddress = instanceAddress.data();
 										clientItem.requestPacket = packet;
 										gSubscriptionList[j].clientList.append(clientItem);
-										log_debug("[CACHE] Adding new client id \"%s\"", (const char *)subscriptionClient.id);
+										log_debug("[CACHE] Adding new client id \"%s\"", (const char *)clientItem.id);
 									}
 									
 									// add ws Cache hit
