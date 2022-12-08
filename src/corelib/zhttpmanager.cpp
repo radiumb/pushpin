@@ -1213,6 +1213,8 @@ public slots:
 								bool subscriptionCachedFlag = false;
 								for (int j = 0; j < gSubscriptionList.count(); j++)
 								{
+									if (i == j)
+										continue;
 									if (!memcmp(resultHashVal, gSubscriptionList[j].subscriptionHashVal, 20))
 									{
 										gSubscriptionList[i].subscriptionPacket = gSubscriptionList[j].subscriptionPacket;
@@ -1223,11 +1225,7 @@ public slots:
 										break;
 									}
 								}
-								if (subscriptionCachedFlag == true)
-								{
-									memcpy(gSubscriptionList[i].subscriptionHashVal, resultHashVal, 20);
-								}
-								
+								memcpy(gSubscriptionList[i].subscriptionHashVal, resultHashVal, 20);
 							}
 						}
 						else
