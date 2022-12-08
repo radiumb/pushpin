@@ -810,6 +810,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							{
 								if (gSubscriptionList[j].cachedFlag == true)
 								{
+									/*
 									replySubscriptionContent(j, gSubscriptionList[j].id, jId, packet.ids[0].id, instanceAddress);
 									log_debug("[CACHE] Replied with Cache content for method \"%s\"", methodStr);
 
@@ -836,6 +837,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 									ZhttpRequestPacket tempPacket = packet;
 									tempPacket.type = ZhttpRequestPacket::KeepAlive;
 									buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+									*/
 								}
 								else
 								{
@@ -864,7 +866,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						}
 						else
 						{
-							//registerSubscriptionItem(jId, packet, idHashVal, paramsHash);
+							registerSubscriptionItem(jId, packet, idHashVal, paramsHash);
 						}
 						
 						log_debug("[CACHE] Registered Cache for id=%d idHashString=%s method=\"%s\"", jId, qPrintable(idHashString), methodStr);
