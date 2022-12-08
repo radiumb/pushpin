@@ -823,6 +823,8 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 										ClientItem subscriptionClient;
 										subscriptionClient.id = packet.ids[0].id;
 										gSubscriptionList[j].clientList.append(subscriptionClient);
+
+										log_debug("[CACHE] Adding new client id \"%s\"", (const char *)subscriptionClient.id);
 									}
 									
 									// add ws Cache hit
