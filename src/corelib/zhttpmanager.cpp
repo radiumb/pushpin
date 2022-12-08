@@ -818,7 +818,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 										if (gSubscriptionList[j].clientList[k].id == packet.ids[0].id)
 											break;
 									}
-									if (k != gSubscriptionList[j].clientList.count())
+									if (k == gSubscriptionList[j].clientList.count())
 									{
 										ClientItem subscriptionClient;
 										subscriptionClient.id = packet.ids[0].id;
@@ -1212,7 +1212,6 @@ public slots:
 								memcpy(resultHashVal, resultHashByteArray.data(), 20);
 								log_debug("[CACHE] Registered subscription result for \"%s\"", qPrintable(jResult));
 								// Search in SubscriptionList
-								bool subscriptionCachedFlag = false;
 								for (int j = 0; j < gSubscriptionList.count(); j++)
 								{
 									if (i == j)
@@ -1222,7 +1221,6 @@ public slots:
 										gSubscriptionList[i].subscriptionPacket = gSubscriptionList[j].subscriptionPacket;
 										gSubscriptionList[i].cachedFlag = true;
 										gSubscriptionList.removeAt(j);
-										subscriptionCachedFlag = true;
 										log_debug("[CACHE] Added Cache content for subscription method id=%d idHashString=%s result=%s", jId, qPrintable(idHashString), qPrintable(jResult));
 										break;
 									}
