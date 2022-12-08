@@ -500,7 +500,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		gCacheList.append(cacheItem);
 	}
 
-	void registerSubscriptionItem(int reqId, const ZhttpRequestPacket &packet, char *idHashVal, char *methodNameParamsHashVal, char *clientHashVal)
+	void registerSubscriptionItem(int reqId, const ZhttpRequestPacket &packet, char *idHashVal, char *methodNameParamsHashVal)
 	{
 		// create new subscription item
 		struct SubscriptionItem subscriptionItem;
@@ -852,19 +852,13 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						char idHashVal[20];
 						memcpy(idHashVal, idHashByteArray.data(), 20);
 
-						// Client hash val
-						QString clientHashString = QString(packet.ids[0].id);
-						QByteArray clientHashByteArray = QCryptographicHash::hash(clientHashString.toUtf8(),QCryptographicHash::Sha1);
-						char clientHashVal[20];
-						memcpy(clientHashVal, clientHashByteArray.data(), 20);
-
 						if (!strstr(methodStr, "_subscribe"))
 						{
 							registerCacheItem(jId, idHashVal, paramsHash);
 						}
 						else
 						{
-							registerSubscriptionItem(jId, packet, idHashVal, paramsHash, clientHashVal);
+							registerSubscriptionItem(jId, packet, idHashVal, paramsHash);
 						}
 						
 						log_debug("[CACHE] Registered Cache for id=%d idHashString=%s method=\"%s\"", jId, qPrintable(idHashString), methodStr);
