@@ -621,7 +621,6 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						if (gSubscriptionList[i].clientList.count() > 0)
 						{
 							ZhttpRequestPacket tempPacket = gSubscriptionList[i].clientList[0].requestPacket;
-							tempPacket.type = ZhttpRequestPacket::KeepAlive;
 							QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
 							QList<QByteArray> tempmsg;
