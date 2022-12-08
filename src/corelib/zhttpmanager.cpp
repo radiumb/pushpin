@@ -864,7 +864,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						}
 						else
 						{
-							registerSubscriptionItem(jId, packet, idHashVal, paramsHash);
+							//registerSubscriptionItem(jId, packet, idHashVal, paramsHash);
 						}
 						
 						log_debug("[CACHE] Registered Cache for id=%d idHashString=%s method=\"%s\"", jId, qPrintable(idHashString), methodStr);
