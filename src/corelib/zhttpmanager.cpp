@@ -93,6 +93,8 @@ QList<CacheItem> gCacheList;
 
 struct ClientItem {
 	QByteArray id;
+	QByteArray instanceAddress;
+	ZhttpRequestPacket requestPacket;
 };
 
 // subscription item struct
@@ -100,7 +102,6 @@ struct SubscriptionItem {
 	int id;
 	char idHashVal[20];
 	char methodNameParamHashVal[20];
-	ZhttpRequestPacket requestPacket;
 	ZhttpResponsePacket responsePacket;
 	time_t createdSeconds;
 	bool cachedFlag;
@@ -500,7 +501,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		gCacheList.append(cacheItem);
 	}
 
-	void registerSubscriptionItem(int reqId, const ZhttpRequestPacket &packet, char *idHashVal, char *methodNameParamsHashVal)
+	void registerSubscriptionItem(int reqId, QByteArray &instanceAddress, const ZhttpRequestPacket &packet, char *idHashVal, char *methodNameParamsHashVal)
 	{
 		// create new subscription item
 		struct SubscriptionItem subscriptionItem;
@@ -512,7 +513,8 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		memset(subscriptionItem.subscriptionHashVal, 0, 20);
 		struct ClientItem clientItem;
 		clientItem.id = packet.ids[0].id;
-		subscriptionItem.requestPacket = packet;
+		clientItem.instanceAddress = instanceAddress.data();
+		clientItem.requestPacket = packet;
 		subscriptionItem.clientList.append(clientItem);
 		gSubscriptionList.append(subscriptionItem);
 	}
@@ -607,7 +609,6 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 
 		if ((packet.type == ZhttpRequestPacket::Cancel) || (packet.type == ZhttpRequestPacket::Close))
 		{
-			/*
 			QByteArray cancelPacketId = packet.ids[0].id;
 			for (int i = 0; i < gSubscriptionList.count(); i++)
 			{
@@ -619,12 +620,19 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						log_debug("asdfasdfasdfasdfasdf %d", gSubscriptionList[i].clientList.count());
 						if (gSubscriptionList[i].clientList.count() > 0)
 						{
-							ZhttpRequestPacket requestPacket = gSubscriptionList[i].requestPacket;
+							ZhttpRequestPacket tempPacket = gSubscriptionList[i].clientList[0].requestPacket;
+							tempPacket.type = ZhttpRequestPacket::KeepAlive;
+							QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+
+							QList<QByteArray> tempmsg;
+							tempmsg += gSubscriptionList[i].clientList[0].instanceAddress;
+							tempmsg += QByteArray();
+							tempmsg += tempbuf;
+							client_out_stream_sock->write(tempmsg);
 						}
 					}
 				}
 			}
-			*/
 		}
 		else 	// Cache
 		{
@@ -822,10 +830,11 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 									}
 									if (k == gSubscriptionList[j].clientList.count())
 									{
-										ClientItem subscriptionClient;
-										subscriptionClient.id = packet.ids[0].id;
-										gSubscriptionList[j].clientList.append(subscriptionClient);
-
+										struct ClientItem clientItem;
+										clientItem.id = packet.ids[0].id;
+										clientItem.instanceAddress = instanceAddress.data();
+										clientItem.requestPacket = packet;
+										gSubscriptionList[j].clientList.append(clientItem);
 										log_debug("[CACHE] Adding new client id \"%s\"", (const char *)subscriptionClient.id);
 									}
 									
@@ -864,7 +873,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						}
 						else
 						{
-							registerSubscriptionItem(jId, packet, idHashVal, paramsHash);
+							registerSubscriptionItem(jId, instanceAddress, packet, idHashVal, paramsHash);
 						}
 						
 						log_debug("[CACHE] Registered Cache for id=%d idHashString=%s method=\"%s\"", jId, qPrintable(idHashString), methodStr);
