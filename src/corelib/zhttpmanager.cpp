@@ -1193,7 +1193,7 @@ public slots:
 								{
 									log_debug("[CACHE] Cancel subscription sending to client id=%s credit=%d", (const char *)p.ids[0].id, hdata.value("body").toByteArray().size());
 
-									ZhttpRequestPacket tempPacket;
+									ZhttpRequestPacket tempPacket = new ZhttpRequestPacket();
 									tempPacket.type = ZhttpRequestPacket::Credit;
 									tempPacket.credits = hdata.value("body").toByteArray().size();
 									tempPacket.from = receiver.data();
@@ -1354,7 +1354,7 @@ public slots:
 					{
 						log_debug("[CACHE] Cancel sending to client id=%s credit=%d", (const char *)p.ids[0].id, hdata.value("body").toByteArray().size());
 						
-						ZhttpRequestPacket tempPacket;
+						ZhttpRequestPacket tempPacket = new ZhttpRequestPacket();
 						tempPacket.type = ZhttpRequestPacket::Credit;
 						tempPacket.credits = hdata.value("body").toByteArray().size();
 						tempPacket.from = receiver.data();
