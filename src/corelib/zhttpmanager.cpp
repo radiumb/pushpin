@@ -1110,7 +1110,22 @@ public slots:
 			QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
 			// parse body as JSON string
 			if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
+			{
+				// if the client is closed
+				if ((p.type != ZhttpResponsePacket::Cancel) && (p.type != ZhttpResponsePacket::Close))
+				{
+					for (int i = 0; i < gClosedClientList.count(); i++)
+					{
+						if (gClosedClientList[i].id == p.ids[0].id)
+						{
+							log_debug("[CACHE] Cancel sending to client id=%s", (const char *)p.ids[0].id);
+							return;
+						}
+						
+					}
+				}
 				goto ZWS_CLIENT_IN_WRITE;
+			}
 
 			QVariantMap jsonData = jsonDoc.object().toVariantMap();
 			// Search subscirption field first
