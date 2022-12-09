@@ -1072,7 +1072,6 @@ public slots:
 						{
 							if (!memcmp(gSubscriptionList[i].subscriptionHashVal, subscriptionHashVal, 20))
 							{
-								//gSubscriptionList[i].subscriptionPacket = p;
 								if (gSubscriptionList[i].cachedFlag == true)
 								{
 									// send update subscribe to all clients
@@ -1111,7 +1110,10 @@ public slots:
 									}
 								}
 								else
+								{
+									gSubscriptionList[i].subscriptionPacket = p;
 									gSubscriptionList[i].cachedFlag = true;
+								}
 
 								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gSubscriptionList[i].id, qPrintable(subscriptionString));
 								subscriptionCachedFlag = true;
