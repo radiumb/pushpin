@@ -619,6 +619,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		{
 			ZhttpRequestPacket tempPacket = packet;
 			tempPacket.ids[0].id = gClosedClientList[0].id;
+			tempPacket.ids[0].seq = -1;
 			tempPacket.type = ZhttpRequestPacket::KeepAlive;
 			QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
