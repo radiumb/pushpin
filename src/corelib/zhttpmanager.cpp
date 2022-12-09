@@ -621,6 +621,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						log_debug("asdfasdfasdfasdfasdf %d", gSubscriptionList[i].clientList.count());
 						if (gSubscriptionList[i].clientList.count() > 0)
 						{
+							/*
 							ZhttpRequestPacket tempPacket = gSubscriptionList[i].clientList[0].requestPacket;
 							tempPacket.ids[0].seq = -1;
 							QVariant vtemppacket = tempPacket.toVariant();
@@ -634,6 +635,13 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							tempmsg += QByteArray();
 							tempmsg += tempbuf;
 							client_out_stream_sock->write(tempmsg);
+							*/
+							ZhttpRequestPacket tempPacket = packet;
+							tempPacket.type = ZhttpRequestPacket::KeepAlive;
+							buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+
+							if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+								LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "%s client: OUT %s", logprefix, instanceAddress.data());
 						}
 					}
 					else
