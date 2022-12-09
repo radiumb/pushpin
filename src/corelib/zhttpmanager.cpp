@@ -616,6 +616,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 				{
 					if (gSubscriptionList[i].clientList[0].id == cancelPacketId)
 					{
+						/*
 						gSubscriptionList[i].clientList.removeAt(0);
 						log_debug("asdfasdfasdfasdfasdf %d", gSubscriptionList[i].clientList.count());
 						if (gSubscriptionList[i].clientList.count() > 0)
@@ -629,6 +630,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							tempmsg += tempbuf;
 							client_out_stream_sock->write(tempmsg);
 						}
+						*/
 					}
 				}
 			}
@@ -1073,6 +1075,7 @@ public slots:
 								gSubscriptionList[i].subscriptionPacket = p;
 								if (gSubscriptionList[i].cachedFlag == true)
 								{
+									/*
 									// send update subscribe to all clients
 									for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 									{
@@ -1107,6 +1110,7 @@ public slots:
 											log_debug("zhttp/zws client: received message for unknown request id, skipping");
 										}
 									}
+									*/
 								}
 								else
 									gSubscriptionList[i].cachedFlag = true;
