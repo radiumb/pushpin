@@ -1213,7 +1213,7 @@ public slots:
 				}
 			}
 			// if the client is closed
-			if ((p.type != ZhttpRespondPacket::Cancel) && (p.type != ZhttpRespondPacket::Close))
+			if ((p.type != ZhttpResponsePacket::Cancel) && (p.type != ZhttpResponsePacket::Close))
 			{
 				for (int i = 0; i < gClosedClientList.count(); i++)
 				{
