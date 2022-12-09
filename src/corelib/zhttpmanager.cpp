@@ -1191,7 +1191,7 @@ public slots:
 							{
 								if (gClosedClientList[i].id == p.ids[0].id)
 								{
-									log_debug("[CACHE] Cancel subscription sending to client id=%s", (const char *)p.ids[0].id);
+									log_debug("[CACHE] Cancel subscription sending to client id=%s credit=%d", (const char *)p.ids[0].id, hdata.value("body").toByteArray().size());
 									return;
 								}
 								
@@ -1334,7 +1334,7 @@ public slots:
 				{
 					if (gClosedClientList[i].id == p.ids[0].id)
 					{
-						log_debug("[CACHE] Cancel sending to client id=%s", (const char *)p.ids[0].id);
+						log_debug("[CACHE] Cancel sending to client id=%s credit=%d", (const char *)p.ids[0].id, hdata.value("body").toByteArray().size());
 						return;
 					}
 					
