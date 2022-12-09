@@ -1123,10 +1123,12 @@ public slots:
 								if (gSubscriptionList[i].cachedFlag == true)
 								{
 									// send update subscribe to all clients
+									int invalidSubsciptionCount = 0;
 									for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 									{
 										if (gSubscriptionList[i].clientList[j].id == p.ids[0].id)
 										{
+											invalidSubsciptionCount++;
 											continue;
 										}
 
@@ -1156,6 +1158,13 @@ public slots:
 											log_debug("zhttp/zws client: received message for unknown request id, skipping");
 										}
 									}
+
+									// if the client is closed
+									if (invalidSubsciptionCount > 0)
+									{
+										log_debug("[CACHE] Cancel sending to client id=%s, count=%d", (const char *)p.ids[0].id, invalidSubsciptionCount);
+									}
+									
 								}
 								else
 								{
