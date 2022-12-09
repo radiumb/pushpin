@@ -1204,10 +1204,10 @@ public slots:
 									QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
 									if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-										LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "client: OUT %s", p.from);
+										LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "client: OUT %s", p.from.data());
 
 									QList<QByteArray> msg;
-									msg += p.from.data();
+									msg += p.from;
 									msg += QByteArray();
 									msg += tempbuf;
 									client_out_stream_sock->write(msg);
@@ -1367,13 +1367,14 @@ public slots:
 						QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
 						if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-							LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "client: OUT %s", p.from);
+							LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "client: OUT %s", p.from.data());
 
 						QList<QByteArray> msg;
-						msg += p.from.data();
+						msg += p.from;
 						msg += QByteArray();
 						msg += tempbuf;
 						client_out_stream_sock->write(msg);
+						
 						return;
 					}
 					
