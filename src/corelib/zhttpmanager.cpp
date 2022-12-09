@@ -1197,8 +1197,10 @@ public slots:
 									tempPacket.type = ZhttpRequestPacket::Credit;
 									tempPacket.credits = hdata.value("body").toByteArray().size();
 									tempPacket.from = receiver.data();
-									tempPacket.ids = p.ids;
-									tempPacket.ids[0].seq = -1;
+									ZhttpRequestPacket::Id tempId;
+									tempId.id = p.ids[0].id;
+									tempId.seq = -1;
+									tempPacket.ids.append(tempId);
 									QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
 									if(log_outputLevel() >= LOG_LEVEL_DEBUG)
@@ -1353,12 +1355,12 @@ public slots:
 					if (gClosedClientList[i].id == p.ids[0].id)
 					{
 						log_debug("[CACHE] Cancel sending to client id=%s credit=%d", (const char *)p.ids[0].id, hdata.value("body").toByteArray().size());
-
+/*						
 						ZhttpRequestPacket tempPacket;
 						tempPacket.type = ZhttpRequestPacket::Credit;
 						tempPacket.credits = hdata.value("body").toByteArray().size();
 						tempPacket.from = receiver.data();
-						tempPacket.ids = p.ids;
+						tempPacket.ids[0].id = p.ids[0].id;
 						tempPacket.ids[0].seq = -1;
 						QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
@@ -1370,7 +1372,7 @@ public slots:
 						msg += QByteArray();
 						msg += tempbuf;
 						client_out_stream_sock->write(msg);
-
+*/
 						return;
 					}
 					
