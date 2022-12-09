@@ -111,6 +111,12 @@ struct SubscriptionItem {
 };
 QList<SubscriptionItem> gSubscriptionList;
 
+// closed client item
+struct ClosedSubscriptionClientItem {
+	QByteArray id;
+};
+QList<ClosedSubscriptionClientItem> gClosedSubscriptionClientList;
+
 class ZhttpManager::Private : public QObject
 {
 	Q_OBJECT
@@ -681,6 +687,11 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 
 				if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "%s client: OUT %s", logprefix, instanceAddress.data());
+				
+				// Add to list
+				ClosedSubscriptionClientItem clientItem;
+				clientItem.id = packet.ids[0].id;
+				gClosedSubscriptionClientList.append(clientItem);
 			}
 		}
 		else 	// Cache
@@ -1159,13 +1170,10 @@ public slots:
 										}
 									}
 
-									// if the client is closed
 									if (invalidSubsciptionCount > 0)
 									{
-										log_debug("[CACHE] Cancel sending to client id=%s, count=%d", (const char *)p.ids[0].id, invalidSubsciptionCount);
-										return;
+										log_debug("[CACHE] Cancelend client count=%d", invalidSubsciptionCount);
 									}
-									
 								}
 								else
 								{
@@ -1179,6 +1187,17 @@ public slots:
 							}
 						}
 
+						// if the client is closed
+						for (int i = 0; i < gClosedSubscriptionClientList.count(); i++)
+						{
+							if (gClosedSubscriptionClientList[i].id == p.ids[0].id)
+							{
+								log_debug("[CACHE] Cancel sending to client id=%s", (const char *)p.ids[0].id);
+								retrun;
+							}
+							
+						}
+						
 						if (subscriptionCachedFlag == false)
 						{
 							// create new subscription item
