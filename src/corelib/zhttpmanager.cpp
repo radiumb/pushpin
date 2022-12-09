@@ -622,10 +622,11 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						if (gSubscriptionList[i].clientList.count() > 0)
 						{
 							ZhttpRequestPacket tempPacket = gSubscriptionList[i].clientList[0].requestPacket;
-							QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+							QVariant vtemppacket = tempPacket.toVariant();
+							QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(vtemppacket);
 
 							if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-								LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket, "body", "[CACHE] %s client: OUT %s", logprefix, gSubscriptionList[i].clientList[0].instanceAddress.data());
+								LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vtemppacket, "body", "[CACHE] %s client: OUT %s", logprefix, gSubscriptionList[i].clientList[0].instanceAddress.data());
 
 							QList<QByteArray> tempmsg;
 							tempmsg += gSubscriptionList[i].clientList[0].instanceAddress;
