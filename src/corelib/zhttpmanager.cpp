@@ -1072,10 +1072,9 @@ public slots:
 						{
 							if (!memcmp(gSubscriptionList[i].subscriptionHashVal, subscriptionHashVal, 20))
 							{
-								gSubscriptionList[i].subscriptionPacket = p;
+								//gSubscriptionList[i].subscriptionPacket = p;
 								if (gSubscriptionList[i].cachedFlag == true)
 								{
-									/*
 									// send update subscribe to all clients
 									for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 									{
@@ -1110,7 +1109,6 @@ public slots:
 											log_debug("zhttp/zws client: received message for unknown request id, skipping");
 										}
 									}
-									*/
 								}
 								else
 									gSubscriptionList[i].cachedFlag = true;
