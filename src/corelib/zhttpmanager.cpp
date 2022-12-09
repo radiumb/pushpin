@@ -112,10 +112,10 @@ struct SubscriptionItem {
 QList<SubscriptionItem> gSubscriptionList;
 
 // closed client item
-struct ClosedSubscriptionClientItem {
+struct ClosedClientItem {
 	QByteArray id;
 };
-QList<ClosedSubscriptionClientItem> gClosedSubscriptionClientList;
+QList<ClosedClientItem> gClosedClientList;
 
 class ZhttpManager::Private : public QObject
 {
@@ -689,9 +689,9 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "%s client: OUT %s", logprefix, instanceAddress.data());
 				
 				// Add to list
-				ClosedSubscriptionClientItem clientItem;
+				ClosedClientItem clientItem;
 				clientItem.id = packet.ids[0].id;
-				gClosedSubscriptionClientList.append(clientItem);
+				gClosedClientList.append(clientItem);
 			}
 		}
 		else 	// Cache
@@ -1188,11 +1188,11 @@ public slots:
 						}
 
 						// if the client is closed
-						for (int i = 0; i < gClosedSubscriptionClientList.count(); i++)
+						for (int i = 0; i < gClosedClientList.count(); i++)
 						{
-							if (gClosedSubscriptionClientList[i].id == p.ids[0].id)
+							if (gClosedClientList[i].id == p.ids[0].id)
 							{
-								log_debug("[CACHE] Cancel sending to client id=%s", (const char *)p.ids[0].id);
+								log_debug("[CACHE] Cancel subscription sending to client id=%s", (const char *)p.ids[0].id);
 								return;
 							}
 							
@@ -1212,6 +1212,20 @@ public slots:
 					}
 				}
 			}
+			// if the client is closed
+			if ((p.type != ZhttpRespondPacket::Cancel) && (p.type != ZhttpRespondPacket::Close))
+			{
+				for (int i = 0; i < gClosedClientList.count(); i++)
+				{
+					if (gClosedClientList[i].id == p.ids[0].id)
+					{
+						log_debug("[CACHE] Cancel sending to client id=%s", (const char *)p.ids[0].id);
+						return;
+					}
+					
+				}
+			}
+			
 			// id
 			if(!jsonData.contains("id"))
 			{
