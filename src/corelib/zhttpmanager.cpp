@@ -1193,7 +1193,7 @@ public slots:
 							if (gClosedSubscriptionClientList[i].id == p.ids[0].id)
 							{
 								log_debug("[CACHE] Cancel sending to client id=%s", (const char *)p.ids[0].id);
-								retrun;
+								return;
 							}
 							
 						}
