@@ -1163,6 +1163,7 @@ public slots:
 									if (invalidSubsciptionCount > 0)
 									{
 										log_debug("[CACHE] Cancel sending to client id=%s, count=%d", (const char *)p.ids[0].id, invalidSubsciptionCount);
+										return;
 									}
 									
 								}
