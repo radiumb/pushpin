@@ -610,6 +610,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		if ((packet.type == ZhttpRequestPacket::Cancel) || (packet.type == ZhttpRequestPacket::Close))
 		{
 			QByteArray cancelPacketId = packet.ids[0].id;
+
 			for (int i = 0; i < gSubscriptionList.count(); i++)
 			{
 				if (gSubscriptionList[i].clientList.count() > 0)
@@ -629,6 +630,19 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							tempmsg += tempbuf;
 							client_out_stream_sock->write(tempmsg);
 						}
+					}
+					else
+					{
+						int count = gSubscriptionList[i].clientList.count();
+						for (int j = 0; j < count; j++)
+						{
+							if (gSubscriptionList[i].clientList[j].id == cancelPacketId)
+							{
+								gSubscriptionList[i].clientList.removeAt(j);
+								break;
+							}
+						}
+						
 					}
 				}
 			}
