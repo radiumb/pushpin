@@ -602,6 +602,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		}
 	}
 
+	int gKeepAliveCount = 0;
 	void write(SessionType type, const ZhttpRequestPacket &packet, const QByteArray &instanceAddress)
 	{
 		assert(client_out_stream_sock);
@@ -612,6 +613,25 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data());
+
+		gKeepAliveCount++;
+		if (gKeepAliveCount%5 == 0 && gClosedClientList.count() > 0)
+		{
+			ZhttpRequestPacket tempPacket = packet;
+			tempPacket.ids[0].id = gClosedClientList[0].id;
+			tempPacket.type = ZhttpRequestPacket::KeepAlive;
+			tmpbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+
+			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+				LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "%s client: OUT %s", logprefix, instanceAddress.data());
+
+			QList<QByteArray> tempmsg;
+			tempmsg += instanceAddress;
+			tempmsg += QByteArray();
+			tempmsg += tempbuf;
+			client_out_stream_sock->write(tempmsg);
+		}
+		
 
 		if ((packet.type == ZhttpRequestPacket::Cancel) || (packet.type == ZhttpRequestPacket::Close))
 		{
