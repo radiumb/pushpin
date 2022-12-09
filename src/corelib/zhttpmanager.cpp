@@ -1195,17 +1195,17 @@ public slots:
 
 									ZhttpRequestPacket tempPacket;
 									tempPacket.type = ZhttpRequestPacket::Credit;
-									tempPacket.credit = hdata.value("body").toByteArray().size();
+									tempPacket.credits = hdata.value("body").toByteArray().size();
 									tempPacket.from = receiver.data();
 									tempPacket.ids[0].id = p.ids[0].id;
 									tempPacket.ids[0].seq = -1;
 									QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
 									if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-										LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "%s client: OUT %s", logprefix, instanceAddress.data());
+										LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "client: OUT %s", p.from);
 
 									QList<QByteArray> msg;
-									msg += p.from;
+									msg += p.from.data();
 									msg += QByteArray();
 									msg += tempbuf;
 									client_out_stream_sock->write(msg);
@@ -1353,22 +1353,24 @@ public slots:
 					if (gClosedClientList[i].id == p.ids[0].id)
 					{
 						log_debug("[CACHE] Cancel sending to client id=%s credit=%d", (const char *)p.ids[0].id, hdata.value("body").toByteArray().size());
+						
 						ZhttpRequestPacket tempPacket;
 						tempPacket.type = ZhttpRequestPacket::Credit;
-						tempPacket.credit = hdata.value("body").toByteArray().size();
+						tempPacket.credits = hdata.value("body").toByteArray().size();
 						tempPacket.from = receiver.data();
 						tempPacket.ids[0].id = p.ids[0].id;
 						tempPacket.ids[0].seq = -1;
 						QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
 						if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-							LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "%s client: OUT %s", logprefix, instanceAddress.data());
+							LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "client: OUT %s", p.from);
 
 						QList<QByteArray> msg;
-						msg += p.from;
+						msg += p.from.data();
 						msg += QByteArray();
 						msg += tempbuf;
 						client_out_stream_sock->write(msg);
+
 						return;
 					}
 					
