@@ -620,7 +620,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 			ZhttpRequestPacket tempPacket = packet;
 			tempPacket.ids[0].id = gClosedClientList[0].id;
 			tempPacket.type = ZhttpRequestPacket::KeepAlive;
-			tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+			QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 				LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "%s client: OUT %s", logprefix, instanceAddress.data());
