@@ -616,7 +616,6 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 				{
 					if (gSubscriptionList[i].clientList[0].id == cancelPacketId)
 					{
-						/*
 						gSubscriptionList[i].clientList.removeAt(0);
 						log_debug("asdfasdfasdfasdfasdf %d", gSubscriptionList[i].clientList.count());
 						if (gSubscriptionList[i].clientList.count() > 0)
@@ -630,7 +629,6 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							tempmsg += tempbuf;
 							client_out_stream_sock->write(tempmsg);
 						}
-						*/
 					}
 				}
 			}
@@ -1113,9 +1111,9 @@ public slots:
 								{
 									gSubscriptionList[i].subscriptionPacket = p;
 									gSubscriptionList[i].cachedFlag = true;
+									log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gSubscriptionList[i].id, qPrintable(subscriptionString));
 								}
 
-								log_debug("[CACHE] Added Cache content for subscription method id=%d subscription=%s", gSubscriptionList[i].id, qPrintable(subscriptionString));
 								subscriptionCachedFlag = true;
 								break;
 							}
