@@ -613,54 +613,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data());
 
-		if ((packet.type == ZhttpRequestPacket::Cancel) || (packet.type == ZhttpRequestPacket::Close))
-		{
-			QByteArray cancelPacketId = packet.ids[0].id;
-
-			int subscriptionPushClientFlag = 0;
-			for (int i = 0; i < gSubscriptionList.count(); i++)
-			{
-				int count = gSubscriptionList[i].clientList.count();
-				if (count > 0)
-				{
-					if (gSubscriptionList[i].clientList[0].id == cancelPacketId)
-					{
-						gSubscriptionList[i].clientList.removeAt(0);
-						log_debug("asdfasdfasdfasdfasdf %d", gSubscriptionList[i].clientList.count());
-						if (gSubscriptionList[i].clientList.count() > 0)
-						{
-							ZhttpRequestPacket tempPacket = gSubscriptionList[i].clientList[0].requestPacket;
-							tempPacket.ids[0].seq = -1;
-							QVariant vtemppacket = tempPacket.toVariant();
-							QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(vtemppacket);
-
-							if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-								LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vtemppacket, "body", "[CACHE] %s client: OUT %s", logprefix, gSubscriptionList[i].clientList[0].instanceAddress.data());
-
-							QList<QByteArray> tempmsg;
-							tempmsg += gSubscriptionList[i].clientList[0].instanceAddress;
-							tempmsg += QByteArray();
-							tempmsg += tempbuf;
-							client_out_stream_sock->write(tempmsg);
-						}
-					}
-					else
-					{
-						int count = gSubscriptionList[i].clientList.count();
-						for (int j = 0; j < count; j++)
-						{
-							if (gSubscriptionList[i].clientList[j].id == cancelPacketId)
-							{
-								gSubscriptionList[i].clientList.removeAt(j);
-								break;
-							}
-						}
-						
-					}
-				}
-			}
-		}
-		else 	// Cache
+		if ((packet.type != ZhttpRequestPacket::Cancel) && (packet.type != ZhttpRequestPacket::Close))
 		{
 			// convert to string
 			QVariantHash hdata = vpacket.toHash();
@@ -845,7 +798,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 								if (gSubscriptionList[j].cachedFlag == true)
 								{
 									replySubscriptionContent(j, jId, packet.ids[0].id, instanceAddress);
-									log_debug("[CACHE] Replied with Cache content for method \"%s\"", methodStr);
+									log_debug("[CACHE] Replied with  subscription cache content for method \"%s\"", methodStr);
 
 									// add client to list
 									int k;
@@ -867,10 +820,6 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 									// add ws Cache hit
 									wsCacheHit++;
 									memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
-
-									ZhttpRequestPacket tempPacket = packet;
-									tempPacket.type = ZhttpRequestPacket::KeepAlive;
-									buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 								}
 								else
 								{
@@ -1102,12 +1051,6 @@ public slots:
 										int invalidSubsciptionCount = 0;
 										for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 										{
-											if (gSubscriptionList[i].clientList[j].id == p.ids[0].id)
-											{
-												invalidSubsciptionCount++;
-												continue;
-											}
-
 											log_debug("[CACHE] Sending Cache content to client id=%s", (const char *)gSubscriptionList[i].clientList[j].id);
 											
 											ZhttpResponsePacket clientPacket = p;
@@ -1134,11 +1077,7 @@ public slots:
 												log_debug("zhttp/zws client: received message for unknown request id, skipping");
 											}
 										}
-
-										if (invalidSubsciptionCount > 0)
-										{
-											log_debug("[CACHE] Cancelend client count=%d", invalidSubsciptionCount);
-										}
+										return;
 									}
 									else
 									{
