@@ -820,10 +820,6 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 									// add ws Cache hit
 									wsCacheHit++;
 									memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
-
-									ZhttpRequestPacket tempPacket = packet;
-									tempPacket.type = ZhttpRequestPacket::KeepAlive;
-									buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 								}
 								else
 								{
@@ -1063,10 +1059,7 @@ public slots:
 											{
 												invalidSubsciptionCount++;
 											}
-											else
-											{
-												clientPacket.ids[0].seq = -1;
-											}
+											clientPacket.ids[0].seq = -1;
 											foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
 											{
 												// is this for a websocket?
@@ -1090,7 +1083,8 @@ public slots:
 										}
 										if (invalidSubsciptionCount > 0)
 										{
-											return;
+											p.type = ZhttpResponsePacket::KeepAlive;
+											goto ZWS_CLIENT_IN_WRITE;
 										}
 									}
 									else
