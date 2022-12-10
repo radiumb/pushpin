@@ -1047,44 +1047,48 @@ public slots:
 								{
 									if (gSubscriptionList[i].cachedFlag == true)
 									{
-										// send update subscribe to all clients
-										int invalidSubsciptionCount = 0;
-										for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
+										if (gSubscriptionList[i].clientList.count() > 0)
 										{
-											log_debug("[CACHE] Sending Cache content to client id=%s", (const char *)gSubscriptionList[i].clientList[j].id);
-
-											ZhttpResponsePacket clientPacket = p;
-											clientPacket.ids[0].id = gSubscriptionList[i].clientList[j].id;
-											if (gSubscriptionList[i].clientList[j].id == p.ids[0].id)
+											if (gSubscriptionList[i].clientList[0].id != p.ids[0].id)
 											{
-												invalidSubsciptionCount++;
+												p.type = ZhttpResponsePacket::KeepAlive;
+												goto ZWS_CLIENT_IN_WRITE;
 											}
-											clientPacket.ids[0].seq = -1;
-											foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
+											else
 											{
-												// is this for a websocket?
-												ZWebSocket *sock = clientSocksByRid.value(ZWebSocket::Rid(instanceId, id.id));
-												if(sock)
+												// send update subscribe to all clients
+												for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 												{
-													sock->handle(id.id, id.seq, clientPacket);
-													continue;
+													log_debug("[CACHE] Sending Cache content to client id=%s", (const char *)gSubscriptionList[i].clientList[j].id);
+
+													ZhttpResponsePacket clientPacket = p;
+													clientPacket.ids[0].id = gSubscriptionList[i].clientList[j].id;
+													clientPacket.ids[0].seq = -1;
+													foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
+													{
+														// is this for a websocket?
+														ZWebSocket *sock = clientSocksByRid.value(ZWebSocket::Rid(instanceId, id.id));
+														if(sock)
+														{
+															sock->handle(id.id, id.seq, clientPacket);
+															continue;
+														}
+
+														// is this for an http request?
+														ZhttpRequest *req = clientReqsByRid.value(ZhttpRequest::Rid(instanceId, id.id));
+														if(req)
+														{
+															req->handle(id.id, id.seq, clientPacket);
+															continue;
+														}
+
+														log_debug("zhttp/zws client: received message for unknown request id, skipping");
+													}
 												}
 
-												// is this for an http request?
-												ZhttpRequest *req = clientReqsByRid.value(ZhttpRequest::Rid(instanceId, id.id));
-												if(req)
-												{
-													req->handle(id.id, id.seq, clientPacket);
-													continue;
-												}
-
-												log_debug("zhttp/zws client: received message for unknown request id, skipping");
+												p.type = ZhttpResponsePacket::KeepAlive;
+												goto ZWS_CLIENT_IN_WRITE;
 											}
-										}
-										if (invalidSubsciptionCount > 0)
-										{
-											p.type = ZhttpResponsePacket::KeepAlive;
-											goto ZWS_CLIENT_IN_WRITE;
 										}
 									}
 									else
