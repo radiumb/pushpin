@@ -1056,10 +1056,17 @@ public slots:
 										for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 										{
 											log_debug("[CACHE] Sending Cache content to client id=%s", (const char *)gSubscriptionList[i].clientList[j].id);
-											
+
 											ZhttpResponsePacket clientPacket = p;
 											clientPacket.ids[0].id = gSubscriptionList[i].clientList[j].id;
-											clientPacket.ids[0].seq = -1;
+											if (gSubscriptionList[i].clientList[j].id == p.ids[0].id)
+											{
+												invalidSubsciptionCount++;
+											}
+											else
+											{
+												clientPacket.ids[0].seq = -1;
+											}
 											foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
 											{
 												// is this for a websocket?
@@ -1081,7 +1088,10 @@ public slots:
 												log_debug("zhttp/zws client: received message for unknown request id, skipping");
 											}
 										}
-										return;
+										if (invalidSubsciptionCount > 0)
+										{
+											return;
+										}
 									}
 									else
 									{
