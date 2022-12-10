@@ -1151,38 +1151,7 @@ public slots:
 									break;
 								}
 							}
-
-							// if the client is closed
-							for (int i = 0; i < gClosedClientList.count(); i++)
-							{
-								if (gClosedClientList[i].id == p.ids[0].id)
-								{
-									log_debug("[CACHE] Cancel subscription sending to client id=%s credit=%d", (const char *)p.ids[0].id, hdata.value("body").toByteArray().size());
-
-									ZhttpRequestPacket tempPacket;
-									tempPacket.type = ZhttpRequestPacket::Credit;
-									tempPacket.credits = hdata.value("body").toByteArray().size();
-									tempPacket.from = receiver.data();
-									ZhttpRequestPacket::Id tempId;
-									tempId.id = p.ids[0].id;
-									tempId.seq = -1;
-									tempPacket.ids.append(tempId);
-									QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
-
-									if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-										LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "client: OUT %s", p.from.data());
-
-									QList<QByteArray> msg;
-									msg += p.from;
-									msg += QByteArray();
-									msg += tempbuf;
-									client_out_stream_sock->write(msg);
-
-									return;
-								}
-								
-							}
-							
+						
 							if (subscriptionCachedFlag == false)
 							{
 								// create new subscription item
@@ -1312,41 +1281,6 @@ public slots:
 
 				shmdt(shm_str);
 			}
-
-			// if the client is closed
-			if ((p.type != ZhttpResponsePacket::Cancel) && (p.type != ZhttpResponsePacket::Close))
-			{
-				for (int i = 0; i < gClosedClientList.count(); i++)
-				{
-					if (gClosedClientList[i].id == p.ids[0].id)
-					{
-						log_debug("[CACHE] Cancel sending to client id=%s credit=%d", (const char *)p.ids[0].id, hdata.value("body").toByteArray().size());
-
-						ZhttpRequestPacket tempPacket;
-						tempPacket.type = ZhttpRequestPacket::Credit;
-						tempPacket.credits = hdata.value("body").toByteArray().size();
-						tempPacket.from = receiver.data();
-						ZhttpRequestPacket::Id tempId;
-						tempId.id = p.ids[0].id;
-						tempId.seq = -1;
-						tempPacket.ids.append(tempId);
-						QByteArray tempbuf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
-
-						if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-							LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "client: OUT %s", p.from.data());
-
-						QList<QByteArray> msg;
-						msg += p.from;
-						msg += QByteArray();
-						msg += tempbuf;
-						client_out_stream_sock->write(msg);
-						
-						return;
-					}
-					
-				}
-			}
-			
 		}
 ZWS_CLIENT_IN_WRITE:
 		QPointer<QObject> self = this;
