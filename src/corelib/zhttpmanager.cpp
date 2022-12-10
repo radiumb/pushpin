@@ -820,6 +820,10 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 									// add ws Cache hit
 									wsCacheHit++;
 									memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
+
+									ZhttpRequestPacket tempPacket = packet;
+									tempPacket.type = ZhttpRequestPacket::KeepAlive;
+									buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 								}
 								else
 								{
