@@ -1161,8 +1161,8 @@ public slots:
 									clientPacket.ids[0].seq = -1;
 									char oldIdStr[1024], newIdStr[1024];
 									log_debug("%s %s %s", (const char *)clientPacket.body, qPrintable(msgBody.subscription), qPrintable(gSubscriptionList[i].sendSubscriptionStr));
-									qsnprintf(oldIdStr, 1024, "\"subscription\":\"%s\"", msgBody.subscription);
-									qsnprintf(newIdStr, 1024, "\"subscription\":\"%s\"", gSubscriptionList[i].sendSubscriptionStr);
+									qsnprintf(oldIdStr, 1024, "\"subscription\":\"%s\"", qPrintable(msgBody.subscription));
+									qsnprintf(newIdStr, 1024, "\"subscription\":\"%s\"", qPrintable(gSubscriptionList[i].sendSubscriptionStr));
 									clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 									log_debug("%s %s %s", (const char *)clientPacket.body, oldIdStr, newIdStr);
 									foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
