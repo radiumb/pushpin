@@ -1159,12 +1159,13 @@ public slots:
 									ZhttpResponsePacket clientPacket = p;
 									clientPacket.ids[0].id = gSubscriptionList[i].clientList[j].clientId;
 									clientPacket.ids[0].seq = -1;
-									char oldIdStr[1024], newIdStr[1024];
-									log_debug("%s %s %s", (const char *)clientPacket.body, qPrintable(msgBody.subscription), qPrintable(gSubscriptionList[i].sendSubscriptionStr));
-									qsnprintf(oldIdStr, 1024, "\"subscription\":\"%s\"", qPrintable(msgBody.subscription));
-									qsnprintf(newIdStr, 1024, "\"subscription\":\"%s\"", qPrintable(gSubscriptionList[i].sendSubscriptionStr));
-									clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-									log_debug("%s %s %s", (const char *)clientPacket.body, oldIdStr, newIdStr);
+									QString oldSubscriptionPattern("\"subscription\":");
+									oldSubscriptionPattern += "\"" + msgBody.subscription + "\"";
+									QString newSubscriptionPattern("\"subscription\":");
+									newSubscriptionPattern += "\"" + gSubscriptionList[i].sendSubscriptionStr + "\"";
+									log_debug("%s", (const char *)clientPacket.body);
+									clientPacket.body.replace(QByteArray(oldSubscriptionPattern), QByteArray(newSubscriptionPattern));
+									log_debug("%s", (const char *)clientPacket.body);
 									foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
 									{
 										// is this for a websocket?
