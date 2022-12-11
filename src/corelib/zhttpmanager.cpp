@@ -104,7 +104,8 @@ struct SubscriptionItem {
 	char methodNameParamHashVal[20];
 	time_t createdSeconds;
 	bool cachedFlag;
-	QString mainSubscriptionStr;
+	QString sendSubscriptionStr;
+	QString receiveSubscriptionStr;
 	ZhttpResponsePacket responsePacket;
 	ZhttpResponsePacket subscriptionPacket;
 	QList<ClientItem> clientList;
@@ -765,11 +766,11 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						{
 							gSubscriptionList[i].clientId = gSubscriptionList[i].clientList[1].clientId;
 							gSubscriptionList[i].msgId = gSubscriptionList[i].clientList[1].msgId;
-							gSubscriptionList[i].mainSubscriptionStr = gSubscriptionList[i].clientList[1].resultStr;
+							gSubscriptionList[i].receiveSubscriptionStr = gSubscriptionList[i].clientList[1].resultStr;
 						}
 						gSubscriptionList[i].clientList.removeAt(j);
-						log_debug("[CACHE] New main client clientId=%s, msgId=%d, mainSubscriptionStr=%s", \
-							qPrintable(gSubscriptionList[i].clientId), gSubscriptionList[i].msgId, qPrintable(gSubscriptionList[i].mainSubscriptionStr));
+						log_debug("[CACHE] New main client clientId=%s, msgId=%d, receiveSubscriptionStr=%s", \
+							qPrintable(gSubscriptionList[i].clientId), gSubscriptionList[i].msgId, qPrintable(gSubscriptionList[i].receiveSubscriptionStr));
 						break;
 					}
 				}
@@ -1144,7 +1145,7 @@ public slots:
 				// Search item in cache list
 				for (int i = 0; i < subscriptionListCount; i++)
 				{
-					if (gSubscriptionList[i].mainSubscriptionStr == msgBody.subscription)
+					if (gSubscriptionList[i].receiveSubscriptionStr == msgBody.subscription)
 					{
 						if (gSubscriptionList[i].cachedFlag == true)
 						{
@@ -1158,6 +1159,10 @@ public slots:
 									ZhttpResponsePacket clientPacket = p;
 									clientPacket.ids[0].id = gSubscriptionList[i].clientList[j].clientId;
 									clientPacket.ids[0].seq = -1;
+									char oldIdStr[1024], newIdStr[1024];
+									qsnprintf(oldIdStr, 1024, \"subscription\":\"%s\"", msgBody.subscription);
+									qsnprintf(newIdStr, 1024, \"subscription\":\"%s\"", gSubscriptionList[i].sendSubscriptionStr);
+									clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 									foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
 									{
 										// is this for a websocket?
@@ -1201,7 +1206,7 @@ public slots:
 				subscriptionItem.msgId = -1;
 				subscriptionItem.createdSeconds = time(NULL);
 				subscriptionItem.subscriptionPacket = p;
-				subscriptionItem.mainSubscriptionStr = msgBody.subscription;
+				subscriptionItem.receiveSubscriptionStr = msgBody.subscription;
 				gSubscriptionList.append(subscriptionItem);
 				log_debug("[CACHE] Registered Subscription for \"%s\"", qPrintable(msgBody.subscription));
 			}
@@ -1297,7 +1302,7 @@ public slots:
 								// Search in SubscriptionList
 								for (int j = 0; j < gSubscriptionList.count(); j++)
 								{
-									if ((gSubscriptionList[i].mainSubscriptionStr == msgBody.result) && (gSubscriptionList[j].msgId == -1))
+									if ((gSubscriptionList[i].receiveSubscriptionStr == msgBody.result) && (gSubscriptionList[j].msgId == -1))
 									{
 										gSubscriptionList[i].subscriptionPacket = gSubscriptionList[j].subscriptionPacket;
 										gSubscriptionList[i].cachedFlag = true;
@@ -1306,7 +1311,8 @@ public slots:
 										break;
 									}
 								}
-								gSubscriptionList[i].mainSubscriptionStr = msgBody.result;
+								gSubscriptionList[i].receiveSubscriptionStr = msgBody.result;
+								gSubscriptionList[i].sendSubscriptionStr = msgBody.result;
 								log_debug("[CACHE] Registered Subscription result for \"%s\"", qPrintable(msgBody.result));
 							}
 							else
@@ -1330,9 +1336,9 @@ public slots:
 								{
 									gSubscriptionList[i].msgId = msgBody.id;
 									gSubscriptionList[i].clientId = p.ids[0].id;
-									gSubscriptionList[i].mainSubscriptionStr = msgBody.result;
+									gSubscriptionList[i].receiveSubscriptionStr = msgBody.result;
 								}
-								log_debug("[CACHE] Added new subscription for client %d, %s", gSubscriptionList[i].clientList[j].msgId, gSubscriptionList[i].clientList[j].resultStr);
+								log_debug("[CACHE] Added new subscription for client %d, %s", gSubscriptionList[i].clientList[j].msgId, qPrintable(gSubscriptionList[i].clientList[j].resultStr));
 							}
 						}
 					}
