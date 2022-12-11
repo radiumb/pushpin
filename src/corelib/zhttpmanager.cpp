@@ -1164,7 +1164,7 @@ public slots:
 									QString newSubscriptionPattern("\"subscription\":");
 									newSubscriptionPattern += "\"" + gSubscriptionList[i].sendSubscriptionStr + "\"";
 									log_debug("%s", (const char *)clientPacket.body);
-									clientPacket.body.replace(QByteArray(oldSubscriptionPattern), QByteArray(newSubscriptionPattern));
+									clientPacket.body.replace(oldSubscriptionPattern.toLocal8bit(), newSubscriptionPattern.toLocal8bit());
 									log_debug("%s", (const char *)clientPacket.body);
 									foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
 									{
