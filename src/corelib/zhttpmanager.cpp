@@ -928,7 +928,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 										clientItem.msgId = msgBody.id;
 										clientItem.clientId = packet.ids[0].id;
 										gSubscriptionList[j].clientList.append(clientItem);
-										log_debug("[CACHE] Adding new client id \"%s\"", (const char *)clientItem.clientId);
+										log_debug("[CACHE] Adding new client id msgId=%d clientId=%s", clientItem.msgId, (const char *)clientItem.clientId);
 									}
 									
 									// add ws Cache hit
@@ -1318,8 +1318,11 @@ public slots:
 					}
 					else if (msgBody.flagResult)
 					{
+						log_debug("asdfasdfasdf %d", gSubscriptionList[i].clientList.count());
+						log_debug("asdfasdfasdf %d, %s", msgBody.id, p.ids[0].id);
 						for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 						{
+							log_debug("asdfasdfasdf %d, %s", gSubscriptionList[i].clientList[j].msgId, qPrintable(gSubscriptionList[i].clientList[j].clientId));
 							if ((msgBody.id == gSubscriptionList[i].clientList[j].msgId) && (p.ids[0].id == gSubscriptionList[i].clientList[j].clientId))
 							{
 								gSubscriptionList[i].clientList[j].resultStr = msgBody.result;
