@@ -1164,7 +1164,7 @@ public slots:
 									qsnprintf(oldIdStr, 1024, "\"subscription\":\"%s\"", msgBody.subscription);
 									qsnprintf(newIdStr, 1024, "\"subscription\":\"%s\"", gSubscriptionList[i].sendSubscriptionStr);
 									clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-									log_debug("%s %s %s", (const char *)clientPacket.body, oldIdstr, newIdStr);
+									log_debug("%s %s %s", (const char *)clientPacket.body, oldIdStr, newIdStr);
 									foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
 									{
 										// is this for a websocket?
