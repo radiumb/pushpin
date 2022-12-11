@@ -1329,6 +1329,7 @@ public slots:
 									gSubscriptionList[i].clientId = p.ids[0].id;
 									gSubscriptionList[i].mainSubscriptionStr = msgBody.result;
 								}
+								log_debug("[CACHE] Added new subscription for client %d, %s", gSubscriptionList[i].clientList[j].msgId, gSubscriptionList[i].clientList[j].resultStr);
 							}
 						}
 					}
