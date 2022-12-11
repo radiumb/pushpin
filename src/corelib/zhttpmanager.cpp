@@ -1316,7 +1316,7 @@ public slots:
 						}
 						break;
 					}
-					else if (!msgBody.flagResult)
+					else if (msgBody.flagResult)
 					{
 						for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 						{
