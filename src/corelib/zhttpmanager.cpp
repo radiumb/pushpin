@@ -768,6 +768,9 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							gSubscriptionList[i].mainSubscriptionStr = gSubscriptionList[i].clientList[1].resultStr;
 						}
 						gSubscriptionList[i].clientList.removeAt(j);
+						log_debug("[CACHE] New main client clientId=%s, msgId=%d, mainSubscriptionStr=%s", \
+							qPrintable(gSubscriptionList[i].clientId), gSubscriptionList[i].msgId, qPrintable(gSubscriptionList[i].mainSubscriptionStr));
+						break;
 					}
 				}
 			}
