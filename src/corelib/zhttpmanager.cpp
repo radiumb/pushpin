@@ -1160,11 +1160,11 @@ public slots:
 									clientPacket.ids[0].id = gSubscriptionList[i].clientList[j].clientId;
 									clientPacket.ids[0].seq = -1;
 									char oldIdStr[1024], newIdStr[1024];
-									log_debug("%s", (const char *)clientPacket.body);
+									log_debug("%s %s %s", (const char *)clientPacket.body, qPrintable(msgBody.subscription), qPrintable(gSubscriptionList[i].sendSubscriptionStr));
 									qsnprintf(oldIdStr, 1024, "\"subscription\":\"%s\"", msgBody.subscription);
 									qsnprintf(newIdStr, 1024, "\"subscription\":\"%s\"", gSubscriptionList[i].sendSubscriptionStr);
 									clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-									log_debug("%s", (const char *)clientPacket.body);
+									log_debug("%s %s %s", (const char *)clientPacket.body, oldIdstr, newIdStr);
 									foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
 									{
 										// is this for a websocket?
@@ -1326,11 +1326,8 @@ public slots:
 					}
 					else if (msgBody.flagResult)
 					{
-						log_debug("asdfasdfasdf %d", gSubscriptionList[i].clientList.count());
-						log_debug("asdfasdfasdf %d, %s", msgBody.id, p.ids[0].id);
 						for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 						{
-							log_debug("asdfasdfasdf %d, %s", gSubscriptionList[i].clientList[j].msgId, qPrintable(gSubscriptionList[i].clientList[j].clientId));
 							if ((msgBody.id == gSubscriptionList[i].clientList[j].msgId) && (p.ids[0].id == gSubscriptionList[i].clientList[j].clientId))
 							{
 								gSubscriptionList[i].clientList[j].resultStr = msgBody.result;
