@@ -687,29 +687,18 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							{
 								if (n.canConvert<QString>())
 									jParams += n.toString();
-								else
-									log_debug("xyzxyzxyzxyzxyzxyzxyz %d", n.type());
 							}
 						}
 						else if (m.canConvert<QString>())
 						{
 							jParams += m.toString();
-							
 						}
-						else
-						{
-							log_debug("xyzxyzxyzxyzxyzxyzxyz %d", m.type());
-						}
-						
+					
 					}
 				}
 				else if (jsonData["params"].canConvert<QString>())
 				{
 					jParams += jsonData["params"].toString();
-				}
-				else
-				{
-					log_debug("xyzxyzxyzxyzxyzxyzxyz %d", jsonData["params"].type());
 				}
 			}
 			msgBody->flagParams = true;
@@ -764,6 +753,8 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 					{
 						if ((j == 0) && (gSubscriptionList[i].clientList.count() > 1))
 						{
+							log_debug("[CACHE] Deleted main client clientId=%s, msgId=%d, receiveSubscriptionStr=%s", \
+								qPrintable(gSubscriptionList[i].clientId), gSubscriptionList[i].msgId, qPrintable(gSubscriptionList[i].receiveSubscriptionStr));
 							gSubscriptionList[i].clientId = gSubscriptionList[i].clientList[1].clientId;
 							gSubscriptionList[i].msgId = gSubscriptionList[i].clientList[1].msgId;
 							gSubscriptionList[i].receiveSubscriptionStr = gSubscriptionList[i].clientList[1].resultStr;
