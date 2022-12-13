@@ -814,26 +814,37 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 			memcpy(&shm_str[108], (char *)&wsCacheLookup, 4);
 			
 			// read shm file 
+			// cache method
 			shm_read_count = 200 + groupByteCount;
-			shm_read_count += 4; // for cacheByteCount
+			long cacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 			shm_read_count += 4; // for cacheItemMaxSizeKbytes
 			int cacheItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			if (cacheItemMaxCount <= 0)
-			{
-				cacheItemMaxCount = 64;		// default
-			}
-			int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			if (cacheTimeoutSeconds <= 0)
-			{
-				cacheTimeoutSeconds = 5;	// default
-			}
-			int cacheSubscribeTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			if (cacheSubscribeTimeoutSeconds <= 0)
-			{
-				cacheSubscribeTimeoutSeconds = 3600;	// default
-			}
-			int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			log("asdfasdfasdfasdf cacheItemMaxCount=%d", cacheItemMaxCount);
+			if (cacheItemMaxCount <= 0) cacheItemMaxCount = 64;		// default
 
+			int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			log("asdfasdfasdfasdf cacheTimeoutSeconds=%d", cacheTimeoutSeconds);
+			if (cacheTimeoutSeconds <= 0) cacheTimeoutSeconds = 5;	// default
+
+			int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			log("asdfasdfasdfasdf cacheMethodCount=%d", cacheMethodCount);
+			
+
+			// cache subscribe method
+			shm_read_count = 200 + groupByteCount + cacheByteCount;
+			shm_read_count += 4; // cache subscribe byte count
+			shm_read_count += 4; // for cacheSubscribeItemMaxSizeKbytes
+			int cacheSubscribeItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			log("asdfasdfasdfasdf cacheSubscribeItemMaxCount=%d", cacheSubscribeItemMaxCount);
+			if (cacheSubscribeItemMaxCount <= 0) cacheSubscribeItemMaxCount = 256;		// default
+
+			int cacheSubscribeTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			log("asdfasdfasdfasdf cacheSubscribeTimeoutSeconds=%d", cacheSubscribeTimeoutSeconds);
+			if (cacheSubscribeTimeoutSeconds <= 0) cacheSubscribeTimeoutSeconds = 3600*4;	// default
+
+			int cacheSubscribeMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			log("asdfasdfasdfasdf cacheSubscribeMethodCount=%d", cacheSubscribeMethodCount);
+			
 			// delete old cache items
 			deleteOldCacheItem(cacheTimeoutSeconds, cacheItemMaxCount);
 			memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
@@ -844,15 +855,16 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 			int cacheListCount = gCacheList.count();
 			int subscriptionListCount = gSubscriptionList.count();
 
-			// Lookup
-			for (int i = 0; i < cacheMethodCount; i++)
+			// Cache method Lookup
+			if (!strstr(methodStr, "_subscribe"))
 			{
-				char cacheMethodNameHash[20];
-				memcpy(cacheMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
-				
-				if (!memcmp(cacheMethodNameHash, methodNameHash, 20))
+				shm_read_count = 200 + groupByteCount + 20;
+				for (int i = 0; i < cacheMethodCount; i++)
 				{
-					if (!strstr(methodStr, "_subscribe"))
+					char cacheMethodNameHash[20];
+					memcpy(cacheMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
+					
+					if (!memcmp(cacheMethodNameHash, methodNameHash, 20))
 					{
 						for (int j = 0; j < cacheListCount; j++)
 						{
@@ -894,8 +906,43 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 								goto OUT_STREAM_SOCK_WRITE;
 							}
 						}
+						
+						// Register cache item
+						if (gCacheList.count() <= cacheItemMaxCount)
+						{
+							// Id hash val
+							QString idHashString = QString::number(msgBody.id);
+							idHashString += QString(packet.ids[0].id);
+							QByteArray idHashByteArray = QCryptographicHash::hash(idHashString.toUtf8(),QCryptographicHash::Sha1);
+							char idHashVal[20];
+							memcpy(idHashVal, idHashByteArray.data(), 20);
+
+							registerCacheItem(msgBody.id, idHashVal, paramsHash);
+							
+							log_debug("[CACHE] Registered Cache for id=%d idHashString=%s method=\"%s\"", msgBody.id, qPrintable(idHashString), methodStr);
+
+							// add ws Cache insert
+							wsCacheInsert++;
+							memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
+						}
+						else
+						{
+							log_debug("[CACHE] Cache item count exceed Max limit=%d", cacheItemMaxCount);
+						}
+						
+						break;
 					}
-					else	// subscription
+				}
+			}
+			else
+			{
+				shm_read_count = 200 + groupByteCount + cacheByteCount + 20;
+				for (int i = 0; i < cacheSubscribeMethodCount; i++)
+				{
+					char cacheSubscribeMethodNameHash[20];
+					memcpy(cacheSubscribeMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
+					
+					if (!memcmp(cacheSubscribeMethodNameHash, methodNameHash, 20))
 					{
 						for (int j = 0; j < subscriptionListCount; j++)
 						{
@@ -936,41 +983,28 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 								goto OUT_STREAM_SOCK_WRITE;
 							}
 						}
-					}
 
-					// Register cache item
-					if (gCacheList.count() <= cacheItemMaxCount)
-					{
-						// Id hash val
-						QString idHashString = QString::number(msgBody.id);
-						idHashString += QString(packet.ids[0].id);
-						QByteArray idHashByteArray = QCryptographicHash::hash(idHashString.toUtf8(),QCryptographicHash::Sha1);
-						char idHashVal[20];
-						memcpy(idHashVal, idHashByteArray.data(), 20);
-
-						if (!strstr(methodStr, "_subscribe"))
+						// Register cache item
+						if (gSubscriptionList.count() <= cacheSubscribeItemMaxCount)
 						{
-							registerCacheItem(msgBody.id, idHashVal, paramsHash);
+							registerSubscriptionItem(packet.ids[0].id, msgBody.id, paramsHash);
+							
+							log_debug("[CACHE] Registered Cache for id=%d method=\"%s\"", msgBody.id, methodStr);
+
+							// add ws Cache insert
+							wsCacheInsert++;
+							memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
 						}
 						else
 						{
-							registerSubscriptionItem(packet.ids[0].id, msgBody.id, paramsHash);
+							log_debug("[CACHE] Cache Subscription item count exceed Max limit=%d", cacheSubscribeItemMaxCount);
 						}
 						
-						log_debug("[CACHE] Registered Cache for id=%d idHashString=%s method=\"%s\"", msgBody.id, qPrintable(idHashString), methodStr);
-
-						// add ws Cache insert
-						wsCacheInsert++;
-						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
+						break;
 					}
-					else
-					{
-						log_debug("[CACHE] Cache item count exceed Max limit=%d", cacheItemMaxCount);
-					}
-					
-					break;
 				}
 			}
+			
 			shmdt(shm_str);
 		}
 OUT_STREAM_SOCK_WRITE:
@@ -1229,13 +1263,20 @@ public slots:
 				// Read
 				int shm_read_count = 200;
 				long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+				// Cache
 				shm_read_count = 200 + groupByteCount;
-				shm_read_count += 4; // for cacheByteCount
+				long cacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4; // for cacheByteCount
 				int cacheItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				if (cacheItemMaxSizeKbytes <= 0)
-				{
-					cacheItemMaxSizeKbytes = 8;
-				}
+				log("asdfasdfasdfasdf cacheItemMaxSizeKbytes=%d", cacheItemMaxSizeKbytes);
+				if (cacheItemMaxSizeKbytes <= 0) cacheItemMaxSizeKbytes = 8;
+
+				// Cache Subscription
+				shm_read_count = 200 + groupByteCount + cacheByteCount;
+				shm_read_count += 4; // for cacheByteCount
+				int cacheSubscriptionItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				log("asdfasdfasdfasdf cacheSubscriptionItemMaxSizeKbytes=%d", cacheSubscriptionItemMaxSizeKbytes);
+				if (cacheSubscriptionItemMaxSizeKbytes <= 0) cacheSubscriptionItemMaxSizeKbytes = 128;
 				
 				for (int i = 0; i < cacheListCount; i++)
 				{
@@ -1287,7 +1328,7 @@ public slots:
 						}
 						else
 						{
-							if (p.body.size() < (cacheItemMaxSizeKbytes<<10))
+							if (p.body.size() < (cacheSubscriptionItemMaxSizeKbytes<<10))
 							{
 								gSubscriptionList[i].responsePacket = p;
 								

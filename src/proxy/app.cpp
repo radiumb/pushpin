@@ -301,6 +301,18 @@ public:
 		
 		total_shm_byte_count += cache_byte_count;
 
+		// Cache Subscribe
+		int cache_subscribe_byte_count = 4; // for cache subscribe byte count
+		cache_subscribe_byte_count += 4; // for cache item max size kbyte
+		cache_subscribe_byte_count += 4; // for cache item max count
+		cache_subscribe_byte_count += 4; // for cache timeout value
+		cache_subscribe_byte_count += 4; // for cache method count
+		QStringList ws_chche_subscribe_methods = settings.value("websocket/ws_cache_subscribe_methods").toStringList();
+		long cache_subscribe_method_count = ws_chche_subscribe_methods.count();
+		cache_subscribe_byte_count += cache_subscribe_method_count*20; // for cache methods
+		
+		total_shm_byte_count += cache_subscribe_byte_count;
+
 		// Write to shared memory
 		int shm_write_count = 200;
 		shm_key = ftok("shmfile",65);
@@ -335,13 +347,13 @@ public:
 				//memcpy(&shm_str[shm_write_count], qPrintable(group_methods[j]), 2); shm_write_count += 20;
 			}
 		}
+
 		// Parse websocket cache config
 		//////////////////////////////////////////////////////////////
 		// cache byte count (4byte)
 		// cache item maxsize kbytes (4byte)
 		// cache item maxcount (4byte)
 		// cache timeout seconds (4byte)
-		// cache subscribe timeout seconds (4byte)
 		// cache method count (4byte)
 		// cache method1 hash (20byte)
 		// cache method2 hash (20byte)
@@ -356,9 +368,6 @@ public:
 		
 		long ws_chche_timeout_seconds = (long)settings.value("websocket/ws_cache_timeout_seconds").toInt();
 		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_timeout_seconds, 4); shm_write_count += 4;
-
-		long ws_chche_subscribe_timeout_seconds = (long)settings.value("websocket/ws_cache_subscribe_timeout_seconds").toInt();
-		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_subscribe_timeout_seconds, 4); shm_write_count += 4;
 		
 		memcpy(&shm_str[shm_write_count], (char *)&cache_method_count, 4); shm_write_count += 4;
 		for (int i = 0; i < cache_method_count; i++)
@@ -366,6 +375,35 @@ public:
 			QByteArray hash = QCryptographicHash::hash(ws_chche_methods[i].toLower().toUtf8(),QCryptographicHash::Sha1);
 			memcpy(&shm_str[shm_write_count], hash.data(), 20); shm_write_count += 20;
 		}
+
+		// Parse websocket subscribe cache config
+		//////////////////////////////////////////////////////////////
+		// cache subscribe byte count (4byte)
+		// cache subscribe item maxsize kbytes (4byte)
+		// cache subscribe item maxcount (4byte)
+		// cache subscribe timeout seconds (4byte)
+		// cache subscribe method count (4byte)
+		// cache subscribe method1 hash (20byte)
+		// cache subscribe method2 hash (20byte)
+		// ...
+		memcpy(&shm_str[shm_write_count], (char *)&cache_subscribe_byte_count, 4); shm_write_count += 4;
+
+		long ws_chche_subscribe_item_maxsize_kbytes = (long)settings.value("websocket/ws_cache_subscribe_item_maxsize_kbytes").toInt();
+		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_subscribe_item_maxsize_kbytes, 4); shm_write_count += 4;
+
+		long ws_chche_subscribe_item_maxcount = (long)settings.value("websocket/ws_cache_subscribe_item_maxcount").toInt();
+		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_subscribe_item_maxcount, 4); shm_write_count += 4;
+		
+		long ws_chche_subscribe_timeout_seconds = (long)settings.value("websocket/ws_cache_subscribe_timeout_seconds").toInt();
+		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_subscribe_timeout_seconds, 4); shm_write_count += 4;
+
+		memcpy(&shm_str[shm_write_count], (char *)&cache_subscribe_method_count, 4); shm_write_count += 4;
+		for (int i = 0; i < cache_subscribe_method_count; i++)
+		{
+			QByteArray hash = QCryptographicHash::hash(ws_chche_subscribe_methods[i].toLower().toUtf8(),QCryptographicHash::Sha1);
+			memcpy(&shm_str[shm_write_count], hash.data(), 20); shm_write_count += 20;
+		}
+
 		shmdt(shm_str);
 		
 		QStringList services = settings.value("runner/services").toStringList();
