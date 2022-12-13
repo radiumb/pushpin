@@ -819,31 +819,24 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 			long cacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 			shm_read_count += 4; // for cacheItemMaxSizeKbytes
 			int cacheItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			log_debug("asdfasdfasdfasdf cacheItemMaxCount=%d", cacheItemMaxCount);
 			if (cacheItemMaxCount <= 0) cacheItemMaxCount = 64;		// default
 
 			int cacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			log_debug("asdfasdfasdfasdf cacheTimeoutSeconds=%d", cacheTimeoutSeconds);
 			if (cacheTimeoutSeconds <= 0) cacheTimeoutSeconds = 5;	// default
 
 			int cacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			log_debug("asdfasdfasdfasdf cacheMethodCount=%d", cacheMethodCount);
-			
 
 			// cache subscribe method
 			shm_read_count = 200 + groupByteCount + cacheByteCount;
 			shm_read_count += 4; // cache subscribe byte count
 			shm_read_count += 4; // for cacheSubscribeItemMaxSizeKbytes
 			int cacheSubscribeItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			log_debug("asdfasdfasdfasdf cacheSubscribeItemMaxCount=%d", cacheSubscribeItemMaxCount);
 			if (cacheSubscribeItemMaxCount <= 0) cacheSubscribeItemMaxCount = 256;		// default
 
 			int cacheSubscribeTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			log_debug("asdfasdfasdfasdf cacheSubscribeTimeoutSeconds=%d", cacheSubscribeTimeoutSeconds);
 			if (cacheSubscribeTimeoutSeconds <= 0) cacheSubscribeTimeoutSeconds = 3600*4;	// default
 
 			int cacheSubscribeMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			log_debug("asdfasdfasdfasdf cacheSubscribeMethodCount=%d", cacheSubscribeMethodCount);
 			
 			// delete old cache items
 			deleteOldCacheItem(cacheTimeoutSeconds, cacheItemMaxCount);
@@ -1268,14 +1261,12 @@ public slots:
 				shm_read_count = 200 + groupByteCount;
 				long cacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4; // for cacheByteCount
 				int cacheItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				log_debug("asdfasdfasdfasdf cacheItemMaxSizeKbytes=%d", cacheItemMaxSizeKbytes);
 				if (cacheItemMaxSizeKbytes <= 0) cacheItemMaxSizeKbytes = 8;
 
 				// Cache Subscription
 				shm_read_count = 200 + groupByteCount + cacheByteCount;
 				shm_read_count += 4; // for cacheByteCount
 				int cacheSubscriptionItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				log_debug("asdfasdfasdfasdf cacheSubscriptionItemMaxSizeKbytes=%d", cacheSubscriptionItemMaxSizeKbytes);
 				if (cacheSubscriptionItemMaxSizeKbytes <= 0) cacheSubscriptionItemMaxSizeKbytes = 128;
 				
 				for (int i = 0; i < cacheListCount; i++)
