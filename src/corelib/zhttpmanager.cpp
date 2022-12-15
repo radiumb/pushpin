@@ -945,7 +945,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 								if (gSubscriptionList[j].cachedFlag == true)
 								{
 									replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress);
-									log_debug("[CACHE] Replied with  subscription cache content for method \"%s\"", methodStr);
+									log_debug("[CACHE] Replied with subscription cache content for method \"%s\"", methodStr);
 
 									// add client to list
 									int k;
