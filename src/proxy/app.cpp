@@ -558,6 +558,7 @@ public:
 		}
 
 		log_info("started");
+		system("wscat -c localhost:7999");
 	}
 
 private slots:
