@@ -558,7 +558,23 @@ public:
 		}
 
 		log_info("started");
-		system("wscat -c localhost:7999 -b");
+		
+		log_info("starting wscat child process");
+
+		pid_t pid;
+		pid = fork();
+		if (pid == -1){
+ 
+			// pid == -1 means error occurred
+			log_debug("can't fork to start wscat");
+		}
+		else if (pid == 0){
+			// create wscat
+			char * argv_list[] = {"wscat", "-c", "localhost:7999", NULL};
+
+			execv("wscat",argv_list);
+			exit(0);
+		}
 	}
 
 private slots:
