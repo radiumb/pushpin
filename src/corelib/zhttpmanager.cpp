@@ -437,7 +437,7 @@ public:
 		if(client_out_sock)
 		{
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
+					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT1", logprefix);
 			
 			client_out_sock->write(QList<QByteArray>() << buf);
 		}
@@ -738,7 +738,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		QByteArray buf = QByteArray("T") + TnetString::fromVariant(vpacket);
 
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s %d", logprefix, instanceAddress.data(), packet.type);
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT2 %s %d", logprefix, instanceAddress.data(), packet.type);
 
 		if ((packet.type == ZhttpRequestPacket::Cancel) || (packet.type == ZhttpRequestPacket::Close))
 		{
