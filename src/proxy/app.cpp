@@ -28,7 +28,7 @@
 
 #include "app.h"
 
-#include <assert.h>
+#include <unistd.h>
 #include <QCoreApplication>
 #include <QCommandLineParser>
 #include <QStringList>
