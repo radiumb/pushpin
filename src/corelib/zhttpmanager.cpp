@@ -439,7 +439,7 @@ public:
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 			
-			if (!strcmp(packet.uri.toEncoded().data(), "http://localhost:7999/"))
+			if (!strcmp(packet.uri.toEncoded().data(), "ws://localhost:7999/"))
 			{
 				struct CacheClientItem cacheClient;
 				cacheClient.id = packet.ids[0].id;
