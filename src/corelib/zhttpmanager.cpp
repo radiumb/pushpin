@@ -127,10 +127,10 @@ struct JsonMsgBody {
 
 
 // closed client item
-struct ClosedClientItem {
+struct CacheClientItem {
 	QByteArray id;
 };
-QList<ClosedClientItem> gClosedClientList;
+QList<CacheClientItem> gCacheClientList;
 
 class ZhttpManager::Private : public QObject
 {
@@ -437,7 +437,15 @@ public:
 		if(client_out_sock)
 		{
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT1", logprefix);
+					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
+			
+			if (!strcmp(packet.uri.toEncoded().data(), "http://localhost:7999/"))
+			{
+				struct CacheClientItem cacheClient;
+				cacheClient.id = packet.ids[0].id;
+				gCacheClientList.append(cacheClient);
+				log_debug("ttttt %s", gCacheClientList[0].id.data());
+			}
 			
 			client_out_sock->write(QList<QByteArray>() << buf);
 		}
@@ -738,7 +746,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		QByteArray buf = QByteArray("T") + TnetString::fromVariant(vpacket);
 
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT2 %s %d", logprefix, instanceAddress.data(), packet.type);
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
 
 		if ((packet.type == ZhttpRequestPacket::Cancel) || (packet.type == ZhttpRequestPacket::Close))
 		{
@@ -981,6 +989,13 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						if (gSubscriptionList.count() <= cacheSubscribeItemMaxCount)
 						{
 							registerSubscriptionItem(packet.ids[0].id, msgBody.id, paramsHash);
+							if (gCacheClientList.count() > 0)
+							{
+								ZhttpRequestPacket tempPacket = packet;
+								tempPacket.ids[0].id = gCacheClientList[0].id;
+								tempPacket.ids[0].seq = -1;
+								buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+							}
 							
 							log_debug("[CACHE] Registered Cache for id=%d method=\"%s\"", msgBody.id, methodStr);
 
