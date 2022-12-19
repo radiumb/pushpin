@@ -130,7 +130,7 @@ struct JsonMsgBody {
 struct CacheClientItem {
 	int msgIdCount;
 	int seqCount;
-	QByteArray id;
+	QByteArray clientId;
 };
 QList<CacheClientItem> gCacheClientList;
 
@@ -446,7 +446,7 @@ public:
 				struct CacheClientItem cacheClient;
 				cacheClient.msgIdCount = 1;
 				cacheClient.seqCount = 1;
-				cacheClient.id = packet.ids[0].id;
+				cacheClient.clientId = packet.ids[0].id;
 				gCacheClientList.append(cacheClient);
 				log_debug("ttttt %s", gCacheClientList[0].id.data());
 			}
@@ -559,8 +559,8 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 	{
 		// create new subscription item
 		struct SubscriptionItem subscriptionItem;
-		subscriptionItem.clientId = clientId;
-		subscriptionItem.msgId = msgId;
+		subscriptionItem.clientId = gCacheClientList[0].clientId;
+		subscriptionItem.msgId = gCacheClientList[0].msgIdCount;
 		memcpy(subscriptionItem.methodNameParamHashVal, methodNameParamsHashVal, 20);
 		subscriptionItem.createdSeconds = time(NULL);
 		subscriptionItem.cachedFlag = false;
@@ -754,7 +754,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 
 		if (gCacheClientList.count() > 0)
 		{
-			if (packet.ids[0].id == gCacheClientList[0].id)
+			if (packet.ids[0].id == gCacheClientList[0].clientId)
 			{
 				ZhttpRequestPacket tempPacket = packet;
 				tempPacket.ids[0].seq = gCacheClientList[0].seqCount;
@@ -779,14 +779,6 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 				{
 					if (gSubscriptionList[i].clientList[j].clientId == clientId)
 					{
-						if ((j == 0) && (gSubscriptionList[i].clientList.count() > 1))
-						{
-							log_debug("[CACHE] Deleted main client clientId=%s, msgId=%d, receiveSubscriptionStr=%s", \
-								qPrintable(gSubscriptionList[i].clientId), gSubscriptionList[i].msgId, qPrintable(gSubscriptionList[i].receiveSubscriptionStr));
-							gSubscriptionList[i].clientId = gSubscriptionList[i].clientList[1].clientId;
-							gSubscriptionList[i].msgId = gSubscriptionList[i].clientList[1].msgId;
-							gSubscriptionList[i].receiveSubscriptionStr = gSubscriptionList[i].clientList[1].resultStr;
-						}
 						gSubscriptionList[i].clientList.removeAt(j);
 						log_debug("[CACHE] New main client clientId=%s, msgId=%d, receiveSubscriptionStr=%s", \
 							qPrintable(gSubscriptionList[i].clientId), gSubscriptionList[i].msgId, qPrintable(gSubscriptionList[i].receiveSubscriptionStr));
@@ -1006,31 +998,29 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 						}
 
 						// Register cache item
-						if (gSubscriptionList.count() <= cacheSubscribeItemMaxCount)
+						if ((gSubscriptionList.count() <= cacheSubscribeItemMaxCount) && (gCacheClientList.count() > 0))
 						{
 							registerSubscriptionItem(packet.ids[0].id, msgBody.id, paramsHash);
-							if (gCacheClientList.count() > 0)
-							{
-								// Create new packet
-								ZhttpRequestPacket tempPacket = packet;
-								// id
-								tempPacket.ids[0].id = gCacheClientList[0].id;
-								// seq
-								tempPacket.ids[0].seq = gCacheClientList[0].seqCount;
-								gCacheClientList[0].seqCount++;
-								// message id
-								char oldIdStr[64], newIdStr[64];
-								qsnprintf(oldIdStr, 64, "\"id\":%d", msgBody.id);
-								qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClientList[0].msgIdCount);
-								gCacheClientList[0].msgIdCount++;
-								tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 
-								QVariant vTempPacket = tempPacket.toVariant();
-								buf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
+							// Create new packet
+							ZhttpRequestPacket tempPacket = packet;
+							// id
+							tempPacket.ids[0].id = gCacheClientList[0].clientId;
+							// seq
+							tempPacket.ids[0].seq = gCacheClientList[0].seqCount;
+							gCacheClientList[0].seqCount++;
+							// message id
+							char oldIdStr[64], newIdStr[64];
+							qsnprintf(oldIdStr, 64, "\"id\":%d", msgBody.id);
+							qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClientList[0].msgIdCount);
+							gCacheClientList[0].msgIdCount++;
+							tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 
-								if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-									LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHE Client Subscribe] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
-							}
+							QVariant vTempPacket = tempPacket.toVariant();
+							buf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
+
+							if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+								LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHE Client Subscribe] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
 							
 							log_debug("[CACHE] Registered Cache for id=%d method=\"%s\"", msgBody.id, methodStr);
 
