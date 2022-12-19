@@ -448,7 +448,7 @@ public:
 				cacheClient.seqCount = 1;
 				cacheClient.clientId = packet.ids[0].id;
 				gCacheClientList.append(cacheClient);
-				log_debug("ttttt %s", gCacheClientList[0].id.data());
+				log_debug("ttttt %s", gCacheClientList[0].clientId.data());
 			}
 
 			client_out_sock->write(QList<QByteArray>() << buf);
