@@ -1035,9 +1035,9 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							client_out_stream_sock->write(tmpMsg);
 
 							// make original packet to keep-alive
-							ZhttpRequestPacket tempPacket = packet;
-							tempPacket.type = ZhttpRequestPacket::KeepAlive;
-							buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+							ZhttpRequestPacket keepAlivePacket = packet;
+							keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+							buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 							goto OUT_STREAM_SOCK_WRITE;
 						}
 						else
