@@ -439,7 +439,7 @@ public:
 		{
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
-			
+/*			
 			if (!strcmp(packet.uri.toEncoded().data(), "ws://localhost:7999/"))
 			{
 				struct CacheClientItem cacheClient;
@@ -448,7 +448,7 @@ public:
 				gCacheClientList.append(cacheClient);
 				log_debug("ttttt %s", gCacheClientList[0].id.data());
 			}
-			
+*/			
 			client_out_sock->write(QList<QByteArray>() << buf);
 		}
 		else

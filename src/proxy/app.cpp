@@ -558,7 +558,7 @@ public:
 		}
 
 		log_info("started");
-		
+/*		
 		log_info("starting wscat child process");
 
 		pid_t pid;
@@ -576,6 +576,7 @@ public:
 			log_debug("failed to start wscat error=%d", errno);
 			exit(0);
 		}
+*/
 	}
 
 private slots:
