@@ -1017,7 +1017,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 
 							QVariant vTempPacket = tempPacket.toVariant();
-							tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
+							QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
 
 							if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 								LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHE Client Subscribe] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
