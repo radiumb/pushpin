@@ -128,6 +128,7 @@ struct JsonMsgBody {
 
 // closed client item
 struct CacheClientItem {
+	int msgIdCount;
 	QByteArray id;
 };
 QList<CacheClientItem> gCacheClientList;
@@ -442,6 +443,7 @@ public:
 			if (!strcmp(packet.uri.toEncoded().data(), "ws://localhost:7999/"))
 			{
 				struct CacheClientItem cacheClient;
+				cacheClient.msgIdCount = 1;
 				cacheClient.id = packet.ids[0].id;
 				gCacheClientList.append(cacheClient);
 				log_debug("ttttt %s", gCacheClientList[0].id.data());
@@ -994,6 +996,11 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 								ZhttpRequestPacket tempPacket = packet;
 								tempPacket.ids[0].id = gCacheClientList[0].id;
 								tempPacket.ids[0].seq = -1;
+								char oldIdStr[64], newIdStr[64];
+								qsnprintf(oldIdStr, 64, "\"id\":%d", msgBody.id);
+								qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClientList[0].msgIdCount);
+								gCacheClientList[0].msgIdCount++;
+								tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 								buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 							}
 							
