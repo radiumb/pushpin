@@ -749,6 +749,9 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		QVariant vpacket = packet.toVariant();
 		QByteArray buf = QByteArray("T") + TnetString::fromVariant(vpacket);
 
+		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
+
 		if (gCacheClientList.count() > 0)
 		{
 			if (packet.ids[0].id == gCacheClientList[0].id)
@@ -757,11 +760,11 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 				tempPacket.ids[0].seq = gCacheClientList[0].seqCount;
 				gCacheClientList[0].seqCount++;
 				buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+
+				if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "[Cache Client] %s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
 			}
 		}
-
-		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
 
 		if ((packet.type == ZhttpRequestPacket::Cancel) || (packet.type == ZhttpRequestPacket::Close))
 		{
@@ -1013,7 +1016,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 								buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
 								if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-									LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "asdf %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
+									LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "[Cache Client Subscribe] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
 							}
 							
 							log_debug("[CACHE] Registered Cache for id=%d method=\"%s\"", msgBody.id, methodStr);
