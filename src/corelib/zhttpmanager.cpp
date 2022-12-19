@@ -1018,10 +1018,10 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 								gCacheClientList[0].seqCount++;
 								// message id
 								char oldIdStr[64], newIdStr[64];
-								qsnprintf(oldIdStr, 64, "\"id\":%d", packet.id);
+								qsnprintf(oldIdStr, 64, "\"id\":%d", packet.ids[0].id);
 								qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClientList[0].msgIdCount);
 								gCacheClientList[0].msgIdCount++;
-								responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+								tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 								buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
 								if(log_outputLevel() >= LOG_LEVEL_DEBUG)
