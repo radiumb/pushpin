@@ -1017,7 +1017,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 
 							QVariant vTempPacket = tempPacket.toVariant();
-							buf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
+							tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
 
 							if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 								LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHE Client Subscribe] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
@@ -1027,6 +1027,18 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							// add ws Cache insert
 							wsCacheInsert++;
 							memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
+
+							QList<QByteArray> tmpMsg;
+							tmpMsg += instanceAddress;
+							tmpMsg += QByteArray();
+							tmpMsg += tmbBuf;
+							client_out_stream_sock->write(tmpMsg);
+
+							// make original packet to keep-alive
+							ZhttpRequestPacket tempPacket = packet;
+							tempPacket.type = ZhttpRequestPacket::KeepAlive;
+							buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+							goto OUT_STREAM_SOCK_WRITE;
 						}
 						else
 						{
