@@ -753,8 +753,8 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		{
 			if (packet.ids[0].id == gCacheClientList[0].id)
 			{
-				gCacheClientList[0].seqCount = packet.ids[0].seq;
-				log_debug("tttttttttttttttt %d", gCacheClientList[0].seqCount);
+				packet.ids[0].seq = gCacheClientList[0].seqCount;
+				gCacheClientList[0].msgIdCount++;
 			}
 		}
 
@@ -1006,13 +1006,8 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							{
 								ZhttpRequestPacket tempPacket = packet;
 								tempPacket.ids[0].id = gCacheClientList[0].id;
-								tempPacket.ids[0].seq = -1;//gCacheClientList[0].seqCount + 1;
+								tempPacket.ids[0].seq = gCacheClientList[0].seqCount;
 								gCacheClientList[0].seqCount++;
-								char oldIdStr[64], newIdStr[64];
-								qsnprintf(oldIdStr, 64, "\"id\":%d", msgBody.id);
-								qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClientList[0].msgIdCount);
-								gCacheClientList[0].msgIdCount++;
-								tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 								buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
 								if(log_outputLevel() >= LOG_LEVEL_DEBUG)
