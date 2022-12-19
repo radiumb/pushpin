@@ -753,8 +753,10 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		{
 			if (packet.ids[0].id == gCacheClientList[0].id)
 			{
-				packet.ids[0].seq = gCacheClientList[0].seqCount;
-				gCacheClientList[0].msgIdCount++;
+				ZhttpRequestPacket tempPacket = packet;
+				tempPacket.ids[0].seq = gCacheClientList[0].seqCount;
+				gCacheClientList[0].seqCount++;
+				buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 			}
 		}
 
