@@ -129,6 +129,7 @@ struct JsonMsgBody {
 // closed client item
 struct CacheClientItem {
 	int msgIdCount;
+	int seqCount;
 	QByteArray id;
 };
 QList<CacheClientItem> gCacheClientList;
@@ -439,16 +440,17 @@ public:
 		{
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
-/*			
+			
 			if (!strcmp(packet.uri.toEncoded().data(), "ws://localhost:7999/"))
 			{
 				struct CacheClientItem cacheClient;
 				cacheClient.msgIdCount = 1;
+				cacheClient.seqCount = 1;
 				cacheClient.id = packet.ids[0].id;
 				gCacheClientList.append(cacheClient);
 				log_debug("ttttt %s", gCacheClientList[0].id.data());
 			}
-*/			
+
 			client_out_sock->write(QList<QByteArray>() << buf);
 		}
 		else
@@ -747,6 +749,15 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 		QVariant vpacket = packet.toVariant();
 		QByteArray buf = QByteArray("T") + TnetString::fromVariant(vpacket);
 
+		if (gCacheClientList.count() > 0)
+		{
+			if (packet.ids[0].id == gCacheClientList[0].id)
+			{
+				gCacheClientList[0].seqCount = packet.ids[0].seq;
+				log_debug("tttttttttttttttt %d", gCacheClientList[0].seqCount);
+			}
+		}
+
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
 
@@ -995,13 +1006,17 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							{
 								ZhttpRequestPacket tempPacket = packet;
 								tempPacket.ids[0].id = gCacheClientList[0].id;
-								tempPacket.ids[0].seq = -1;
+								tempPacket.ids[0].seq = gCacheClientList[0].seqCount;
+								gCacheClientList[0].seqCount++;
 								char oldIdStr[64], newIdStr[64];
 								qsnprintf(oldIdStr, 64, "\"id\":%d", msgBody.id);
 								qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClientList[0].msgIdCount);
 								gCacheClientList[0].msgIdCount++;
 								tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 								buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
+
+								if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+									LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "ttt %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
 							}
 							
 							log_debug("[CACHE] Registered Cache for id=%d method=\"%s\"", msgBody.id, methodStr);
