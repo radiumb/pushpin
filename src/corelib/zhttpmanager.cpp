@@ -1006,7 +1006,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							{
 								ZhttpRequestPacket tempPacket = packet;
 								tempPacket.ids[0].id = gCacheClientList[0].id;
-								tempPacket.ids[0].seq = gCacheClientList[0].seqCount;
+								tempPacket.ids[0].seq = gCacheClientList[0].seqCount + 1;
 								gCacheClientList[0].seqCount++;
 								char oldIdStr[64], newIdStr[64];
 								qsnprintf(oldIdStr, 64, "\"id\":%d", msgBody.id);
@@ -1016,7 +1016,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 								buf = QByteArray("T") + TnetString::fromVariant(tempPacket.toVariant());
 
 								if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-									LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "ttt %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
+									LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, tempPacket.toVariant(), "body", "asdf %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
 							}
 							
 							log_debug("[CACHE] Registered Cache for id=%d method=\"%s\"", msgBody.id, methodStr);
