@@ -1024,15 +1024,16 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							
 							log_debug("[CACHE] Registered Cache for id=%d method=\"%s\"", msgBody.id, methodStr);
 
+							QList<QByteArray> tmpMsg;
+							tmpMsg += instanceAddress;
+							tmpMsg += QByteArray();
+							tmpMsg += tmpBuf;
+							client_out_stream_sock->write(tmpMsg);
+
 							// add ws Cache insert
 							wsCacheInsert++;
 							memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
 
-							QList<QByteArray> tmpMsg;
-							tmpMsg += instanceAddress;
-							tmpMsg += QByteArray();
-							tmpMsg += tmbBuf;
-							client_out_stream_sock->write(tmpMsg);
 
 							// make original packet to keep-alive
 							ZhttpRequestPacket keepAlivePacket = packet;
