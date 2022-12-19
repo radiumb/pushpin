@@ -1006,7 +1006,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							{
 								ZhttpRequestPacket tempPacket = packet;
 								tempPacket.ids[0].id = gCacheClientList[0].id;
-								tempPacket.ids[0].seq = gCacheClientList[0].seqCount + 1;
+								tempPacket.ids[0].seq = -1;//gCacheClientList[0].seqCount + 1;
 								gCacheClientList[0].seqCount++;
 								char oldIdStr[64], newIdStr[64];
 								qsnprintf(oldIdStr, 64, "\"id\":%d", msgBody.id);
