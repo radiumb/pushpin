@@ -570,10 +570,19 @@ public:
 		}
 		else if (pid == 0){
 			// create wscat
-			char * argv_list[] = {(char *)"/bin/wscat", (char *)"-c", (char *)"ws://localhost:7999/", NULL};
+			char * argv_list1[] = {(char *)"/bin/wscat", (char *)"-c", (char *)"ws://localhost:7999/", NULL};
 
-			execve("/bin/wscat",argv_list, NULL);
+			execve("/bin/wscat",argv_list1, NULL);
 			log_debug("failed to start wscat error=%d", errno);
+
+			if (errno == 2)
+			{
+				// create wscat
+				char * argv_list2[] = {(char *)"/usr/local/bin/wscat", (char *)"-c", (char *)"ws://localhost:7999/", NULL};
+				execve("/usr/local/bin/wscat",argv_list2, NULL);
+				log_debug("failed to start wscat error=%d", errno);
+			}
+			
 			exit(0);
 		}
 
