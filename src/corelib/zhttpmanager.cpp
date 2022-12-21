@@ -1229,49 +1229,38 @@ public slots:
 			return;
 		}
 
-		if (p.ids[0].id != gCacheClient.clientId)
+		if (p.ids[0].id == gCacheClient.clientId)
 		{
-			goto ZWS_CLIENT_IN_WRITE;
-		}
-		
-		if (gCacheClient.initialized == false)
-		{
-			if (p.code == 101)
+			if (gCacheClient.initialized == false)
 			{
-				gCacheClient.initialized = true;
-				log_debug("Initialized Cache client");
-			}
-			goto ZWS_CLIENT_IN_WRITE;
-		}
-
-		// parse json body
-		JsonMsgBody msgBody;
-		if (parseJsonMsg(data, &msgBody) < 0)
-		{
-			// broadcast this response to all clients
-			for (int i = 0; i < gSubscriptionList.count(); i++)
-			{
-				for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
+				if (p.code == 101)
 				{
-					log_debug("[SUBSCRIBE] Broadcast this response to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
-
-					send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId);
+					gCacheClient.initialized = true;
+					log_debug("Initialized Cache client");
 				}
+				goto ZWS_CLIENT_IN_WRITE;
 			}
-			
-			// make invalild
-			p.type = ZhttpResponsePacket::KeepAlive;
-			goto ZWS_CLIENT_IN_WRITE;
-		}
 
-		if (gCacheClient.initialized != true)
-		{
-			log_debug("Not initialized Cache client");
-			goto ZWS_CLIENT_IN_WRITE;
-		}
+			// parse json body
+			JsonMsgBody msgBody;
+			if (parseJsonMsg(data, &msgBody) < 0)
+			{
+				// broadcast this response to all clients
+				for (int i = 0; i < gSubscriptionList.count(); i++)
+				{
+					for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
+					{
+						log_debug("[SUBSCRIBE] Broadcast this response to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
 
-		// Cache
-		{
+						send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId);
+					}
+				}
+				
+				// make invalild
+				p.type = ZhttpResponsePacket::KeepAlive;
+				goto ZWS_CLIENT_IN_WRITE;
+			}
+
 			// get cache list count
 			int cacheListCount = gCacheList.count();
 			int subscriptionListCount = gSubscriptionList.count();
