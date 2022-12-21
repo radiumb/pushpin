@@ -1167,7 +1167,7 @@ public slots:
 		ZhttpResponsePacket clientPacket = p;
 
 		char oldIdStr[64], newIdStr[64];
-		qsnprintf(oldIdStr, 64, "\"id\":%d", clientId);
+		qsnprintf(oldIdStr, 64, "\"id\":%d", oldMsgId);
 		qsnprintf(newIdStr, 64, "\"id\":%d", newMsgId);
 		clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 
