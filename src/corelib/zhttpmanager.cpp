@@ -1288,8 +1288,8 @@ public slots:
 							for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 							{
 								log_debug("[SUBSCRIBE] Sending Cache content to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
-								send_response_to_client(gSubscriptionList[i].responsePacket, gSubscriptionList[i].clientList[j].clientId, msgBody.id, gSubscriptionList[i].clientList[j].msgId);
-								send_response_to_client(gSubscriptionList[i].subscriptionPacket, gSubscriptionList[i].clientList[j].clientId, msgBody.id, gSubscriptionList[i].clientList[j].msgId);
+								send_response_to_client(gSubscriptionList[i].responsePacket, gSubscriptionList[i].clientList[j].clientId, gSubscriptionList[i].msgId, gSubscriptionList[i].clientList[j].msgId);
+								send_response_to_client(gSubscriptionList[i].subscriptionPacket, gSubscriptionList[i].clientList[j].clientId, gSubscriptionList[i].msgId, gSubscriptionList[i].clientList[j].msgId);
 							}
 						}
 						else
@@ -1298,7 +1298,7 @@ public slots:
 							for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 							{
 								log_debug("[SUBSCRIBE] Sending Cache content to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
-								send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId, msgBody.id, gSubscriptionList[i].clientList[j].msgId);
+								send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId, gSubscriptionList[i].msgId, gSubscriptionList[i].clientList[j].msgId);
 							}
 						}
 
@@ -1436,8 +1436,8 @@ public slots:
 									for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 									{
 										log_debug("[SUBSCRIBE] Sending Cache content to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
-										send_response_to_client(gSubscriptionList[i].responsePacket, gSubscriptionList[i].clientList[j].clientId, msgBody.id, gSubscriptionList[i].clientList[j].msgId);
-										send_response_to_client(gSubscriptionList[i].subscriptionPacket, gSubscriptionList[i].clientList[j].clientId, msgBody.id, gSubscriptionList[i].clientList[j].msgId);
+										send_response_to_client(gSubscriptionList[i].responsePacket, gSubscriptionList[i].clientList[j].clientId, gSubscriptionList[i].msgId, gSubscriptionList[i].clientList[j].msgId);
+										send_response_to_client(gSubscriptionList[i].subscriptionPacket, gSubscriptionList[i].clientList[j].clientId, gSubscriptionList[i].msgId, gSubscriptionList[i].clientList[j].msgId);
 									}
 								}
 								
