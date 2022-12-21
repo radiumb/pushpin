@@ -1229,35 +1229,39 @@ public slots:
 			return;
 		}
 
+		if (p.ids[0].id != gCacheClient.clientId)
+		{
+			goto ZWS_CLIENT_IN_WRITE;
+		}
+		else if (gCacheClient.initialized == false)
+		{
+			if (p.code == 101)
+			{
+				gCacheClient.initialized = true;
+				log_debug("Initialized Cache client");
+				goto ZWS_CLIENT_IN_WRITE;
+			}
+		}
+		
+		
+
 		// parse json body
 		JsonMsgBody msgBody;
 		if (parseJsonMsg(data, &msgBody) < 0)
 		{
-			// check if multi-part response for Cache Client
-			if (p.ids[0].id == gCacheClient.clientId)
+			// broadcast this response to all clients
+			for (int i = 0; i < gSubscriptionList.count(); i++)
 			{
-				if (p.code == 101)
+				for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 				{
-					gCacheClient.initialized = true;
-					log_debug("Initialized Cache client");
-					goto ZWS_CLIENT_IN_WRITE;
-				}
-				
-				// broadcast this response to all clients
-				for (int i = 0; i < gSubscriptionList.count(); i++)
-				{
-					for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
-					{
-						log_debug("[SUBSCRIBE] Broadcast this response to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
+					log_debug("[SUBSCRIBE] Broadcast this response to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
 
-						send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId);
-					}
+					send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId);
 				}
-				
-				// make invalild
-				p.type = ZhttpResponsePacket::KeepAlive;
 			}
 			
+			// make invalild
+			p.type = ZhttpResponsePacket::KeepAlive;
 			goto ZWS_CLIENT_IN_WRITE;
 		}
 
