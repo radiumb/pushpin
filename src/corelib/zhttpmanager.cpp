@@ -1233,17 +1233,16 @@ public slots:
 		{
 			goto ZWS_CLIENT_IN_WRITE;
 		}
-		else if (gCacheClient.initialized == false)
+		
+		if (gCacheClient.initialized == false)
 		{
 			if (p.code == 101)
 			{
 				gCacheClient.initialized = true;
 				log_debug("Initialized Cache client");
-				goto ZWS_CLIENT_IN_WRITE;
 			}
+			goto ZWS_CLIENT_IN_WRITE;
 		}
-		
-		
 
 		// parse json body
 		JsonMsgBody msgBody;
