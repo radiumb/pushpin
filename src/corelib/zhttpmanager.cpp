@@ -1162,9 +1162,15 @@ public slots:
 		Q_UNUSED(count);
 	}
 
-	void send_response_to_client(ZhttpResponsePacket p, QByteArray clientId)
+	void send_response_to_client(ZhttpResponsePacket p, QByteArray clientId, int oldMsgId, int newMsgId)
 	{
 		ZhttpResponsePacket clientPacket = p;
+
+		char oldIdStr[64], newIdStr[64];
+		qsnprintf(oldIdStr, 64, "\"id\":%d", clientId);
+		qsnprintf(newIdStr, 64, "\"id\":%d", newMsgId);
+		clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+
 		clientPacket.ids[0].id = clientId;
 		clientPacket.ids[0].seq = -1;
 		foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
@@ -1229,6 +1235,7 @@ public slots:
 			return;
 		}
 
+		// Cache
 		if (p.ids[0].id == gCacheClient.clientId)
 		{
 			if (gCacheClient.initialized == false)
@@ -1252,7 +1259,7 @@ public slots:
 					{
 						log_debug("[SUBSCRIBE] Broadcast this response to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
 
-						send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId);
+						send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId, 0, 0);
 					}
 				}
 				
@@ -1281,8 +1288,8 @@ public slots:
 							for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 							{
 								log_debug("[SUBSCRIBE] Sending Cache content to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
-								send_response_to_client(gSubscriptionList[i].responsePacket, gSubscriptionList[i].clientList[j].clientId);
-								send_response_to_client(gSubscriptionList[i].subscriptionPacket, gSubscriptionList[i].clientList[j].clientId);
+								send_response_to_client(gSubscriptionList[i].responsePacket, gSubscriptionList[i].clientList[j].clientId, msgBody.id, gSubscriptionList[i].clientList[j].msgId);
+								send_response_to_client(gSubscriptionList[i].subscriptionPacket, gSubscriptionList[i].clientList[j].clientId, msgBody.id, gSubscriptionList[i].clientList[j].msgId);
 							}
 						}
 						else
@@ -1291,7 +1298,7 @@ public slots:
 							for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 							{
 								log_debug("[SUBSCRIBE] Sending Cache content to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
-								send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId);
+								send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId, msgBody.id, gSubscriptionList[i].clientList[j].msgId);
 							}
 						}
 
@@ -1429,8 +1436,8 @@ public slots:
 									for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 									{
 										log_debug("[SUBSCRIBE] Sending Cache content to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
-										send_response_to_client(gSubscriptionList[i].responsePacket, gSubscriptionList[i].clientList[j].clientId);
-										send_response_to_client(gSubscriptionList[i].subscriptionPacket, gSubscriptionList[i].clientList[j].clientId);
+										send_response_to_client(gSubscriptionList[i].responsePacket, gSubscriptionList[i].clientList[j].clientId, msgBody.id, gSubscriptionList[i].clientList[j].msgId);
+										send_response_to_client(gSubscriptionList[i].subscriptionPacket, gSubscriptionList[i].clientList[j].clientId, msgBody.id, gSubscriptionList[i].clientList[j].msgId);
 									}
 								}
 								
