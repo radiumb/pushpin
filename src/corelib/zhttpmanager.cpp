@@ -117,6 +117,8 @@ struct CacheClientItem {
 	int seqCount;
 	int totalCredit;
 	int creditCount;
+	QByteArray receiver;
+	QByteArray from;
 	QByteArray clientId;
 };
 CacheClientItem gCacheClient;
@@ -789,6 +791,33 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 				}
 			}
 		}
+		else if (packet.type == ZhttpRequestPacket::Credit)
+		{
+			// Create new credit packet
+			ZhttpRequestPacket tempPacket;
+			ZhttpRequestPacket::Id tempId;
+			tempId.id = gCacheClient.clientId; // id
+			tempId.seq = gCacheClient.seqCount; // seq
+			tempPacket.ids.append(tempId);
+			gCacheClient.seqCount++;
+
+			tempPacket.type = ZhttpRequestPacket::Credit;
+			tempPacket.credits = gCacheClient.creditCount;
+			gCacheClient.creditCount = 0;
+			tempPacket.from = gCacheClient.receiver;
+
+			QVariant vTempPacket = tempPacket.toVariant();
+			QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
+
+			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+				LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[SUBSCRIBE] client: OUT %s", p.from.data());
+
+			QList<QByteArray> tmpMsg;
+			tmpMsg += gCacheClient.from;
+			tmpMsg += QByteArray();
+			tmpMsg += tmpBuf;
+			client_out_stream_sock->write(tmpMsg);
+		}
 		else
 		{
 			// Parse json message
@@ -1247,6 +1276,8 @@ public slots:
 					gCacheClient.initialized = true;
 					gCacheClient.totalCredit = p.credits;
 					gCacheClient.creditCount = 0;
+					gCacheClient.receiver = receiver;
+					gCacheClient.from = p.from;
 					log_debug("[SUBSCRIBE] Initialized Cache client receiver=%s", receiver.data());
 				}
 				goto ZWS_CLIENT_IN_WRITE;
@@ -1256,36 +1287,7 @@ public slots:
 			if (p.type == ZhttpResponsePacket::Data)
 			{
 				gCacheClient.creditCount += static_cast<int>(p.body.size());
-
-				if (gCacheClient.creditCount > gCacheClient.totalCredit/2)
-				{
-					// Create new credit packet
-					ZhttpRequestPacket tempPacket;
-					ZhttpRequestPacket::Id tempId;
-					tempId.id = gCacheClient.clientId; // id
-					tempId.seq = gCacheClient.seqCount; // seq
-					tempPacket.ids.append(tempId);
-					gCacheClient.seqCount++;
-
-					tempPacket.type = ZhttpRequestPacket::Credit;
-					tempPacket.credits = gCacheClient.creditCount;
-					gCacheClient.creditCount = 0;
-					tempPacket.from = receiver;
-
-					QVariant vTempPacket = tempPacket.toVariant();
-					QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
-
-					if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-						LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[SUBSCRIBE] client: OUT %s", p.from.data());
-
-					QList<QByteArray> tmpMsg;
-					tmpMsg += p.from;
-					tmpMsg += QByteArray();
-					tmpMsg += tmpBuf;
-					client_out_stream_sock->write(tmpMsg);
-				}
 			}
-			
 
 			// parse json body
 			JsonMsgBody msgBody;
