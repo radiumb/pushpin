@@ -1243,10 +1243,36 @@ public slots:
 				if (p.code == 101)
 				{
 					gCacheClient.initialized = true;
-					log_debug("Initialized Cache client");
+					log_debug("[SUBSCRIBE] Initialized Cache client receiver=%s", receiver.data());
 				}
 				goto ZWS_CLIENT_IN_WRITE;
 			}
+
+			// set credit packet to backend
+			if (p.type == ZhttpResponsePacket::Data)
+			{
+				// Create new credit packet
+				ZhttpRequestPacket tempPacket;
+				tempPacket.ids[0].id = gCacheClient.clientId; // id
+				tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
+				gCacheClient.seqCount++;
+				tempPacket.type = ZhttpRequestPacket::Credit;
+				tempPacket.credits = static_cast<int>(p.body.size());
+				tempPacket.from = receiver;
+
+				QVariant vTempPacket = tempPacket.toVariant();
+				QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
+
+				if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[SUBSCRIBE] %s client: OUT %s", logprefix, p.from.data(), tempPacket.type);
+				
+				QList<QByteArray> tmpMsg;
+				tmpMsg += p.from;
+				tmpMsg += QByteArray();
+				tmpMsg += tmpBuf;
+				client_out_stream_sock->write(tmpMsg);
+			}
+			
 
 			// parse json body
 			JsonMsgBody msgBody;
