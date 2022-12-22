@@ -1253,10 +1253,12 @@ public slots:
 			{
 				// Create new credit packet
 				ZhttpRequestPacket tempPacket;
-				tempPacket.ids[0].id = gCacheClient.clientId; // id
-				tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
+				ZhttpRequestPacket::Id tempId;
+				tempId.id = gCacheClient.clientId; // id
+				tempId.seq = gCacheClient.seqCount; // seq
+				tempPacket.ids.append(tempId);
 				gCacheClient.seqCount++;
-/*
+
 				tempPacket.type = ZhttpRequestPacket::Credit;
 				tempPacket.credits = static_cast<int>(p.body.size());
 				tempPacket.from = receiver;
@@ -1272,7 +1274,7 @@ public slots:
 				tmpMsg += QByteArray();
 				tmpMsg += tmpBuf;
 				client_out_stream_sock->write(tmpMsg);
-*/
+
 			}
 			
 
