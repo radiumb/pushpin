@@ -1252,7 +1252,7 @@ public slots:
 			if (p.type == ZhttpResponsePacket::Data)
 			{
 				// Create new credit packet
-				ZhttpRequestPacket tempPacket;
+				ZhttpRequestPacket tempPacket = new ZhttpRequestPacket();
 				tempPacket.ids[0].id = gCacheClient.clientId; // id
 				tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
 				gCacheClient.seqCount++;
