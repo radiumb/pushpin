@@ -1264,7 +1264,7 @@ public slots:
 				QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
 
 				if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[SUBSCRIBE] %s client: OUT %s", logprefix, p.from.data(), tempPacket.type);
+					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[SUBSCRIBE] %s client: OUT %s", p.from.data(), tempPacket.type);
 				
 				QList<QByteArray> tmpMsg;
 				tmpMsg += p.from;
