@@ -1253,13 +1253,17 @@ public slots:
 			if (parseJsonMsg(data, &msgBody) < 0)
 			{
 				// broadcast this response to all clients
+				QList<QByteArray> responseClientList;
 				for (int i = 0; i < gSubscriptionList.count(); i++)
 				{
 					for (int j = 0; j < gSubscriptionList[i].clientList.count(); j++)
 					{
-						log_debug("[SUBSCRIBE] Broadcast this response to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
-
-						send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId, 0, 0);
+						if (responseClientList.contains(gSubscriptionList[i].clientList[j].clientId) == false)
+						{
+							log_debug("[SUBSCRIBE] Broadcast this response to client id=%s", (const char *)gSubscriptionList[i].clientList[j].clientId);
+							responseClientList.append(gSubscriptionList[i].clientList[j].clientId);
+							send_response_to_client(p, gSubscriptionList[i].clientList[j].clientId, 0, 0);
+						}
 					}
 				}
 				
