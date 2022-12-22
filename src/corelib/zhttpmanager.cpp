@@ -1256,10 +1256,11 @@ public slots:
 				tempPacket.ids[0].id = gCacheClient.clientId; // id
 				tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
 				gCacheClient.seqCount++;
+/*
 				tempPacket.type = ZhttpRequestPacket::Credit;
 				tempPacket.credits = static_cast<int>(p.body.size());
 				tempPacket.from = receiver;
-
+*/
 				QVariant vTempPacket = tempPacket.toVariant();
 				QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
 /*
