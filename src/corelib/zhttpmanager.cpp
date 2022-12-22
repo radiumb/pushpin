@@ -1262,7 +1262,7 @@ public slots:
 
 				QVariant vTempPacket = tempPacket.toVariant();
 				QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
-
+/*
 				if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[SUBSCRIBE] client: OUT %s", p.from.data());
 				
@@ -1271,6 +1271,7 @@ public slots:
 				tmpMsg += QByteArray();
 				tmpMsg += tmpBuf;
 				client_out_stream_sock->write(tmpMsg);
+*/
 			}
 			
 
