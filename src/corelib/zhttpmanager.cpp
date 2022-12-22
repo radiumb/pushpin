@@ -810,7 +810,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 			QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
 
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-				LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[SUBSCRIBE] client: OUT %s", p.from.data());
+				LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[SUBSCRIBE] client: OUT %s", gCacheClient.from.data());
 
 			QList<QByteArray> tmpMsg;
 			tmpMsg += gCacheClient.from;
