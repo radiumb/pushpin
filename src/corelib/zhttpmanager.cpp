@@ -764,7 +764,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 			buf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
 
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-				LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHE Client] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
+				LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHE Client] %s client: OUT %s type=%d", logprefix, instanceAddress.data(), tempPacket.type);
 		}
 
 		// if cancel/close request, remove from the subscribe cache list
@@ -1252,7 +1252,7 @@ public slots:
 			if (p.type == ZhttpResponsePacket::Data)
 			{
 				// Create new credit packet
-				ZhttpRequestPacket tempPacket = new ZhttpRequestPacket();
+				ZhttpRequestPacket tempPacket;
 				tempPacket.ids[0].id = gCacheClient.clientId; // id
 				tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
 				gCacheClient.seqCount++;
@@ -1264,7 +1264,7 @@ public slots:
 				QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
 
 				if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[SUBSCRIBE] %s client: OUT %s", p.from.data(), tempPacket.type);
+					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[SUBSCRIBE] client: OUT %s", p.from.data());
 				
 				QList<QByteArray> tmpMsg;
 				tmpMsg += p.from;
