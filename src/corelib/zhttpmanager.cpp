@@ -781,7 +781,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 					{
 						gSubscriptionList[i].clientList.removeAt(j);
 						log_debug("[CACHE] New main client clientId=%s, msgId=%d, subscriptionStr=%s", \
-							clientId, gSubscriptionList[i].msgId, qPrintable(gSubscriptionList[i].subscriptionStr));
+							clientId.data(), gSubscriptionList[i].msgId, qPrintable(gSubscriptionList[i].subscriptionStr));
 						break;
 					}
 				}
