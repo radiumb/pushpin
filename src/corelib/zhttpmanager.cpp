@@ -791,7 +791,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 				}
 			}
 		}
-		else if (packet.type == ZhttpRequestPacket::Credit)
+		else if ((packet.type == ZhttpRequestPacket::Credit) && (gCacheClient.creditCount > 0))
 		{
 			// Create new credit packet
 			ZhttpRequestPacket tempPacket;
