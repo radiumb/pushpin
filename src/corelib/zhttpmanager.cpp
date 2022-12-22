@@ -1260,19 +1260,19 @@ public slots:
 				tempPacket.type = ZhttpRequestPacket::Credit;
 				tempPacket.credits = static_cast<int>(p.body.size());
 				tempPacket.from = receiver;
-*/
+
 				QVariant vTempPacket = tempPacket.toVariant();
 				QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
-/*
+
 				if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[SUBSCRIBE] client: OUT %s", p.from.data());
-*/				
+
 				QList<QByteArray> tmpMsg;
 				tmpMsg += p.from;
 				tmpMsg += QByteArray();
 				tmpMsg += tmpBuf;
 				client_out_stream_sock->write(tmpMsg);
-
+*/
 			}
 			
 
