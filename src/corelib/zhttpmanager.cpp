@@ -892,7 +892,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 			// delete old cache items
 			deleteOldCacheItem(cacheTimeoutSeconds, cacheItemMaxCount);
 			memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
-			deleteInvalidSubscriptionItem(10);
+			deleteInvalidSubscriptionItem(20);
 			//deleteOldSubscriptionItem(cacheSubscribeTimeoutSeconds);
 
 			// get item count
