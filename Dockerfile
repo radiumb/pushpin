@@ -16,12 +16,15 @@ RUN apt-get install -y pkg-config rustc cargo qtbase5-dev libzmq3-dev zurl
 RUN wget http://ftp.de.debian.org/debian/pool/main/r/rust-condure/condure_1.1.0-1+b2_amd64.deb
 RUN apt-get install ./condure_1.1.0-1+b2_amd64.deb
 
+RUN git clone https://github.com/fanout/common.git src/corelib/common
+RUN git clone https://github.com/jkarneges/qzmq.git src/corelib/qzmq
+
 RUN ./configure \
     && cargo build --release \
     && make \
     && make install
 
-CMD ["sudo pushpin", "--verbose"]
+CMD ["pushpin", "--verbose"]
 
 # Expose ports.
 # - 7999: HTTP port to forward on to the app
