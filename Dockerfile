@@ -7,12 +7,13 @@ WORKDIR /pushpin
 
 COPY . .
 
-RUN apt-get install apt-transport-https software-properties-common
-RUN echo deb https://fanout.jfrog.io/artifactory/debian fanout-focal main | tee /etc/apt/sources.list.d/fanout.list
-RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys EA01C1E777F95324
 RUN apt-get update
 RUN apt-get install -y git
+RUN apt-get install -y wget
 RUN apt-get install pkg-config rustc cargo qtbase5-dev libzmq3-dev zurl
+
+RUN wget http://ftp.de.debian.org/debian/pool/main/r/rust-condure/condure_1.1.0-1+b2_amd64.deb
+RUN apt-get install ./condure_1.1.0-1+b2_amd64.deb
 
 RUN ./configure \
     && cargo build --release \
