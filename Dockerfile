@@ -7,12 +7,17 @@ WORKDIR /pushpin
 
 COPY . .
 
-RUN git submodule init && git submodule update \
-    sudo apt-get install pkg-config rustc cargo qtbase5-dev libzmq3-dev condure zurl
-    ./configure \
-    sudo cargo build --release \
-    sudo make \
-    sudo make install
+RUN apt-get install apt-transport-https software-properties-common
+RUN echo deb https://fanout.jfrog.io/artifactory/debian fanout-focal main | tee /etc/apt/sources.list.d/fanout.list
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys EA01C1E777F95324
+RUN apt-get update
+RUN apt-get install -y git
+RUN apt-get install pkg-config rustc cargo qtbase5-dev libzmq3-dev zurl
+
+RUN ./configure \
+    && cargo build --release \
+    && make \
+    && make install
 
 CMD ["sudo pushpin", "--verbose"]
 
