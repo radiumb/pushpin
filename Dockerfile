@@ -3,6 +3,10 @@ LABEL Description="Pushpin Build environment"
 
 SHELL ["/bin/bash", "-c"]
 
+WORKDIR /pushpin
+
+COPY . .
+
 RUN git submodule init && git submodule update \
     sudo apt-get install pkg-config rustc cargo qtbase5-dev libzmq3-dev condure zurl
     ./configure \
@@ -10,7 +14,7 @@ RUN git submodule init && git submodule update \
     sudo make \
     sudo make install
 
-CMD ["pushpin", "--verbose"]
+CMD ["sudo pushpin", "--verbose"]
 
 # Expose ports.
 # - 7999: HTTP port to forward on to the app
