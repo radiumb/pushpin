@@ -24,7 +24,7 @@ RUN ./configure \
     && make \
     && make install
 
-CMD ["pushpin", "--verbose"]
+CMD ["pushpin", "--config /etc/pushpin/pushpin.conf"]
 
 # Expose ports.
 # - 7999: HTTP port to forward on to the app
