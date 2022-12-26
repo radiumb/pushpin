@@ -8,7 +8,7 @@ WORKDIR /pushpin
 COPY . .
 
 RUN apt-get update
-RUN apt-get install -y git wget
+RUN apt-get install -y git wget vim
 RUN apt-get install build-essential -y --no-install-recommends
 RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y install tzdata
 RUN apt-get install -y pkg-config rustc cargo qtbase5-dev libzmq3-dev zurl
@@ -37,3 +37,5 @@ EXPOSE 5560
 EXPOSE 5561
 EXPOSE 5562
 EXPOSE 5563
+EXPOSE 9001
+EXPOSE 9944
