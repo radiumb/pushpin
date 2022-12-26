@@ -8,10 +8,11 @@ WORKDIR /pushpin
 COPY . .
 
 RUN apt-get update
-RUN apt-get install -y git wget vim node-ws
+RUN apt-get install -y git wget
 RUN apt-get install build-essential -y --no-install-recommends
 RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y install tzdata
 RUN apt-get install -y pkg-config rustc cargo qtbase5-dev libzmq3-dev zurl
+RUN apt-get install -y vim node-ws
 
 RUN wget http://ftp.de.debian.org/debian/pool/main/r/rust-condure/condure_1.1.0-1+b2_amd64.deb
 RUN apt-get install ./condure_1.1.0-1+b2_amd64.deb
