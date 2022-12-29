@@ -328,6 +328,7 @@ public:
 			if(request.followRedirects)
 				hreq->setFollowRedirects(8);
 
+			log_debug("11111 outCredits = %d requestCredist=%d", outCredits, request.credits);
 			if(request.credits != -1)
 				outCredits += request.credits;
 		}
@@ -392,6 +393,7 @@ public:
 				ws->setFollowRedirects(8);
 			ws->setMaxFrameSize(config->sessionBufferSize);
 
+			log_debug("11111 outCredits = %d requestCredist=%d", outCredits, request.credits);
 			if(request.credits != -1)
 				outCredits += request.credits;
 		}
@@ -499,6 +501,7 @@ public:
 
 		// all we care about from follow-up writes are body and credits
 
+		log_debug("11111 outCredits = %d requestCredist=%d", outCredits, request.credits);
 		if(request.credits != -1)
 			outCredits += request.credits;
 
@@ -861,14 +864,12 @@ private slots:
 		}
 		else // WebSocketTransport
 		{
-			log_debug("11111");
 			if(state == Started || state == Closing || state == PeerClosing)
 			{
 				if(stuffToRead)
 				{
 					stuffToRead = false;
 
-					log_debug("22222 outCredits = %d nextFrameSize=%d", outCredits, ws->nextFrameSize());
 					while(ws->framesAvailable() > 0 && outCredits >= ws->nextFrameSize())
 					{
 						WebSocket::Frame frame = ws->readFrame();
@@ -887,7 +888,6 @@ private slots:
 								resp.contentType = "binary";
 							resp.body = frame.data;
 							resp.more = frame.more;
-							log_debug("333333");
 							writeResponse(resp);
 							if(!self)
 								return;
