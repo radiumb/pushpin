@@ -886,6 +886,7 @@ private slots:
 								resp.contentType = "binary";
 							resp.body = frame.data;
 							resp.more = frame.more;
+							log_debug("333333");
 							writeResponse(resp);
 							if(!self)
 								return;
@@ -1048,6 +1049,7 @@ private slots:
 		resp.headers = ws->responseHeaders();
 		resp.credits = config->sessionBufferSize;
 		resp.multi = multi;
+		log_debug("2222222");
 		writeResponse(resp);
 	}
 
