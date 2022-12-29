@@ -716,6 +716,7 @@ public:
 			return;
 		}
 
+		log_debug("asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf");
 		if(packet.type == ZhttpResponsePacket::Data)
 		{
 			bool needToSendHeaders = false;
