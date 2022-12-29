@@ -868,6 +868,7 @@ private slots:
 				{
 					stuffToRead = false;
 
+					log_debug("22222");
 					while(ws->framesAvailable() > 0 && outCredits >= ws->nextFrameSize())
 					{
 						WebSocket::Frame frame = ws->readFrame();
