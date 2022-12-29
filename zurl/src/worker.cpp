@@ -835,7 +835,6 @@ private slots:
 					resp.body = inbuf.take();
 				}
 
-				log_debug("11111");
 				writeResponse(resp);
 				if(!self)
 					return;
@@ -862,6 +861,7 @@ private slots:
 		}
 		else // WebSocketTransport
 		{
+			log_debug("11111");
 			if(state == Started || state == Closing || state == PeerClosing)
 			{
 				if(stuffToRead)
@@ -1049,7 +1049,6 @@ private slots:
 		resp.headers = ws->responseHeaders();
 		resp.credits = config->sessionBufferSize;
 		resp.multi = multi;
-		log_debug("2222222");
 		writeResponse(resp);
 	}
 
