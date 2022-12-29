@@ -573,6 +573,7 @@ public:
 
 	void handle(const QByteArray &id, int seq, const ZhttpResponsePacket &packet)
 	{
+		log_debug("qwerqwerqwerqwerqwerqwerqwerqwerqwerqwerqwer");
 		if(packet.type == ZhttpResponsePacket::Error)
 		{
 			errorCondition = convertError(packet.condition);
