@@ -682,6 +682,7 @@ public:
 	// return true if new frame to read
 	bool handleIncomingFrame(bool fin, int opcode, const QByteArray &data)
 	{
+		log_debug("ws: received frame type=%d, size=%d", opcode, data.size());
 		// skip any frames after close frame
 		if(peerClosing)
 			return false;
@@ -707,8 +708,6 @@ public:
 
 			return false;
 		}
-
-		log_debug("ws: received frame type=%d, size=%d", opcode, data.size());
 
 		Frame::Type ftype;
 		if(opcode == 0)
