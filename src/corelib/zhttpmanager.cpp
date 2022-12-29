@@ -751,7 +751,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
-
+/*
 		if (gCacheClient.initialized != true)
 		{
 			goto OUT_STREAM_SOCK_WRITE;
@@ -915,19 +915,17 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 							// if method name is in cache config list
 							if (!memcmp(gCacheList[j].methodNameParamHashVal, paramsHash, 20))
 							{
-								/*
-								if (gCacheList[j].expiredFlag == true)
-								{
-									// add ws Cache expired match count
-									wsCacheExpiredMatchCount++;
-									memcpy(&shm_str[120], (char *)&wsCacheExpiredMatchCount, 4);
+								//if (gCacheList[j].expiredFlag == true)
+								//{
+								//	// add ws Cache expired match count
+								//	wsCacheExpiredMatchCount++;
+								//	memcpy(&shm_str[120], (char *)&wsCacheExpiredMatchCount, 4);
 
-									log_debug("[CACHE] Entry is expired, but match request \"%s\"", methodStr);
+							//		log_debug("[CACHE] Entry is expired, but match request \"%s\"", methodStr);
 
-									gCacheList[j].cachedFlag = false;
-								}
-								*/
-
+								//	gCacheList[j].cachedFlag = false;
+								//}
+								
 								if (gCacheList[j].cachedFlag == true)
 								{
 									replyCachedContent(j, gCacheList[j].id, msgBody.id, packet.ids[0].id, instanceAddress);
@@ -1088,6 +1086,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 			
 			shmdt(shm_str);
 		}
+	*/
 OUT_STREAM_SOCK_WRITE:
 		QList<QByteArray> msg;
 		msg += instanceAddress;
@@ -1265,7 +1264,7 @@ public slots:
 			log_warning("zhttp/zws client: received message with invalid format (parse failed), skipping");
 			return;
 		}
-
+/*
 		// Cache
 		if (p.ids[0].id == gCacheClient.clientId)
 		{
@@ -1504,6 +1503,7 @@ public slots:
 				shmdt(shm_str);
 			}
 		}
+*/
 ZWS_CLIENT_IN_WRITE:
 		QPointer<QObject> self = this;
 
