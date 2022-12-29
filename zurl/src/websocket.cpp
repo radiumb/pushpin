@@ -740,6 +740,7 @@ public:
 		while(ok)
 		{
 			ok = tryProcessFrame();
+			log_debug("asdf %d", ok?1:0);
 			if(!self)
 				return;
 
