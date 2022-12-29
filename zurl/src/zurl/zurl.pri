@@ -1,0 +1,26 @@
+SRC_DIR = $$PWD/..
+COMMON_DIR = $$SRC_DIR/common
+
+QMAKE_CXXFLAGS += $$(CXXFLAGS)
+QMAKE_CFLAGS += $$(CFLAGS)
+QMAKE_LFLAGS += $$(LDFLAGS)
+
+INCLUDEPATH += $$SRC_DIR
+INCLUDEPATH += $$SRC_DIR/jdns/include/jdns
+INCLUDEPATH += $$SRC_DIR/qzmq/src
+
+INCLUDEPATH += $$COMMON_DIR
+DEFINES += NO_IRISNET
+
+use_curl {
+	DEFINES += USE_CURL
+} else {
+	DEFINES += USE_QNAM
+}
+
+HEADERS += \
+	$$SRC_DIR/app.h
+
+SOURCES += \
+	$$SRC_DIR/app.cpp \
+	$$SRC_DIR/main.cpp

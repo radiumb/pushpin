@@ -1,0 +1,9 @@
+[submodule "src/qzmq"]
+	path = src/qzmq
+	url = https://github.com/jkarneges/qzmq.git
+[submodule "src/common"]
+	path = src/common
+	url = https://github.com/fanout/common.git
+[submodule "src/jdns"]
+	path = src/jdns
+	url = https://github.com/psi-im/jdns.git
