@@ -751,7 +751,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
-/*
+
 		if (gCacheClient.initialized != true)
 		{
 			goto OUT_STREAM_SOCK_WRITE;
@@ -1086,7 +1086,7 @@ DELETE_OLD_SUBSCRIPTION_ITEMS:
 			
 			shmdt(shm_str);
 		}
-	*/
+	
 OUT_STREAM_SOCK_WRITE:
 		QList<QByteArray> msg;
 		msg += instanceAddress;
@@ -1264,7 +1264,7 @@ public slots:
 			log_warning("zhttp/zws client: received message with invalid format (parse failed), skipping");
 			return;
 		}
-/*
+
 		// Cache
 		if (p.ids[0].id == gCacheClient.clientId)
 		{
@@ -1503,7 +1503,7 @@ public slots:
 				shmdt(shm_str);
 			}
 		}
-*/
+
 ZWS_CLIENT_IN_WRITE:
 		QPointer<QObject> self = this;
 
