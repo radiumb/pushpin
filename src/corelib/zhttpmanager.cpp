@@ -1315,6 +1315,7 @@ public slots:
 				cacheItem.subscriptionStr = msgBody.subscription;
 				cacheItem.subscriptionPacket = p;
 				gCacheItemList.append(cacheItem);
+				cacheItemCount = gCacheItemList.count();
 				log_debug("[CACHEITEM] Registered Subscription for \"%s\"", qPrintable(msgBody.subscription));
 
 				// make invalild
@@ -1382,6 +1383,7 @@ public slots:
 										gCacheItemList[i].subscriptionPacket = gCacheItemList[j].subscriptionPacket;
 										gCacheItemList[i].cachedFlag = true;
 										gCacheItemList.removeAt(j);
+										cacheItemCount = gCacheItemList.count();
 										log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d result=%s", msgBody.id, qPrintable(msgBody.result));
 										break;
 									}
