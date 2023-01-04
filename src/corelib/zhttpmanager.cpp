@@ -950,42 +950,41 @@ DELETE_OLD_CACHE_ITEMS:
 						{
 							if (gCacheItemList[j].cachedFlag == true)
 							{
-									replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress);
-									log_debug("[CACHEITEM] Replied with subscription cache content for method \"%s\"", methodStr);
+								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress);
+								log_debug("[CACHEITEM] Replied with subscription cache content for method \"%s\"", methodStr);
 
-									// add ws Cache hit
-									wsCacheHit++;
-									memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
+								// add ws Cache hit
+								wsCacheHit++;
+								memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
 
-									// add client to list
-									int k;
-									for (k = 0; k < gCacheItemList[j].clientList.count(); k++)
-									{
-										if (gCacheItemList[j].clientList[k].clientId == packet.ids[0].id)
-											break;
-									}
-									if (k == gCacheItemList[j].clientList.count())
-									{
-										struct ClientItem clientItem;
-										clientItem.msgId = msgBody.id;
-										clientItem.clientId = packet.ids[0].id;
-										gCacheItemList[j].clientList.append(clientItem);
-										log_debug("[CACHEITEM] Adding new client id msgId=%d clientId=%s", clientItem.msgId, (const char *)clientItem.clientId);
-									}
-
-									// make keep alive request
-									ZhttpRequestPacket keepAlivePacket = packet;
-									keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
-									buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
-								}
-								else
+								// add client to list
+								int k;
+								for (k = 0; k < gCacheItemList[j].clientList.count(); k++)
 								{
-									log_debug("[CACHEITEM] Already registered, but not added content \"%s\"", methodStr);
+									if (gCacheItemList[j].clientList[k].clientId == packet.ids[0].id)
+										break;
+								}
+								if (k == gCacheItemList[j].clientList.count())
+								{
+									struct ClientItem clientItem;
+									clientItem.msgId = msgBody.id;
+									clientItem.clientId = packet.ids[0].id;
+									gCacheItemList[j].clientList.append(clientItem);
+									log_debug("[CACHEITEM] Adding new client id msgId=%d clientId=%s", clientItem.msgId, (const char *)clientItem.clientId);
 								}
 
-								shmdt(shm_str);
-								goto OUT_STREAM_SOCK_WRITE;
+								// make keep alive request
+								ZhttpRequestPacket keepAlivePacket = packet;
+								keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+								buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 							}
+							else
+							{
+								log_debug("[CACHEITEM] Already registered, but not added content \"%s\"", methodStr);
+							}
+
+							shmdt(shm_str);
+							goto OUT_STREAM_SOCK_WRITE;
 						}
 
 						// Register new cache item
