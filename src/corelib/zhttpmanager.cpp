@@ -80,9 +80,9 @@ static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsR
 static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0;
 
 // variable to store config values
-static long cfgGroupByteCount, cfgGroupCount;
-static long cfgCacheByteCount, cfgCacheItemMaxSizeKbytes, cfgCacheItemMaxCount, cfgCacheTimeoutSeconds, cfgCacheMethodCount;
-static long cfgSubscribeItemMaxSizeKbytes, cfgSubscribeItemMaxCount, cfgSubscribeTimeoutSeconds, cfgSubscribeMethodCount;
+static int cfgGroupByteCount, cfgGroupCount;
+static int cfgCacheByteCount, cfgCacheItemMaxSizeKbytes, cfgCacheItemMaxCount, cfgCacheTimeoutSeconds, cfgCacheMethodCount;
+static int cfgSubscribeItemMaxSizeKbytes, cfgSubscribeItemMaxCount, cfgSubscribeTimeoutSeconds, cfgSubscribeMethodCount;
 
 // cache item struct
 struct ClientItem {
@@ -452,16 +452,16 @@ public:
 
 				// group
 				int shm_read_count = 200;
-				cfgGroupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgGroupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgGroupByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgGroupCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
 				// cache
 				shm_read_count = 200 + cfgGroupByteCount;
-				cfgCacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgCacheItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgCacheItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgCacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgCacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgCacheByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgCacheItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgCacheItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgCacheTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgCacheMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
 				if (cfgCacheItemMaxSizeKbytes <= 0) cfgCacheItemMaxSizeKbytes = 1024;		// default
 				if (cfgCacheItemMaxCount <= 0) cfgCacheItemMaxCount = 64;		// default
@@ -470,10 +470,10 @@ public:
 				// subscribe
 				shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount;
 				shm_read_count += 4; // cache subscribe byte count
-				cfgSubscribeItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgSubscribeItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgSubscribeTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgSubscribeMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgSubscribeItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgSubscribeItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgSubscribeTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgSubscribeMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
 				if (cfgSubscribeItemMaxSizeKbytes <= 0) cfgSubscribeItemMaxSizeKbytes = 1024;		// default
 				if (cfgSubscribeItemMaxCount <= 0) cfgSubscribeItemMaxCount = 512;		// default
