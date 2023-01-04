@@ -79,6 +79,11 @@ static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcO
 static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
 static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0;
 
+// variable to store config values
+static long cfgGroupByteCount, cfgGroupCount;
+static long cfgCacheByteCount, cfgCacheItemMaxSizeKbytes, cfgCacheItemMaxCount, cfgCacheTimeoutSeconds, cfgCacheMethodCount;
+static long cfgSubscribeItemMaxSizeKbytes, cfgSubscribeItemMaxCount, cfgSubscribeTimeoutSeconds, cfgSubscribeMethodCount;
+
 // cache item struct
 struct ClientItem {
 	int msgId;
@@ -438,6 +443,42 @@ public:
 				gCacheClient.seqCount = 1;
 				gCacheClient.clientId = packet.ids[0].id;
 				log_debug("[SUBSCRIBE] %s", gCacheClient.clientId.data());
+
+				//// read config values
+				// open shared memory
+				key_t shm_key = ftok("shmfile",65);
+				int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+				char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
+				// group
+				int shm_read_count = 200;
+				cfgGroupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgGroupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+				// cache
+				shm_read_count = 200 + cfgGroupByteCount;
+				cfgCacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgCacheItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgCacheItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgCacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgCacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+				if (cfgCacheItemMaxSizeKbytes <= 0) cfgCacheItemMaxSizeKbytes = 1024;		// default
+				if (cfgCacheItemMaxCount <= 0) cfgCacheItemMaxCount = 64;		// default
+				if (cfgCacheTimeoutSeconds <= 0) cfgCacheTimeoutSeconds = 5;	// default
+
+				// subscribe
+				shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount;
+				shm_read_count += 4; // cache subscribe byte count
+				cfgSubscribeItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgSubscribeItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgSubscribeTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgSubscribeMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+				if (cfgSubscribeItemMaxSizeKbytes <= 0) cfgSubscribeItemMaxSizeKbytes = 1024;		// default
+				if (cfgSubscribeItemMaxCount <= 0) cfgSubscribeItemMaxCount = 512;		// default
+				if (cfgSubscribeTimeoutSeconds <= 0) cfgSubscribeTimeoutSeconds = 3600*4;	// default
+				shmdt(shm_str);
 			}
 
 			client_out_sock->write(QList<QByteArray>() << buf);
@@ -693,10 +734,19 @@ public:
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
 
+		// open shared memory
+		key_t shm_key = ftok("shmfile",65);
+		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
 		if (gCacheClient.initialized != true)
 		{
 			goto OUT_STREAM_SOCK_WRITE;
 		}
+
+		// delete old cache items
+		deleteOldCacheItem(cfgCacheTimeoutSeconds, cfgSubscribeTimeoutSeconds, 20);
+		memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
 
 		// Check packets for cache client, if so, update seq
 		if (packet.ids[0].id == gCacheClient.clientId)
@@ -794,58 +844,22 @@ public:
 			QByteArray paramsHashByteArray = QCryptographicHash::hash(msgBody.params.toUtf8(),QCryptographicHash::Sha1);
 			char paramsHash[20];
 			memcpy(paramsHash, paramsHashByteArray.data(), 20);
-			
-			// open shared memory
-			key_t shm_key = ftok("shmfile",65);
-			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
-			// read share memory
-			int shm_read_count = 200;
-			long cfgGroupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			
 			// Build method name hash value
 			QString methodName = QString(methodStr);
 			QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
 			char methodNameHash[20];
 			memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
-
+			
 			// add ws Cache lookup count
 			wsCacheLookup++;
 			memcpy(&shm_str[108], (char *)&wsCacheLookup, 4);
 			
-			// read shm file 
-			// cache method
-			shm_read_count = 200 + cfgGroupByteCount;
-			long cfgCacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			shm_read_count += 4; // for cacheItemMaxSizeKbytes
-			int cfgCacheItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			if (cfgCacheItemMaxCount <= 0) cfgCacheItemMaxCount = 64;		// default
-
-			int cfgCacheTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			if (cfgCacheTimeoutSeconds <= 0) cfgCacheTimeoutSeconds = 5;	// default
-
-			int cfgCacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-
-			// cache subscribe method
-			shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount;
-			shm_read_count += 4; // cache subscribe byte count
-			shm_read_count += 4; // for cacheSubscribeItemMaxSizeKbytes
-			shm_read_count += 4; // for cacheSubscribeItemMaxCount
-
-			int cfgSubscribeTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			if (cfgSubscribeTimeoutSeconds <= 0) cfgSubscribeTimeoutSeconds = 3600*4;	// default
-
-			int cfgSubscribeMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			
-			// delete old cache items
-			deleteOldCacheItem(cfgCacheTimeoutSeconds, cfgSubscribeTimeoutSeconds, 20);
-			memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
-
 			// get item count
 			int cacheItemCount = gCacheItemList.count();
 
 			// Cache method Lookup
+			int shm_read_count;
 			shm_read_count = 200 + cfgGroupByteCount + 20;
 			for (int i = 0; i < cfgCacheMethodCount; i++)
 			{
@@ -862,8 +876,8 @@ public:
 							if (gCacheItemList[j].cachedFlag == true)
 							{
 								replyCachedContent(j, msgBody.id, packet.ids[0].id, instanceAddress);
-
 								log_debug("[CACHEITEM] Replied with Cache content for method \"%s\"", methodStr);
+								gCacheItemList[j].createdSeconds = time(NULL);
 								
 								// add ws Cache hit
 								wsCacheHit++;
@@ -877,13 +891,12 @@ public:
 							{
 								log_debug("[CACHEITEM] Already registered, but not added content \"%s\"", methodStr);
 							}
-							shmdt(shm_str);
 							goto OUT_STREAM_SOCK_WRITE;
 						}
 					}
 					
 					// Register cache item
-					if (cacheItemCount <= cfgCacheItemMaxCount)
+					if (cacheItemCount <= (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount))
 					{
 						// Register new cache item
 						registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, false);
@@ -922,12 +935,11 @@ public:
 						keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
 						buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 
-						shmdt(shm_str);
 						goto OUT_STREAM_SOCK_WRITE;
 					}
 					else
 					{
-						log_debug("[CACHEITEM] Cache item count exceed Max limit=%d", cfgCacheItemMaxCount);
+						log_debug("[CACHEITEM] Cache item count exceed Max limit=%d", (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount));
 					}
 					
 					break;
@@ -971,6 +983,7 @@ public:
 									clientItem.clientId = packet.ids[0].id;
 									gCacheItemList[j].clientList.append(clientItem);
 									log_debug("[CACHEITEM] Adding new client id msgId=%d clientId=%s", clientItem.msgId, (const char *)clientItem.clientId);
+									gCacheItemList[j].createdSeconds = time(NULL);
 								}
 
 								// make keep alive request
@@ -983,12 +996,11 @@ public:
 								log_debug("[CACHEITEM] Already registered, but not added content \"%s\"", methodStr);
 							}
 
-							shmdt(shm_str);
 							goto OUT_STREAM_SOCK_WRITE;
 						}
 
 						// Register new cache item
-						if (gCacheItemList.count() <= cfgCacheItemMaxCount)
+						if (gCacheItemList.count() <= (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount))
 						{
 							// Register new cache item
 							registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, true);
@@ -1027,23 +1039,21 @@ public:
 							keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
 							buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 
-							shmdt(shm_str);
 							goto OUT_STREAM_SOCK_WRITE;
 						}
 						else
 						{
-							log_debug("[CACHEITEM] Cache Subscription item count exceed Max limit=%d", cfgCacheItemMaxCount);
+							log_debug("[CACHEITEM] Cache Subscription item count exceed Max limit=%d", (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount));
 						}
 						
 						break;
 					}
 				}
 			}
-			
-			shmdt(shm_str);
 		}
 	
 OUT_STREAM_SOCK_WRITE:
+		shmdt(shm_str);
 		QList<QByteArray> msg;
 		msg += instanceAddress;
 		msg += QByteArray();
@@ -1221,6 +1231,11 @@ public slots:
 			return;
 		}
 
+		// Write to shared memory
+		key_t key = ftok("shmfile",65);
+		int shmid = shmget(key,0,0666|IPC_CREAT);
+		char *shm_str = (char*) shmat(shmid,(void*)0,0);
+
 		// Cache
 		if (p.ids[0].id == gCacheClient.clientId)
 		{
@@ -1314,31 +1329,10 @@ public slots:
 					goto ZWS_CLIENT_IN_WRITE;
 				}
 
-				// Write to shared memory
-				key_t key = ftok("shmfile",65);
-				int shmid = shmget(key,0,0666|IPC_CREAT);
-				char *shm_str = (char*) shmat(shmid,(void*)0,0);
-
 				// Count (ws messages sent)
 				wsMessageSentCount++;
 				memcpy(&shm_str[8], (char *)&wsMessageSentCount, 4);
 
-				// Read
-				int shm_read_count = 200;
-				long cfgGroupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-
-				// Cache
-				shm_read_count = 200 + cfgGroupByteCount;
-				long cfgCacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4; // for cacheByteCount
-				int cfgCacheItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				if (cfgCacheItemMaxSizeKbytes <= 0) cfgCacheItemMaxSizeKbytes = 8;
-
-				// Cache Subscription
-				shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount;
-				shm_read_count += 4; // for cacheByteCount
-				int cfgSubscriptionItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				if (cfgSubscriptionItemMaxSizeKbytes <= 0) cfgSubscriptionItemMaxSizeKbytes = 128;
-				
 				for (int i = 0; i < cacheItemCount; i++)
 				{
 					if ((gCacheItemList[i].msgId == msgBody.id) && (gCacheItemList[i].cachedFlag == false))
@@ -1373,7 +1367,6 @@ public slots:
 								// id
 								if(!msgBody.flagResult)
 								{
-									shmdt(shm_str);
 									goto ZWS_CLIENT_IN_WRITE;
 								}
 
@@ -1404,8 +1397,6 @@ public slots:
 										send_response_to_client(gCacheItemList[i].subscriptionPacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
 									}
 								}
-								
-								
 							}
 							// make invalid
 							p.type = ZhttpResponsePacket::KeepAlive;
@@ -1417,12 +1408,12 @@ public slots:
 						break;
 					}
 				}
-
-				shmdt(shm_str);
 			}
 		}
 
 ZWS_CLIENT_IN_WRITE:
+		shmdt(shm_str);
+
 		QPointer<QObject> self = this;
 
 		foreach(const ZhttpResponsePacket::Id &id, p.ids)
@@ -1771,16 +1762,14 @@ ZWS_CLIENT_IN_WRITE:
 						memcpy(&shm_str[96], (char *)&wsRpcSubscribeCount, 4);
 
 						// Group
-						int shm_read_count = 200;
-						shm_read_count += 4; // for groupByteCount
-						long groupCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						QString methodName = QString(methodStr);
 						QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
 
 						char methodNameHash[20];
 						memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
 						
-						int gCnt = (int)groupCount;
+						int shm_read_count = 200 + 8;
+						int gCnt = (int)cfgGroupCount;
 						for (int i = 0; i < gCnt; i++)
 						{
 							long methodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
