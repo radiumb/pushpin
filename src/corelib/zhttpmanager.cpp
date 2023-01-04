@@ -859,13 +859,11 @@ public:
 			int cacheItemCount = gCacheItemList.count();
 
 			// Cache method Lookup
-			log_debug("asdfasdfasdfasdf %d, %d", cfgGroupByteCount, cfgCacheMethodCount);
 			int shm_read_count = 200 + cfgGroupByteCount + 20;
 			for (int i = 0; i < cfgCacheMethodCount; i++)
 			{
 				char cacheMethodNameHash[20];
 				memcpy(cacheMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
-				log_debug("qwerqwerqwerqwer %d", i);
 				if (!memcmp(cacheMethodNameHash, methodNameHash, 20))
 				{
 					for (int j = 0; j < cacheItemCount; j++)
@@ -947,7 +945,6 @@ public:
 			}
 
 			// subscription request lookup
-			log_debug("zxcvzxcvzxcvzxcv %d, %d, %d", cfgGroupByteCount, cfgCacheByteCount, cfgSubscribeMethodCount);
 			shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount + 20;
 			for (int i = 0; i < cfgSubscribeMethodCount; i++)
 			{
