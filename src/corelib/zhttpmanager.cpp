@@ -1771,7 +1771,6 @@ ZWS_CLIENT_IN_WRITE:
 						memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
 						
 						int shm_read_count = 200 + 8;
-						log_debug("asdfasdfasdfasdf groupCount = %d", cfgGroupCount);
 						for (int i = 0; i < cfgGroupCount; i++)
 						{
 							long methodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
@@ -1779,7 +1778,6 @@ ZWS_CLIENT_IN_WRITE:
 							char groupName[256];
 							memcpy(groupName, &shm_str[shm_read_count], 256); shm_read_count += 256;	
 							long eventCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-							log_debug("qwerqwerqwerqwer methodCount = %d, groupName = %s, eventCount = %d", mCnt, groupName, eventCount);
 
 							int shm_write_point = shm_read_count - 4;								
 							for (int j = 0; j < mCnt; j++)

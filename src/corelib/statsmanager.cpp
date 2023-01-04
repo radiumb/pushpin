@@ -1318,7 +1318,7 @@ private slots:
 						shm_read_count += 256;	// skip name
 						long eventCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						shm_read_count += 20*mCnt;	
-						if (m.mtype == (PrometheusMetric::wsRpcSubscribeCount+i+1))
+						if (m.mtype == (PrometheusMetric::wsCacheExpiredMatchCount+i+1))
 						{
 							value = QVariant((int)eventCount); break;
 						}						
