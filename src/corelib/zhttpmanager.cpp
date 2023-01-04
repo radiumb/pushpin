@@ -865,7 +865,7 @@ public:
 			{
 				char cacheMethodNameHash[20];
 				memcpy(cacheMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
-				
+				log_debug("qwerqwerqwerqwer %d", i);
 				if (!memcmp(cacheMethodNameHash, methodNameHash, 20))
 				{
 					for (int j = 0; j < cacheItemCount; j++)
