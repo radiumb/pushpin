@@ -834,6 +834,8 @@ public:
 				goto OUT_STREAM_SOCK_WRITE;
 			}
 
+			log_debug("[CACHEITEM] Cache entry msgId=\"%d\" method=\"%s\"", msgBody.id, methodStr);
+
 			// get method string			
 			char methodStr[256];
 			int methodLen = msgBody.method.length()>255 ? 255 : msgBody.method.length();
@@ -996,56 +998,56 @@ public:
 
 							goto OUT_STREAM_SOCK_WRITE;
 						}
-
-						// Register new cache item
-						if (gCacheItemList.count() <= (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount))
-						{
-							// Register new cache item
-							registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, true);
-							log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
-
-							// Create new packet by cache client
-							ZhttpRequestPacket tempPacket = packet;
-							tempPacket.ids[0].id = gCacheClient.clientId; // id
-							tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
-							gCacheClient.seqCount++;
-							// message id
-							char oldIdStr[64], newIdStr[64];
-							qsnprintf(oldIdStr, 64, "\"id\":%d", msgBody.id);
-							qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClient.msgIdCount);
-							gCacheClient.msgIdCount++;
-							tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-
-							QVariant vTempPacket = tempPacket.toVariant();
-							QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
-
-							if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-								LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHEITEM] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
-
-							QList<QByteArray> tmpMsg;
-							tmpMsg += instanceAddress;
-							tmpMsg += QByteArray();
-							tmpMsg += tmpBuf;
-							client_out_stream_sock->write(tmpMsg);
-
-							// add ws Cache insert
-							wsCacheInsert++;
-							memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
-
-							// make original packet to keep-alive
-							ZhttpRequestPacket keepAlivePacket = packet;
-							keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
-							buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
-
-							goto OUT_STREAM_SOCK_WRITE;
-						}
-						else
-						{
-							log_debug("[CACHEITEM] Cache Subscription item count exceed Max limit=%d", (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount));
-						}
-						
-						break;
 					}
+
+					// Register new cache item
+					if (gCacheItemList.count() <= (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount))
+					{
+						// Register new cache item
+						registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, true);
+						log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
+
+						// Create new packet by cache client
+						ZhttpRequestPacket tempPacket = packet;
+						tempPacket.ids[0].id = gCacheClient.clientId; // id
+						tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
+						gCacheClient.seqCount++;
+						// message id
+						char oldIdStr[64], newIdStr[64];
+						qsnprintf(oldIdStr, 64, "\"id\":%d", msgBody.id);
+						qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClient.msgIdCount);
+						gCacheClient.msgIdCount++;
+						tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+
+						QVariant vTempPacket = tempPacket.toVariant();
+						QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
+
+						if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+							LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHEITEM] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
+
+						QList<QByteArray> tmpMsg;
+						tmpMsg += instanceAddress;
+						tmpMsg += QByteArray();
+						tmpMsg += tmpBuf;
+						client_out_stream_sock->write(tmpMsg);
+
+						// add ws Cache insert
+						wsCacheInsert++;
+						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
+
+						// make original packet to keep-alive
+						ZhttpRequestPacket keepAlivePacket = packet;
+						keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+						buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
+
+						goto OUT_STREAM_SOCK_WRITE;
+					}
+					else
+					{
+						log_debug("[CACHEITEM] Cache Subscription item count exceed Max limit=%d", (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount));
+					}
+
+					break;
 				}
 			}
 		}
