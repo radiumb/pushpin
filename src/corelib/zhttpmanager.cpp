@@ -1378,7 +1378,7 @@ public slots:
 								// Search in CacheItemList
 								for (int j = 0; j < cacheItemCount; j++)
 								{
-									if ((gCacheItemList[i].subscriptionStr == msgBody.result) && (gCacheItemList[j].msgId == -1))
+									if ((gCacheItemList[j].subscriptionStr == msgBody.result) && (gCacheItemList[j].msgId == -1))
 									{
 										gCacheItemList[i].subscriptionPacket = gCacheItemList[j].subscriptionPacket;
 										gCacheItemList[i].cachedFlag = true;
