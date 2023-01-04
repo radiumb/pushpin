@@ -896,11 +896,9 @@ public:
 					}
 					
 					// Register cache item
-					log_debug("qwerqwerqwer");
 					if (cacheItemCount <= (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount))
 					{
 						// Register new cache item
-						log_debug("zxcvzxcvzxcv");
 						registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, false);
 						log_debug("[CACHEITEM] Registered New Cache Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
@@ -949,6 +947,7 @@ public:
 			}
 
 			// subscription request lookup
+			log_debug("zxcvzxcvzxcvzxcv %d, %d, %d", cfgGroupByteCount, cfgCacheByteCount, cfgSubscribeMethodCount);
 			shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount + 20;
 			for (int i = 0; i < cfgSubscribeMethodCount; i++)
 			{
