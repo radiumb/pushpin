@@ -846,7 +846,7 @@ public:
 			int cacheItemCount = gCacheItemList.count();
 
 			// Cache method Lookup
-			shm_read_count = 200 + groupByteCount + 20;
+			shm_read_count = 200 + cfgGroupByteCount + 20;
 			for (int i = 0; i < cfgCacheMethodCount; i++)
 			{
 				char cacheMethodNameHash[20];
@@ -935,7 +935,7 @@ public:
 			}
 
 			// subscription request lookup
-			shm_read_count = 200 + groupByteCount + cacheByteCount + 20;
+			shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount + 20;
 			for (int i = 0; i < cfgSubscribeMethodCount; i++)
 			{
 				char cacheSubscribeMethodNameHash[20];
@@ -1328,7 +1328,7 @@ public slots:
 				long cfgGroupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
 				// Cache
-				shm_read_count = 200 + groupByteCount;
+				shm_read_count = 200 + cfgGroupByteCount;
 				long cfgCacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4; // for cacheByteCount
 				int cfgCacheItemMaxSizeKbytes = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				if (cfgCacheItemMaxSizeKbytes <= 0) cfgCacheItemMaxSizeKbytes = 8;
@@ -1412,7 +1412,7 @@ public slots:
 						}
 						else
 						{
-							log_debug("[CACHEITEM] Response size exceed to cache item max size=%d kytes", cacheItemMaxSizeKbytes);
+							log_debug("[CACHEITEM] Response size exceed to cache item max size=%d kytes", cfgCacheItemMaxSizeKbytes);
 						}
 						break;
 					}
