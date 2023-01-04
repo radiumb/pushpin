@@ -1778,8 +1778,8 @@ ZWS_CLIENT_IN_WRITE:
 							int mCnt = (int)methodCount;
 							char groupName[256];
 							memcpy(groupName, &shm_str[shm_read_count], 256); shm_read_count += 256;	
-							log_debug("qwerqwerqwerqwer groupCount = %d, groupName = %s", mCnt, groupName);
 							long eventCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+							log_debug("qwerqwerqwerqwer methodCount = %d, groupName = %s, eventCount = %d", mCnt, groupName, eventCount);
 
 							int shm_write_point = shm_read_count - 4;								
 							for (int j = 0; j < mCnt; j++)
