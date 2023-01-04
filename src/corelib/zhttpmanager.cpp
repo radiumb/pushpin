@@ -859,7 +859,7 @@ public:
 			int cacheItemCount = gCacheItemList.count();
 
 			// Cache method Lookup
-			log_debug("asdfasdfasdfasdf %d", cfgGroupByteCount);
+			log_debug("asdfasdfasdfasdf %d, %d", cfgGroupByteCount, cfgCacheMethodCount);
 			int shm_read_count = 200 + cfgGroupByteCount + 20;
 			for (int i = 0; i < cfgCacheMethodCount; i++)
 			{
@@ -896,9 +896,11 @@ public:
 					}
 					
 					// Register cache item
+					log_debug("qwerqwerqwer");
 					if (cacheItemCount <= (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount))
 					{
 						// Register new cache item
+						log_debug("zxcvzxcvzxcv");
 						registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, false);
 						log_debug("[CACHEITEM] Registered New Cache Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
