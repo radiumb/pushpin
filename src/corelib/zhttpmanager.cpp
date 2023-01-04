@@ -77,7 +77,7 @@ static long wsRpcAuthorCount = 0, wsRpcBabeCount = 0, wsRpcBeefyCount = 0, wsRpc
 static long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
 static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
-static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0, wsCacheExpiredMatchCount = 0;
+static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0;
 
 // cache item struct
 struct ClientItem {
@@ -457,7 +457,7 @@ public:
 		int itemCount = gCacheItemList.count();
 		// first, delete old cache items
 		time_t currSeconds = time(NULL);
-DELETE_OLD_CACHE_ITEMS:
+
 		itemCount = gCacheItemList.count();
 		for (int i = 0; i < itemCount; i++)
 		{
@@ -505,7 +505,7 @@ DELETE_OLD_CACHE_ITEMS:
 		memcpy(cacheItem.methodNameParamHashVal, methodNameParamsHashVal, 20);
 		cacheItem.createdSeconds = time(NULL);
 		cacheItem.cachedFlag = false;
-		cacheItem.subcriptionFlag = subcriptionFlag;
+		cacheItem.subscriptionFlag = subcriptionFlag;
 		
 		struct ClientItem clientItem;
 		clientItem.msgId = msgId;
@@ -727,8 +727,8 @@ DELETE_OLD_CACHE_ITEMS:
 					{
 						gCacheItemList[i].clientList.removeAt(j);
 						log_debug("[CACHEITEM] Deleted cached client clientId=%s, msgId=%d, subscriptionStr=%s", \
-							clientId.data(), gCacheItemList[i].msgId, \
-							gCacheItemList[i].subscriptionFlag ? qPrintable(gCacheItemList[i].subscriptionStr : "NO SUBSCRIPTION"));
+							packet.ids[0].id.data(), gCacheItemList[i].msgId, \
+							gCacheItemList[i].subscriptionFlag ? qPrintable(gCacheItemList[i].subscriptionStr) : "NO SUBSCRIPTION");
 						break;
 					}
 				}
@@ -802,7 +802,7 @@ DELETE_OLD_CACHE_ITEMS:
 
 			// read share memory
 			int shm_read_count = 200;
-			long groupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			long cfgGroupByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 			
 			// Build method name hash value
 			QString methodName = QString(methodStr);
@@ -816,7 +816,7 @@ DELETE_OLD_CACHE_ITEMS:
 			
 			// read shm file 
 			// cache method
-			shm_read_count = 200 + groupByteCount;
+			shm_read_count = 200 + cfgGroupByteCount;
 			long cfgCacheByteCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 			shm_read_count += 4; // for cacheItemMaxSizeKbytes
 			int cfgCacheItemMaxCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
@@ -828,18 +828,18 @@ DELETE_OLD_CACHE_ITEMS:
 			int cfgCacheMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
 			// cache subscribe method
-			shm_read_count = 200 + groupByteCount + cacheByteCount;
+			shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount;
 			shm_read_count += 4; // cache subscribe byte count
 			shm_read_count += 4; // for cacheSubscribeItemMaxSizeKbytes
 			shm_read_count += 4; // for cacheSubscribeItemMaxCount
 
-			int cfgCacheSubscribeTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-			if (cfgCacheSubscribeTimeoutSeconds <= 0) cfgCacheSubscribeTimeoutSeconds = 3600*4;	// default
+			int cfgSubscribeTimeoutSeconds = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			if (cfgSubscribeTimeoutSeconds <= 0) cfgSubscribeTimeoutSeconds = 3600*4;	// default
 
-			int cacheSubscribeMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+			int cfgSubscribeMethodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 			
 			// delete old cache items
-			deleteOldCacheItem(cfgCacheTimeoutSeconds, cfgCacheSubscribeTimeoutSeconds, 20);
+			deleteOldCacheItem(cfgCacheTimeoutSeconds, cfgSubscribeTimeoutSeconds, 20);
 			memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
 
 			// get item count
@@ -936,7 +936,7 @@ DELETE_OLD_CACHE_ITEMS:
 
 			// subscription request lookup
 			shm_read_count = 200 + groupByteCount + cacheByteCount + 20;
-			for (int i = 0; i < cgfCacheSubscribeMethodCount; i++)
+			for (int i = 0; i < cfgSubscribeMethodCount; i++)
 			{
 				char cacheSubscribeMethodNameHash[20];
 				memcpy(cacheSubscribeMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
