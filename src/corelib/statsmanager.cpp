@@ -416,7 +416,7 @@ public:
 			memcpy(groupName, &shm_str[shm_read_count], 256); shm_read_count += 256;	
 			shm_read_count += 4; // event skip
 			shm_read_count += 20*mCnt;	
-			PrometheusMetric::Type groupType = (PrometheusMetric::Type)(PrometheusMetric::wsRpcSubscribeCount+i+1);
+			PrometheusMetric::Type groupType = (PrometheusMetric::Type)(PrometheusMetric::wsCacheExpiredMatchCount+i+1);
 			prometheusMetrics += PrometheusMetric(groupType, groupName, "counter", groupName);	
 		}
 		shmdt(shm_str);
