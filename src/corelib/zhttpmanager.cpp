@@ -859,8 +859,8 @@ public:
 			int cacheItemCount = gCacheItemList.count();
 
 			// Cache method Lookup
-			int shm_read_count;
-			shm_read_count = 200 + cfgGroupByteCount + 20;
+			log_debug("asdfasdfasdfasdf %d", cfgGroupByteCount);
+			int shm_read_count = 200 + cfgGroupByteCount + 20;
 			for (int i = 0; i < cfgCacheMethodCount; i++)
 			{
 				char cacheMethodNameHash[20];
