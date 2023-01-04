@@ -834,13 +834,13 @@ public:
 				goto OUT_STREAM_SOCK_WRITE;
 			}
 
-			log_debug("[CACHEITEM] Cache entry msgId=\"%d\" method=\"%s\"", msgBody.id, methodStr);
-
 			// get method string			
 			char methodStr[256];
 			int methodLen = msgBody.method.length()>255 ? 255 : msgBody.method.length();
 			strncpy(methodStr, qPrintable(msgBody.method.toLower()), methodLen);
 			methodStr[methodLen] = 0;
+
+			log_debug("[CACHEITEM] Cache entry msgId=\"%d\" method=\"%s\"", msgBody.id, methodStr);
 
 			// Params hash val
 			QByteArray paramsHashByteArray = QCryptographicHash::hash(msgBody.params.toUtf8(),QCryptographicHash::Sha1);
