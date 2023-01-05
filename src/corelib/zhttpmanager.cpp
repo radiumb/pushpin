@@ -878,10 +878,6 @@ public:
 								replyCachedContent(j, msgBody.id, packet.ids[0].id, instanceAddress);
 								log_debug("[CACHEITEM] Replied with Cache content for method \"%s\"", methodStr);
 								gCacheItemList[j].createdSeconds = time(NULL);
-								
-								// add ws Cache hit
-								wsCacheHit++;
-								memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
 							}
 							else
 							{
@@ -904,6 +900,10 @@ public:
 								log_debug("[CACHEITEM] Adding new client id msgId=%d clientId=%s", clientItem.msgId, (const char *)clientItem.clientId);
 								gCacheItemList[j].createdSeconds = time(NULL);
 							}
+
+							// add ws Cache hit
+							wsCacheHit++;
+							memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
 
 							// make keep alive request
 							ZhttpRequestPacket keepAlivePacket = packet;
@@ -983,15 +983,15 @@ public:
 							{
 								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress);
 								log_debug("[CACHEITEM] Replied with subscription cache content for method \"%s\"", methodStr);
-
-								// add ws Cache hit
-								wsCacheHit++;
-								memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
 							}
 							else
 							{
 								log_debug("[CACHEITEM] Already subscription registered, but not added content \"%s\"", methodStr);
 							}
+
+							// add ws Cache hit
+							wsCacheHit++;
+							memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
 
 							// add client to list
 							int k;
