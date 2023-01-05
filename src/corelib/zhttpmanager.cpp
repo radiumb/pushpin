@@ -1258,6 +1258,10 @@ public slots:
 			{
 				gCacheClient.creditCount += static_cast<int>(p.body.size());
 			}
+			else
+			{
+				goto ZWS_CLIENT_IN_WRITE;
+			}
 
 			// parse json body
 			JsonMsgBody msgBody;
