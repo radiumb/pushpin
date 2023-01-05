@@ -921,6 +921,10 @@ public:
 						registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, false);
 						log_debug("[CACHEITEM] Registered New Cache Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
+						// add ws Cache insert
+						wsCacheInsert++;
+						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
+
 						// Create new packet by cache client
 						ZhttpRequestPacket tempPacket = packet;
 						tempPacket.ids[0].id = gCacheClient.clientId; // id
@@ -944,10 +948,6 @@ public:
 						tmpMsg += QByteArray();
 						tmpMsg += tmpBuf;
 						client_out_stream_sock->write(tmpMsg);
-
-						// add ws Cache insert
-						wsCacheInsert++;
-						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
 
 						// make original packet to keep-alive
 						ZhttpRequestPacket keepAlivePacket = packet;
@@ -1026,6 +1026,10 @@ public:
 						registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, true);
 						log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
+						// add ws Cache insert
+						wsCacheInsert++;
+						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
+
 						// Create new packet by cache client
 						ZhttpRequestPacket tempPacket = packet;
 						tempPacket.ids[0].id = gCacheClient.clientId; // id
@@ -1049,10 +1053,6 @@ public:
 						tmpMsg += QByteArray();
 						tmpMsg += tmpBuf;
 						client_out_stream_sock->write(tmpMsg);
-
-						// add ws Cache insert
-						wsCacheInsert++;
-						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
 
 						// make original packet to keep-alive
 						ZhttpRequestPacket keepAlivePacket = packet;
@@ -1370,58 +1370,56 @@ public slots:
 
 							log_debug("[CACHEITEM] Detected multi-parts response, no cache id %d", msgBody.id);
 						}
-						else if (p.body.size() < (cfgCacheItemMaxSizeKbytes<<10))
+						else if ((gCacheItemList[i].subscriptionFlag == false) && (p.body.size() < (cfgCacheItemMaxSizeKbytes<<10)))
 						{
 							gCacheItemList[i].responsePacket = p;
 
-							if (gCacheItemList[i].subscriptionFlag == false)
-							{
-								gCacheItemList[i].cachedFlag = true;
-								log_debug("[CACHEITEM] Added Cache content for method id=%d", msgBody.id);
+							gCacheItemList[i].cachedFlag = true;
+							log_debug("[CACHEITEM] Added Cache content for method id=%d", msgBody.id);
 
-								// send response to all clients
+							// send response to all clients
+							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
+							{
+								log_debug("[CACHEITEM] Sending Cache content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
+								send_response_to_client(gCacheItemList[i].responsePacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
+							}
+							// make invalid
+							p.type = ZhttpResponsePacket::KeepAlive;
+						}
+						else if ((gCacheItemList[i].subscriptionFlag == true) && (p.body.size() < (cfgSubscribeItemMaxSizeKbytes<<10)))
+						{
+							// id
+							if(!msgBody.flagResult)
+							{
+								goto ZWS_CLIENT_IN_WRITE;
+							}
+
+							gCacheItemList[i].responsePacket = p;
+							gCacheItemList[i].subscriptionStr = msgBody.result;
+							log_debug("[CACHEITEM] Registered Subscription result for \"%s\"", qPrintable(msgBody.result));
+
+							// Search in CacheItemList
+							for (int j = 0; j < cacheItemCount; j++)
+							{
+								if ((gCacheItemList[j].msgId == -1) && (gCacheItemList[j].subscriptionStr == msgBody.result))
+								{
+									gCacheItemList[i].subscriptionPacket = gCacheItemList[j].subscriptionPacket;
+									gCacheItemList[i].cachedFlag = true;
+									gCacheItemList.removeAt(j);
+									cacheItemCount = gCacheItemList.count();
+									log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d result=%s", msgBody.id, qPrintable(msgBody.result));
+									break;
+								}
+							}
+
+							if (gCacheItemList[i].cachedFlag == true)
+							{
+								// send update subscribe to all clients
 								for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
 								{
-									log_debug("[CACHEITEM] Sending Cache content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
+									log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
 									send_response_to_client(gCacheItemList[i].responsePacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
-								}
-								
-							}
-							else	// Subscription
-							{
-								// id
-								if(!msgBody.flagResult)
-								{
-									goto ZWS_CLIENT_IN_WRITE;
-								}
-
-								gCacheItemList[i].responsePacket = p;
-								gCacheItemList[i].subscriptionStr = msgBody.result;
-								log_debug("[CACHEITEM] Registered Subscription result for \"%s\"", qPrintable(msgBody.result));
-
-								// Search in CacheItemList
-								for (int j = 0; j < cacheItemCount; j++)
-								{
-									if ((gCacheItemList[j].subscriptionStr == msgBody.result) && (gCacheItemList[j].msgId == -1))
-									{
-										gCacheItemList[i].subscriptionPacket = gCacheItemList[j].subscriptionPacket;
-										gCacheItemList[i].cachedFlag = true;
-										gCacheItemList.removeAt(j);
-										cacheItemCount = gCacheItemList.count();
-										log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d result=%s", msgBody.id, qPrintable(msgBody.result));
-										break;
-									}
-								}
-
-								if (gCacheItemList[i].cachedFlag == true)
-								{
-									// send update subscribe to all clients
-									for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
-									{
-										log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
-										send_response_to_client(gCacheItemList[i].responsePacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
-										send_response_to_client(gCacheItemList[i].subscriptionPacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
-									}
+									send_response_to_client(gCacheItemList[i].subscriptionPacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
 								}
 							}
 							// make invalid
@@ -1429,7 +1427,7 @@ public slots:
 						}
 						else
 						{
-							log_debug("[CACHEITEM] Response size exceed to cache item max size=%d kytes", cfgCacheItemMaxSizeKbytes);
+							log_debug("[CACHEITEM] Response size exceed to cache item max size=%d kytes", gCacheItemList[i].subscriptionFlag?cfgSubscribeItemMaxSizeKbytes:cfgCacheItemMaxSizeKbytes);
 						}
 						break;
 					}
