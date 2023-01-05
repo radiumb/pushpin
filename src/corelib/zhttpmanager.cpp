@@ -909,7 +909,7 @@ public:
 							ZhttpRequestPacket keepAlivePacket = packet;
 							keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
 							buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
-							
+
 							goto OUT_STREAM_SOCK_WRITE;
 						}
 					}
@@ -1300,9 +1300,10 @@ public slots:
 				{
 					if ((gCacheItemList[i].subscriptionFlag == true) && (gCacheItemList[i].subscriptionStr == msgBody.subscription))
 					{
+						// update subscription packet
+						gCacheItemList[i].subscriptionPacket = p;
 						if (gCacheItemList[i].cachedFlag == false)
 						{
-							gCacheItemList[i].subscriptionPacket = p;
 							gCacheItemList[i].cachedFlag = true;
 							log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d subscription=%s", gCacheItemList[i].msgId, qPrintable(msgBody.subscription));
 							// send update subscribe to all clients
