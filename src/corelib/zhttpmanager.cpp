@@ -1026,7 +1026,7 @@ public:
 
 							if (gCacheItemList[j].cachedFlag == true)
 							{
-/*								
+
 								send_response_to_client(gCacheItemList[j].responsePacket, \
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
@@ -1037,9 +1037,9 @@ public:
 									gCacheItemList[j].msgId, \
 									clientItem.msgId, \
 									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
-*/
-								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(packet.body.size()), \
-									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
+
+//								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(packet.body.size()), \
+//									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
 								log_debug("[CACHEITEM] Replied with subscription cache content for method \"%s\"", methodStr);
 							}
 							else
