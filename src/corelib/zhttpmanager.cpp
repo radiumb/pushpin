@@ -610,7 +610,7 @@ public:
 		{
 			qsnprintf(oldIdStr, 64, "\"%s\"", qPrintable(oldSubscriptionStr));
 			qsnprintf(newIdStr, 64, "\"%s\"", qPrintable(newSubscriptionStr));
-			clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+			responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 		}
 
 		responsePacket.ids[0].id = newPacketId.data();
