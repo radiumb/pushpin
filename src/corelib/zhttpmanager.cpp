@@ -1015,8 +1015,8 @@ public:
 
 							if (gCacheItemList[j].cachedFlag == true)
 							{
-								send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
-								send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
+								//send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
+								//send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
 								send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
 								send_response_to_client(gCacheItemList[j].responsePacket, \
 									clientItem.clientId, \
