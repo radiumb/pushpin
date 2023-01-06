@@ -1160,7 +1160,7 @@ public slots:
 		Q_UNUSED(count);
 	}
 
-	void send_response_to_client(ZhttpResponsePacket p, QByteArray clientId, int oldMsgId, int newMsgId)
+	void send_response_to_client(ZhttpResponsePacket &p, QByteArray clientId, int oldMsgId, int newMsgId, QString &oldSubscriptionStr, QString &newSubscriptionStr)
 	{
 		ZhttpResponsePacket clientPacket = p;
 
@@ -1168,6 +1168,15 @@ public slots:
 		qsnprintf(oldIdStr, 64, "\"id\":%d", oldMsgId);
 		qsnprintf(newIdStr, 64, "\"id\":%d", newMsgId);
 		clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+
+		// replace subscription message
+		if (!subscriptionStr.isNull())
+		{
+			qsnprintf(oldIdStr, 64, "\"%s\"", qPrintable(oldSubscriptionStr));
+			qsnprintf(newIdStr, 64, "\"%s\"", qPrintable(newSubscriptionStr));
+			clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+		}
+		
 
 		clientPacket.ids[0].id = clientId;
 		clientPacket.ids[0].seq = -1;
@@ -1293,8 +1302,16 @@ public slots:
 							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
 							{
 								log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
-								send_response_to_client(gCacheItemList[i].responsePacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
-								send_response_to_client(gCacheItemList[i].subscriptionPacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
+								send_response_to_client(gCacheItemList[i].responsePacket, \
+									gCacheItemList[i].clientList[j].clientId, \
+									gCacheItemList[i].msgId, \
+									gCacheItemList[i].clientList[j].msgId, \
+									gCacheItemList[i].subscriptionStr, QString("11111111"));
+								send_response_to_client(gCacheItemList[i].subscriptionPacket, \
+									gCacheItemList[i].clientList[j].clientId, \
+									gCacheItemList[i].msgId, \
+									gCacheItemList[i].clientList[j].msgId, \
+									gCacheItemList[i].subscriptionStr, QString("11111111"));
 							}
 						}
 						else
@@ -1303,7 +1320,11 @@ public slots:
 							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
 							{
 								log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
-								send_response_to_client(gCacheItemList[i].subscriptionPacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
+								send_response_to_client(gCacheItemList[i].subscriptionPacket, \
+									gCacheItemList[i].clientList[j].clientId, \
+									gCacheItemList[i].msgId, \
+									gCacheItemList[i].clientList[j].msgId, \
+									gCacheItemList[i].subscriptionStr, QString("11111111"));
 							}
 						}
 
@@ -1364,7 +1385,11 @@ public slots:
 							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
 							{
 								log_debug("[CACHEITEM] Sending Cache content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
-								send_response_to_client(gCacheItemList[i].responsePacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
+								send_response_to_client(gCacheItemList[i].responsePacket, \
+									gCacheItemList[i].clientList[j].clientId, \
+									gCacheItemList[i].msgId, \
+									gCacheItemList[i].clientList[j].msgId, \
+									NULL, NULL);
 							}
 							// make invalid
 							p.type = ZhttpResponsePacket::KeepAlive;
@@ -1401,8 +1426,16 @@ public slots:
 								for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
 								{
 									log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
-									send_response_to_client(gCacheItemList[i].responsePacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
-									send_response_to_client(gCacheItemList[i].subscriptionPacket, gCacheItemList[i].clientList[j].clientId, gCacheItemList[i].msgId, gCacheItemList[i].clientList[j].msgId);
+									send_response_to_client(gCacheItemList[i].responsePacket, \
+										gCacheItemList[i].clientList[j].clientId, \
+										gCacheItemList[i].msgId, \
+										gCacheItemList[i].clientList[j].msgId, \
+										gCacheItemList[i].subscriptionStr, QString("11111111"));
+									send_response_to_client(gCacheItemList[i].subscriptionPacket, \
+										gCacheItemList[i].clientList[j].clientId, \
+										gCacheItemList[i].msgId, \
+										gCacheItemList[i].clientList[j].msgId, \
+										gCacheItemList[i].subscriptionStr, QString("11111111"));
 								}
 							}
 							// make invalid
