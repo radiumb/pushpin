@@ -596,8 +596,17 @@ public:
 		}
 	}
 
-	void replySubscriptionContent(int cacheItemId, int newMsgId, const QByteArray &newPacketId, const QByteArray &instanceAddress, const QString &oldSubscriptionStr, const QString &newSubscriptionStr)
+	void replySubscriptionContent(int cacheItemId, int newMsgId, const QByteArray &newPacketId, const QByteArray &instanceAddress, int credits, const QString &oldSubscriptionStr, const QString &newSubscriptionStr)
 	{
+		ZhttpResponsePacket creditPacket;
+		ZhttpResponsePacket::Id tempId;
+		tempId.id = newPacketId.data();
+		tempId.seq = -1;
+		creditPacket.ids.append(tempId);
+		creditPacket.from = instanceAddress.data();
+		creditPacket.type = ZhttpResponsePacket::Credit;
+		creditPacket.credits = credits;
+
 		ZhttpResponsePacket responsePacket = gCacheItemList[cacheItemId].responsePacket;
 		// replace id str
 		char oldIdStr[64], newIdStr[64];
@@ -630,6 +639,7 @@ public:
 			ZWebSocket *sock = clientSocksByRid.value(ZWebSocket::Rid(instanceId, id.id));
 			if(sock)
 			{
+				sock->handle(id.id, id.seq, creditPacket);
 				sock->handle(id.id, id.seq, responsePacket);
 				sock->handle(id.id, id.seq, subscriptionPacket);
 				continue;
@@ -639,6 +649,7 @@ public:
 			ZhttpRequest *req = clientReqsByRid.value(ZhttpRequest::Rid(instanceId, id.id));
 			if(req)
 			{
+				sock->handle(id.id, id.seq, creditPacket);
 				req->handle(id.id, id.seq, responsePacket);
 				req->handle(id.id, id.seq, subscriptionPacket);
 				continue;
@@ -1015,9 +1026,7 @@ public:
 
 							if (gCacheItemList[j].cachedFlag == true)
 							{
-								//send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
-								//send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
-								send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
+/*								
 								send_response_to_client(gCacheItemList[j].responsePacket, \
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
@@ -1028,8 +1037,9 @@ public:
 									gCacheItemList[j].msgId, \
 									clientItem.msgId, \
 									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
-//								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress, \
-//									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
+*/
+								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(p.body.size()), \
+									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
 								log_debug("[CACHEITEM] Replied with subscription cache content for method \"%s\"", methodStr);
 							}
 							else
