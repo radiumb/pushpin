@@ -604,7 +604,7 @@ public:
 		qsnprintf(oldIdStr, 64, "\"id\":%d", gCacheItemList[cacheItemId].msgId);
 		qsnprintf(newIdStr, 64, "\"id\":%d", newMsgId);
 		responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-
+/*
 		// replace subscription message
 		if (!oldSubscriptionStr.isNull())
 		{
@@ -612,7 +612,7 @@ public:
 			qsnprintf(newIdStr, 64, "\"%s\"", qPrintable(newSubscriptionStr));
 			responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 		}
-
+*/
 		responsePacket.ids[0].id = newPacketId.data();
 		responsePacket.ids[0].seq = -1;
 		responsePacket.from = instanceAddress.data();
@@ -1179,7 +1179,7 @@ public slots:
 		qsnprintf(oldIdStr, 64, "\"id\":%d", oldMsgId);
 		qsnprintf(newIdStr, 64, "\"id\":%d", newMsgId);
 		clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-
+/*
 		// replace subscription message
 		if (!oldSubscriptionStr.isNull())
 		{
@@ -1187,7 +1187,7 @@ public slots:
 			qsnprintf(newIdStr, 64, "\"%s\"", qPrintable(newSubscriptionStr));
 			clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 		}
-		
+*/		
 
 		clientPacket.ids[0].id = clientId;
 		clientPacket.ids[0].seq = -1;
