@@ -740,9 +740,6 @@ public:
 		QVariant vTempPacket = tempPacket.toVariant();
 		QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
 
-		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHEITEM] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
-
 		QList<QByteArray> tmpMsg;
 		tmpMsg += instanceAddress;
 		tmpMsg += QByteArray();
