@@ -723,6 +723,34 @@ public:
 		return 0;
 	}
 
+	void sendNewCacheClientRequest(const ZhttpRequestPacket &packet, int oldMsgId, const QByteArray &instanceAddress)
+	{
+		// Create new packet by cache client
+		ZhttpRequestPacket tempPacket = packet;
+		tempPacket.ids[0].id = gCacheClient.clientId; // id
+		tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
+		gCacheClient.seqCount++;
+		// message id
+		char oldIdStr[64], newIdStr[64];
+		qsnprintf(oldIdStr, 64, "\"id\":%d", oldMsgId);
+		qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClient.msgIdCount);
+		gCacheClient.msgIdCount++;
+		tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+
+		QVariant vTempPacket = tempPacket.toVariant();
+		QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
+
+		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHEITEM] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
+
+		QList<QByteArray> tmpMsg;
+		tmpMsg += instanceAddress;
+		tmpMsg += QByteArray();
+		tmpMsg += tmpBuf;
+		client_out_stream_sock->write(tmpMsg);
+
+	}
+
 	void write(SessionType type, const ZhttpRequestPacket &packet, const QByteArray &instanceAddress)
 	{
 		assert(client_out_stream_sock);
@@ -811,7 +839,7 @@ public:
 			tmpMsg += tmpBuf;
 			client_out_stream_sock->write(tmpMsg);
 		}
-		else
+		else if (packet.type == ZhttpRequestPacket::Data)
 		{
 			// if more flag is true, skip
 			if (packet.more == true)
@@ -925,29 +953,8 @@ public:
 						wsCacheInsert++;
 						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
 
-						// Create new packet by cache client
-						ZhttpRequestPacket tempPacket = packet;
-						tempPacket.ids[0].id = gCacheClient.clientId; // id
-						tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
-						gCacheClient.seqCount++;
-						// message id
-						char oldIdStr[64], newIdStr[64];
-						qsnprintf(oldIdStr, 64, "\"id\":%d", msgBody.id);
-						qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClient.msgIdCount);
-						gCacheClient.msgIdCount++;
-						tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-
-						QVariant vTempPacket = tempPacket.toVariant();
-						QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
-
-						if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-							LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHEITEM] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
-
-						QList<QByteArray> tmpMsg;
-						tmpMsg += instanceAddress;
-						tmpMsg += QByteArray();
-						tmpMsg += tmpBuf;
-						client_out_stream_sock->write(tmpMsg);
+						// Send new client cache request packet
+						sendNewCacheClientRequest(packet, msgBody.id, instanceAddress);
 
 						// make original packet to keep-alive
 						ZhttpRequestPacket keepAlivePacket = packet;
@@ -961,7 +968,7 @@ public:
 						log_debug("[CACHEITEM] Cache item count exceed Max limit=%d", (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount));
 					}
 					
-					break;
+					goto OUT_STREAM_SOCK_WRITE;
 				}
 			}
 
@@ -1030,30 +1037,9 @@ public:
 						wsCacheInsert++;
 						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
 
-						// Create new packet by cache client
-						ZhttpRequestPacket tempPacket = packet;
-						tempPacket.ids[0].id = gCacheClient.clientId; // id
-						tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
-						gCacheClient.seqCount++;
-						// message id
-						char oldIdStr[64], newIdStr[64];
-						qsnprintf(oldIdStr, 64, "\"id\":%d", msgBody.id);
-						qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClient.msgIdCount);
-						gCacheClient.msgIdCount++;
-						tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-
-						QVariant vTempPacket = tempPacket.toVariant();
-						QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
-
-						if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-							LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "[CACHEITEM] %s client: OUT %s", logprefix, instanceAddress.data(), tempPacket.type);
-
-						QList<QByteArray> tmpMsg;
-						tmpMsg += instanceAddress;
-						tmpMsg += QByteArray();
-						tmpMsg += tmpBuf;
-						client_out_stream_sock->write(tmpMsg);
-
+						// Send new client cache request packet
+						sendNewCacheClientRequest(packet, msgBody.id, instanceAddress);
+						
 						// make original packet to keep-alive
 						ZhttpRequestPacket keepAlivePacket = packet;
 						keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
@@ -1066,7 +1052,7 @@ public:
 						log_debug("[CACHEITEM] Cache Subscription item count exceed Max limit=%d", (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount));
 					}
 
-					break;
+					goto OUT_STREAM_SOCK_WRITE;
 				}
 			}
 		}
