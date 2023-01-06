@@ -1160,7 +1160,7 @@ public slots:
 		Q_UNUSED(count);
 	}
 
-	void send_response_to_client(ZhttpResponsePacket &p, QByteArray clientId, int oldMsgId, int newMsgId, QString &oldSubscriptionStr, QString &newSubscriptionStr)
+	void send_response_to_client(ZhttpResponsePacket &p, QByteArray clientId, int oldMsgId, int newMsgId, const QString &oldSubscriptionStr, const QString &newSubscriptionStr)
 	{
 		ZhttpResponsePacket clientPacket = p;
 
@@ -1170,7 +1170,7 @@ public slots:
 		clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 
 		// replace subscription message
-		if (!subscriptionStr.isNull())
+		if (!oldSubscriptionStr.isNull())
 		{
 			qsnprintf(oldIdStr, 64, "\"%s\"", qPrintable(oldSubscriptionStr));
 			qsnprintf(newIdStr, 64, "\"%s\"", qPrintable(newSubscriptionStr));
