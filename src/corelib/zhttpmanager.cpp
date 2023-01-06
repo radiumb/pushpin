@@ -1038,7 +1038,7 @@ public:
 									clientItem.msgId, \
 									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
 */
-								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(p.body.size()), \
+								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(packet.body.size()), \
 									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
 								log_debug("[CACHEITEM] Replied with subscription cache content for method \"%s\"", methodStr);
 							}
