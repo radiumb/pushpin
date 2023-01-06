@@ -1017,7 +1017,7 @@ public:
 							{
 								//send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
 								//send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
-								send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
+								//send_credit_to_client(gCacheItemList[j].responsePacket, clientItem.clientId);
 								send_response_to_client(gCacheItemList[j].responsePacket, \
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
