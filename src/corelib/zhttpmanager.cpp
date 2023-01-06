@@ -649,7 +649,7 @@ public:
 			ZhttpRequest *req = clientReqsByRid.value(ZhttpRequest::Rid(instanceId, id.id));
 			if(req)
 			{
-				sock->handle(id.id, id.seq, creditPacket);
+				req->handle(id.id, id.seq, creditPacket);
 				req->handle(id.id, id.seq, responsePacket);
 				req->handle(id.id, id.seq, subscriptionPacket);
 				continue;
