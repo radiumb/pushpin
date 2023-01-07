@@ -1026,7 +1026,10 @@ public:
 
 							if (gCacheItemList[j].cachedFlag == true)
 							{
-
+								send_credit_to_client(gCacheItemList[j].responsePacket, \
+									clientItem.clientId, \
+									packet.body.size()
+								)
 								send_response_to_client(gCacheItemList[j].responsePacket, \
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
@@ -1193,14 +1196,14 @@ public slots:
 		Q_UNUSED(count);
 	}
 
-	void send_credit_to_client(ZhttpResponsePacket &p, QByteArray clientId)
+	void send_credit_to_client(ZhttpResponsePacket &p, QByteArray clientId, int credits)
 	{
 		ZhttpResponsePacket clientPacket = p;
 
 		clientPacket.ids[0].id = clientId;
 		clientPacket.ids[0].seq = -1;
-		clientPacket.type = ZhttpResponsePacket::KeepAlive;
-		clientPacket.credits = 100;
+		clientPacket.type = ZhttpResponsePacket::Credit;
+		clientPacket.credits = credits;
 		foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
 		{
 			// is this for a websocket?
