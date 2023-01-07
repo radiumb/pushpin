@@ -1031,12 +1031,18 @@ public:
 									clientItem.clientId, \
 									packet.body.size()
 								);
+*/
 								send_response_to_client(gCacheItemList[j].responsePacket, \
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
 									clientItem.msgId, \
 									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
-*/
+								send_response_to_client(gCacheItemList[j].responsePacket, \
+									clientItem.clientId, \
+									gCacheItemList[j].msgId, \
+									clientItem.msgId, \
+									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
+
 								send_response_to_client(gCacheItemList[j].subscriptionPacket, \
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
