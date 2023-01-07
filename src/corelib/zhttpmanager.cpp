@@ -1203,7 +1203,8 @@ public slots:
 		clientPacket.ids[0].id = clientId;
 		clientPacket.ids[0].seq = -1;
 		clientPacket.type = ZhttpResponsePacket::Credit;
-		clientPacket.credits = credits;
+		clientPacket.credits = 999;//credits;
+		clientPacket.body.clear();
 		foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
 		{
 			// is this for a websocket?
