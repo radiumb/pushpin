@@ -516,7 +516,7 @@ public:
 					wsCacheExpiry++;
 
 					log_debug("[CACHEITEM] auto-refresh request");
-					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheClient[i].msgId, gCacheClient[i].requestInstanceAddress);
+					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].msgId, gCacheItemList[i].requestInstanceAddress);
 					gCacheClient[i].msgId = gCacheClient.msgIdCount-1;
 /*
 					gCacheItemList.removeAt(i);
@@ -533,7 +533,7 @@ public:
 					wsCacheExpiry++;
 
 					log_debug("[CACHEITEM] subscription auto-refresh request");
-					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheClient[i].msgId, gCacheClient[i].requestInstanceAddress);
+					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].msgId, gCacheItemList[i].requestInstanceAddress);
 					gCacheClient[i].msgId = gCacheClient.msgIdCount-1;
 /*
 					gCacheItemList.removeAt(i);
