@@ -515,7 +515,7 @@ public:
 					// add ws Cache expiry
 					wsCacheExpiry++;
 
-					log_debug("[CACHEITEM] auto-refresh request");
+					log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
 					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].msgId, gCacheItemList[i].requestInstanceAddress);
 					gCacheItemList[i].msgId = gCacheClient.msgIdCount-1;
 /*
@@ -531,15 +531,15 @@ public:
 				{
 					// add ws Cache expiry
 					wsCacheExpiry++;
-
-					log_debug("[CACHEITEM] subscription auto-refresh request");
+/*
+					log_debug("[CACHEITEM] auto-refresh subscription request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
 					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].msgId, gCacheItemList[i].requestInstanceAddress);
 					gCacheItemList[i].msgId = gCacheClient.msgIdCount-1;
-/*
+*/
 					gCacheItemList.removeAt(i);
 					itemCount = gCacheItemList.count();
 					i--;
-*/
+
 				}
 
 				if ((diff > subscriptionInvalidTimeOut) && (gCacheItemList[i].msgId == -1))
@@ -784,6 +784,9 @@ public:
 
 		QVariant vTempPacket = tempPacket.toVariant();
 		QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
+
+		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", "NewCacheClientRequest", instanceAddress.data(), tempPacket.type);
 
 		QList<QByteArray> tmpMsg;
 		tmpMsg += instanceAddress;
