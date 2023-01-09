@@ -518,6 +518,9 @@ public:
 					log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
 					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].msgId, gCacheItemList[i].requestInstanceAddress);
 					gCacheItemList[i].msgId = gCacheClient.msgIdCount-1;
+					gCacheItemList[i].clientList.clear();
+					gCacheItemList[i].cachedFlag = false;
+					gCacheItemList[i].createdSeconds = time(NULL);
 /*
 					gCacheItemList.removeAt(i);
 					itemCount = gCacheItemList.count();
