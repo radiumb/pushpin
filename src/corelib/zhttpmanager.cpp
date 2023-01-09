@@ -515,7 +515,7 @@ public:
 					// add ws Cache expiry
 					wsCacheExpiry++;
 
-					log_debug("[CACHEITEM] sending auto-refresh request");
+					log_debug("[CACHEITEM] auto-refresh request");
 					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheClient[i].msgId, gCacheClient[i].requestInstanceAddress);
 					gCacheClient[i].msgId = gCacheClient.msgIdCount-1;
 /*
@@ -532,7 +532,7 @@ public:
 					// add ws Cache expiry
 					wsCacheExpiry++;
 
-					log_debug("[CACHEITEM] sending auto-refresh request");
+					log_debug("[CACHEITEM] subscription auto-refresh request");
 					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheClient[i].msgId, gCacheClient[i].requestInstanceAddress);
 					gCacheClient[i].msgId = gCacheClient.msgIdCount-1;
 /*
