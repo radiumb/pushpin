@@ -895,7 +895,7 @@ public:
 				wsCacheMultiPart++;
 				memcpy(&shm_str[116], (char *)&wsCacheMultiPart, 4);
 
-				log_debug("[CACHEITEM] Detected multi-parts request, no cache id %d", msgBody.id);
+				log_debug("[CACHEITEM] Detected multi-parts request");
 				goto OUT_STREAM_SOCK_WRITE;
 			}
 			
