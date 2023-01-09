@@ -516,11 +516,17 @@ public:
 					wsCacheExpiry++;
 
 					log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
-					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].msgId, gCacheItemList[i].requestInstanceAddress);
-					gCacheItemList[i].msgId = gCacheClient.msgIdCount-1;
+					gCacheItemList[i].msgId = gCacheClient.msgIdCount;
 					gCacheItemList[i].clientList.clear();
 					gCacheItemList[i].cachedFlag = false;
 					gCacheItemList[i].createdSeconds = time(NULL);
+					// replace message id
+					char oldIdStr[64], newIdStr[64];
+					qsnprintf(oldIdStr, 64, "\"id\":%d", gCacheItemList[i].msgId);
+					qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClient.msgIdCount);
+					gCacheItemList[i].requestPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+
+					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].msgId, gCacheItemList[i].requestInstanceAddress);
 /*
 					gCacheItemList.removeAt(i);
 					itemCount = gCacheItemList.count();
