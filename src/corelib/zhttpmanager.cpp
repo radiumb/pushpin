@@ -519,7 +519,6 @@ public:
 					log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
 					gCacheItemList[i].msgId = gCacheClient.msgIdCount;
 					gCacheItemList[i].clientList.clear();
-					gCacheItemList[i].cachedFlag = false;
 					gCacheItemList[i].createdSeconds = time(NULL);
 					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
 /*
@@ -539,7 +538,6 @@ public:
 					log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
 					gCacheItemList[i].msgId = gCacheClient.msgIdCount;
 					gCacheItemList[i].clientList.clear();
-					gCacheItemList[i].cachedFlag = false;
 					gCacheItemList[i].createdSeconds = time(NULL);
 					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
 */
@@ -1467,7 +1465,7 @@ public slots:
 
 				for (int i = 0; i < cacheItemCount; i++)
 				{
-					if ((gCacheItemList[i].msgId == msgBody.id) && (gCacheItemList[i].cachedFlag == false))
+					if (gCacheItemList[i].msgId == msgBody.id)
 					{
 						if (p.more == true)
 						{
