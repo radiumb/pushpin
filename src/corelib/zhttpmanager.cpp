@@ -94,6 +94,7 @@ struct ClientItem {
 	QString subscriptionStr;
 };
 struct CacheItem {
+	int oldMsgId;
 	int msgId;
 	char methodNameParamHashVal[20];
 	time_t createdSeconds;
@@ -520,18 +521,7 @@ public:
 					gCacheItemList[i].clientList.clear();
 					gCacheItemList[i].cachedFlag = false;
 					gCacheItemList[i].createdSeconds = time(NULL);
-					// replace message id
-					char oldIdStr[64], newIdStr[64];
-					qsnprintf(oldIdStr, 64, "\"id\":%d", gCacheItemList[i].msgId);
-					qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClient.msgIdCount);
-					gCacheItemList[i].requestPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-
-					if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-						LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, gCacheItemList[i].requestPacket.toVariant(), "body", "%s client: OUT %s", \
-							"tttt", gCacheItemList[i].requestInstanceAddress.data(), gCacheItemList[i].requestPacket.type);
-
-
-					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].msgId, gCacheItemList[i].requestInstanceAddress);
+					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
 /*
 					gCacheItemList.removeAt(i);
 					itemCount = gCacheItemList.count();
@@ -546,9 +536,12 @@ public:
 					// add ws Cache expiry
 					wsCacheExpiry++;
 /*
-					log_debug("[CACHEITEM] auto-refresh subscription request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
-					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].msgId, gCacheItemList[i].requestInstanceAddress);
-					gCacheItemList[i].msgId = gCacheClient.msgIdCount-1;
+					log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
+					gCacheItemList[i].msgId = gCacheClient.msgIdCount;
+					gCacheItemList[i].clientList.clear();
+					gCacheItemList[i].cachedFlag = false;
+					gCacheItemList[i].createdSeconds = time(NULL);
+					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
 */
 					gCacheItemList.removeAt(i);
 					itemCount = gCacheItemList.count();
@@ -578,11 +571,8 @@ public:
 		cacheItem.subscriptionFlag = subcriptionFlag;
 
 		// save the request packet with new id
+		cacheItem.oldMsgId = msgId;
 		cacheItem.requestPacket = clientPacket;
-		char oldIdStr[64], newIdStr[64];
-		qsnprintf(oldIdStr, 64, "\"id\":%d", msgId);
-		qsnprintf(newIdStr, 64, "\"id\":%d", cacheItem.msgId);
-		cacheItem.requestPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 		cacheItem.requestInstanceAddress = instanceAddress;
 		
 		struct ClientItem clientItem;
