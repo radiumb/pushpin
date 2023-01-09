@@ -526,6 +526,11 @@ public:
 					qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClient.msgIdCount);
 					gCacheItemList[i].requestPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 
+					if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+						LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, gCacheItemList[i].requestPacket.toVariant(), "body", "%s client: OUT %s", \
+							"tttt", gCacheItemList[i].requestInstanceAddress.data(), gCacheItemList[i].requestPacket.type);
+
+
 					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].msgId, gCacheItemList[i].requestInstanceAddress);
 /*
 					gCacheItemList.removeAt(i);
