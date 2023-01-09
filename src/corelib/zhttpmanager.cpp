@@ -99,7 +99,7 @@ struct CacheItem {
 	time_t createdSeconds;
 	bool cachedFlag;
 	ZhttpRequestPacket requestPacket;
-	const QByteArray requestInstanceAddress;
+	QByteArray requestInstanceAddress;
 	ZhttpResponsePacket responsePacket;
 	bool subscriptionFlag;
 	QString subscriptionStr;
