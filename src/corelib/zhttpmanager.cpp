@@ -786,7 +786,7 @@ public:
 		QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
 
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", "NewCacheClientRequest", instanceAddress.data(), tempPacket.type);
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "%s client: OUT %s", "NewCacheClientRequest", instanceAddress.data(), tempPacket.type);
 
 		QList<QByteArray> tmpMsg;
 		tmpMsg += instanceAddress;
