@@ -84,14 +84,11 @@ static int cfgGroupByteCount, cfgGroupCount;
 static int cfgCacheByteCount, cfgCacheItemMaxSizeKbytes, cfgCacheItemMaxCount, cfgCacheTimeoutSeconds, cfgCacheMethodCount;
 static int cfgSubscribeItemMaxSizeKbytes, cfgSubscribeItemMaxCount, cfgSubscribeTimeoutSeconds, cfgSubscribeMethodCount;
 
-static int gSubscriptionCount = 11111111;
-
 // cache item struct
 struct ClientItem {
 	int msgId;
 	QByteArray clientId;
 	QString resultStr;
-	QString subscriptionStr;
 };
 struct CacheItem {
 	int oldMsgId;
@@ -576,8 +573,6 @@ public:
 		struct ClientItem clientItem;
 		clientItem.msgId = msgId;
 		clientItem.clientId = clientId;
-		clientItem.subscriptionStr = QString::number(gSubscriptionCount);
-		gSubscriptionCount++;
 		cacheItem.clientList.append(clientItem);
 
 		gCacheItemList.append(cacheItem);
@@ -975,8 +970,6 @@ public:
 								struct ClientItem clientItem;
 								clientItem.msgId = msgBody.id;
 								clientItem.clientId = packet.ids[0].id;
-								clientItem.subscriptionStr = QString::number(gSubscriptionCount);
-								gSubscriptionCount++;
 								gCacheItemList[j].clientList.append(clientItem);
 								log_debug("[CACHEITEM] Adding new client id msgId=%d clientId=%s", clientItem.msgId, (const char *)clientItem.clientId);
 								gCacheItemList[j].createdSeconds = time(NULL);
@@ -1047,8 +1040,6 @@ public:
 							struct ClientItem clientItem;
 							clientItem.msgId = msgBody.id;
 							clientItem.clientId = packet.ids[0].id;
-							clientItem.subscriptionStr = QString::number(gSubscriptionCount);
-							gSubscriptionCount++;
 							gCacheItemList[j].clientList.append(clientItem);
 							log_debug("[CACHEITEM] Adding new client id msgId=%d clientId=%s", clientItem.msgId, (const char *)clientItem.clientId);
 							gCacheItemList[j].createdSeconds = time(NULL);
@@ -1064,22 +1055,18 @@ public:
 								send_response_to_client(gCacheItemList[j].responsePacket, \
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
-									clientItem.msgId, \
-									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
+									clientItem.msgId);
 								send_response_to_client(gCacheItemList[j].responsePacket, \
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
-									clientItem.msgId, \
-									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
+									clientItem.msgId);
 
 								send_response_to_client(gCacheItemList[j].subscriptionPacket, \
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
-									clientItem.msgId, \
-									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
+									clientItem.msgId);
 
-//								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(packet.body.size()), \
-//									gCacheItemList[j].subscriptionStr, clientItem.subscriptionStr);
+//								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(packet.body.size()));
 								log_debug("[CACHEITEM] Replied with subscription cache content for method \"%s\"", methodStr);
 							}
 							else
@@ -1264,7 +1251,7 @@ public slots:
 		}
 	}
 
-	void send_response_to_client(ZhttpResponsePacket &p, QByteArray clientId, int oldMsgId, int newMsgId, const QString &oldSubscriptionStr, const QString &newSubscriptionStr)
+	void send_response_to_client(ZhttpResponsePacket &p, QByteArray clientId, int oldMsgId, int newMsgId)
 	{
 		ZhttpResponsePacket clientPacket = p;
 
@@ -1273,15 +1260,6 @@ public slots:
 		qsnprintf(oldIdStr, 64, "\"id\":%d", oldMsgId);
 		qsnprintf(newIdStr, 64, "\"id\":%d", newMsgId);
 		clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-/*
-		// replace subscription message
-		if (!oldSubscriptionStr.isNull())
-		{
-			qsnprintf(oldIdStr, 64, "\"%s\"", qPrintable(oldSubscriptionStr));
-			qsnprintf(newIdStr, 64, "\"%s\"", qPrintable(newSubscriptionStr));
-			clientPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-		}
-*/		
 
 		clientPacket.ids[0].id = clientId;
 		clientPacket.ids[0].seq = -1;
@@ -1410,13 +1388,11 @@ public slots:
 								send_response_to_client(gCacheItemList[i].responsePacket, \
 									gCacheItemList[i].clientList[j].clientId, \
 									gCacheItemList[i].msgId, \
-									gCacheItemList[i].clientList[j].msgId, \
-									gCacheItemList[i].subscriptionStr, gCacheItemList[i].clientList[j].subscriptionStr);
+									gCacheItemList[i].clientList[j].msgId);
 								send_response_to_client(gCacheItemList[i].subscriptionPacket, \
 									gCacheItemList[i].clientList[j].clientId, \
 									gCacheItemList[i].msgId, \
-									gCacheItemList[i].clientList[j].msgId, \
-									gCacheItemList[i].subscriptionStr, gCacheItemList[i].clientList[j].subscriptionStr);
+									gCacheItemList[i].clientList[j].msgId);
 							}
 						}
 						else
@@ -1428,8 +1404,7 @@ public slots:
 								send_response_to_client(gCacheItemList[i].subscriptionPacket, \
 									gCacheItemList[i].clientList[j].clientId, \
 									gCacheItemList[i].msgId, \
-									gCacheItemList[i].clientList[j].msgId, \
-									gCacheItemList[i].subscriptionStr, gCacheItemList[i].clientList[j].subscriptionStr);
+									gCacheItemList[i].clientList[j].msgId);
 							}
 						}
 
@@ -1534,13 +1509,11 @@ public slots:
 									send_response_to_client(gCacheItemList[i].responsePacket, \
 										gCacheItemList[i].clientList[j].clientId, \
 										gCacheItemList[i].msgId, \
-										gCacheItemList[i].clientList[j].msgId, \
-										gCacheItemList[i].subscriptionStr, gCacheItemList[i].clientList[j].subscriptionStr);
+										gCacheItemList[i].clientList[j].msgId);
 									send_response_to_client(gCacheItemList[i].subscriptionPacket, \
 										gCacheItemList[i].clientList[j].clientId, \
 										gCacheItemList[i].msgId, \
-										gCacheItemList[i].clientList[j].msgId, \
-										gCacheItemList[i].subscriptionStr, gCacheItemList[i].clientList[j].subscriptionStr);
+										gCacheItemList[i].clientList[j].msgId);
 								}
 							}
 							// make invalid
