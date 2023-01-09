@@ -1091,7 +1091,7 @@ public:
 					if (gCacheItemList.count() <= (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount))
 					{
 						// Register new cache item
-						registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, true, instanceAddress);
+						registerCacheItem(packet, packet.ids[0].id, msgBody.id, paramsHash, true, instanceAddress);
 						log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 						// add ws Cache insert
