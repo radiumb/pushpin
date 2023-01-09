@@ -98,6 +98,8 @@ struct CacheItem {
 	char methodNameParamHashVal[20];
 	time_t createdSeconds;
 	bool cachedFlag;
+	ZhttpRequestPacket requestPacket;
+	const QByteArray requestInstanceAddress;
 	ZhttpResponsePacket responsePacket;
 	bool subscriptionFlag;
 	QString subscriptionStr;
@@ -512,10 +514,15 @@ public:
 				{
 					// add ws Cache expiry
 					wsCacheExpiry++;
-					gCacheItemList.removeAt(i);
 
+					log_debug("[CACHEITEM] sending auto-refresh request");
+					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheClient[i].msgId, gCacheClient[i].requestInstanceAddress);
+					gCacheClient[i].msgId = gCacheClient.msgIdCount-1;
+/*
+					gCacheItemList.removeAt(i);
 					itemCount = gCacheItemList.count();
 					i--;
+*/
 				}
 			}
 			else
@@ -524,10 +531,15 @@ public:
 				{
 					// add ws Cache expiry
 					wsCacheExpiry++;
-					gCacheItemList.removeAt(i);
 
+					log_debug("[CACHEITEM] sending auto-refresh request");
+					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheClient[i].msgId, gCacheClient[i].requestInstanceAddress);
+					gCacheClient[i].msgId = gCacheClient.msgIdCount-1;
+/*
+					gCacheItemList.removeAt(i);
 					itemCount = gCacheItemList.count();
 					i--;
+*/
 				}
 
 				if ((diff > subscriptionInvalidTimeOut) && (gCacheItemList[i].msgId == -1))
@@ -541,7 +553,7 @@ public:
 		}
 	}
 
-	void registerCacheItem(QByteArray clientId, int msgId, char *methodNameParamsHashVal, bool subcriptionFlag)
+	void registerCacheItem(const ZhttpRequestPacket &clientPacket, QByteArray clientId, int msgId, char *methodNameParamsHashVal, bool subcriptionFlag, const QByteArray &instanceAddress)
 	{
 		// create new cache item
 		struct CacheItem cacheItem;
@@ -550,6 +562,14 @@ public:
 		cacheItem.createdSeconds = time(NULL);
 		cacheItem.cachedFlag = false;
 		cacheItem.subscriptionFlag = subcriptionFlag;
+
+		// save the request packet with new id
+		cacheItem.requestPacket = clientPacket;
+		char oldIdStr[64], newIdStr[64];
+		qsnprintf(oldIdStr, 64, "\"id\":%d", msgId);
+		qsnprintf(newIdStr, 64, "\"id\":%d", cacheItem.msgId);
+		cacheItem.requestPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+		cacheItem.requestInstanceAddress = instanceAddress;
 		
 		struct ClientItem clientItem;
 		clientItem.msgId = msgId;
@@ -970,7 +990,7 @@ public:
 					if (cacheItemCount <= (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount))
 					{
 						// Register new cache item
-						registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, false);
+						registerCacheItem(packet, packet.ids[0].id, msgBody.id, paramsHash, false, instanceAddress);
 						log_debug("[CACHEITEM] Registered New Cache Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 						// add ws Cache insert
@@ -1071,7 +1091,7 @@ public:
 					if (gCacheItemList.count() <= (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount))
 					{
 						// Register new cache item
-						registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, true);
+						registerCacheItem(packet.ids[0].id, msgBody.id, paramsHash, true, instanceAddress);
 						log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 						// add ws Cache insert
