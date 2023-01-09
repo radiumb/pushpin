@@ -891,7 +891,11 @@ public:
 			// if more flag is true, skip
 			if (packet.more == true)
 			{
-				log_debug("[CACHEITEM] skipped multi request");
+				// add ws Cache multi-part request
+				wsCacheMultiPart++;
+				memcpy(&shm_str[116], (char *)&wsCacheMultiPart, 4);
+
+				log_debug("[CACHEITEM] Detected multi-parts request, no cache id %d", msgBody.id);
 				goto OUT_STREAM_SOCK_WRITE;
 			}
 			
