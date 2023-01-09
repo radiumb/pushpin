@@ -613,7 +613,7 @@ public:
 		}
 	}
 
-	void replySubscriptionContent(int cacheItemId, int newMsgId, const QByteArray &newPacketId, const QByteArray &instanceAddress, int credits, const QString &oldSubscriptionStr, const QString &newSubscriptionStr)
+	void replySubscriptionContent(int cacheItemId, int newMsgId, const QByteArray &newPacketId, const QByteArray &instanceAddress, int credits)
 	{
 		ZhttpResponsePacket creditPacket;
 		ZhttpResponsePacket::Id tempId;
@@ -630,15 +630,7 @@ public:
 		qsnprintf(oldIdStr, 64, "\"id\":%d", gCacheItemList[cacheItemId].msgId);
 		qsnprintf(newIdStr, 64, "\"id\":%d", newMsgId);
 		responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-/*
-		// replace subscription message
-		if (!oldSubscriptionStr.isNull())
-		{
-			qsnprintf(oldIdStr, 64, "\"%s\"", qPrintable(oldSubscriptionStr));
-			qsnprintf(newIdStr, 64, "\"%s\"", qPrintable(newSubscriptionStr));
-			responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
-		}
-*/
+
 		responsePacket.ids[0].id = newPacketId.data();
 		responsePacket.ids[0].seq = -1;
 		responsePacket.from = instanceAddress.data();
@@ -1046,12 +1038,6 @@ public:
 
 							if (gCacheItemList[j].cachedFlag == true)
 							{
-/*
-								send_credit_to_client(gCacheItemList[j].responsePacket, \
-									clientItem.clientId, \
-									packet.body.size()
-								);
-*/
 								send_response_to_client(gCacheItemList[j].responsePacket, \
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
@@ -1218,37 +1204,6 @@ public slots:
 	void client_out_stream_messagesWritten(int count)
 	{
 		Q_UNUSED(count);
-	}
-
-	void send_credit_to_client(ZhttpResponsePacket &p, QByteArray clientId, int credits)
-	{
-		ZhttpResponsePacket clientPacket = p;
-
-		clientPacket.ids[0].id = clientId;
-		clientPacket.ids[0].seq = -1;
-		clientPacket.type = ZhttpResponsePacket::Credit;
-		clientPacket.credits = 999;//credits;
-		clientPacket.body.clear();
-		foreach(const ZhttpResponsePacket::Id &id, clientPacket.ids)
-		{
-			// is this for a websocket?
-			ZWebSocket *sock = clientSocksByRid.value(ZWebSocket::Rid(instanceId, id.id));
-			if(sock)
-			{
-				sock->handle(id.id, id.seq, clientPacket);
-				continue;
-			}
-
-			// is this for an http request?
-			ZhttpRequest *req = clientReqsByRid.value(ZhttpRequest::Rid(instanceId, id.id));
-			if(req)
-			{
-				req->handle(id.id, id.seq, clientPacket);
-				continue;
-			}
-
-			log_debug("zhttp/zws client: received message for unknown request id, skipping");
-		}
 	}
 
 	void send_response_to_client(ZhttpResponsePacket &p, QByteArray clientId, int oldMsgId, int newMsgId)
@@ -1468,8 +1423,7 @@ public slots:
 								send_response_to_client(gCacheItemList[i].responsePacket, \
 									gCacheItemList[i].clientList[j].clientId, \
 									gCacheItemList[i].msgId, \
-									gCacheItemList[i].clientList[j].msgId, \
-									NULL, NULL);
+									gCacheItemList[i].clientList[j].msgId);
 							}
 							// make invalid
 							p.type = ZhttpResponsePacket::KeepAlive;
