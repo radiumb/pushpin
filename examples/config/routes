@@ -2,6 +2,6 @@
 #kusama.public.curie.radiumblock.xyz,proto=ws localhost:9944
 #*,proto=ws,ssl=yes localhost:9944,ssl
 #*,proto=ws,no_grip,debug polkadot.backend.curie.radiumblock.co:9944
-*,proto=ws,no_grip,debug localhost:9944
+*,proto=ws,no_grip,debug localhost:8999
 #* localhost:9933,over_http 
 #*,proto=ws,debug localhost:9933,over_http
