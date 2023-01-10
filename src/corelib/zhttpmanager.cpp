@@ -439,7 +439,7 @@ public:
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 			
-			if (!strcmp(packet.uri.toEncoded().data(), "ws://localhost:7999/"))
+			if ((gCacheClient.seqCount == 0) && (!strcmp(packet.uri.toEncoded().data(), "ws://localhost:7999/ws")))
 			{
 				gCacheClient.initialized = false;
 				gCacheClient.msgIdCount = 1;
