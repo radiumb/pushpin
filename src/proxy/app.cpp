@@ -558,7 +558,7 @@ public:
 		}
 
 		log_info("started");
-
+/*
 		log_info("starting wscat child process");
 
 		pid_t pid;
@@ -585,6 +585,7 @@ public:
 			
 			exit(0);
 		}
+*/
 	}
 
 private slots:
