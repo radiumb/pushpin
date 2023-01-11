@@ -1061,9 +1061,9 @@ public:
 							}
 
 							// make keep alive request
-							ZhttpRequestPacket keepAlivePacket = packet;
+							//ZhttpRequestPacket keepAlivePacket = packet;
 							//keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
-							buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
+							//buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 
 							goto OUT_STREAM_SOCK_WRITE;
 						}
