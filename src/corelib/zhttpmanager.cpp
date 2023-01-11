@@ -1077,7 +1077,7 @@ public:
 						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
 
 						// Send new client cache request packet
-						//sendNewCacheClientRequest(packet, msgBody.id, instanceAddress);
+						sendNewCacheClientRequest(packet, msgBody.id, instanceAddress);
 						
 						// make original packet to keep-alive
 						//ZhttpRequestPacket keepAlivePacket = packet;
@@ -1476,6 +1476,14 @@ public slots:
 						break;
 					}
 				}
+			}
+		}
+		else
+		{
+			if (p.type == ZhttpResponsePacket::Data)
+			{
+				// make invalid
+				p.type = ZhttpResponsePacket::KeepAlive;
 			}
 		}
 
