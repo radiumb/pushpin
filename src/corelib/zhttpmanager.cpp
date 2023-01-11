@@ -1482,8 +1482,12 @@ public slots:
 		{
 			if (p.type == ZhttpResponsePacket::Data)
 			{
-				// make invalid
-				p.type = ZhttpResponsePacket::KeepAlive;
+				log_debug("asdfasdfasdfasdf %d", p.body.size());
+				if (p.body.size() > 0)
+				{
+					// make invalid
+					p.type = ZhttpResponsePacket::KeepAlive;
+				}
 			}
 		}
 
