@@ -1330,6 +1330,7 @@ public slots:
 						//gCacheItemList[i].subscriptionPacket = p;
 						if (gCacheItemList[i].cachedFlag == false)
 						{
+							gCacheItemList[i].subscriptionPacket = p;
 							gCacheItemList[i].cachedFlag = true;
 							log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d subscription=%s", gCacheItemList[i].msgId, qPrintable(msgBody.subscription));
 							// send update subscribe to all clients
