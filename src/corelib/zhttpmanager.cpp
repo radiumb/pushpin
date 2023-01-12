@@ -1042,10 +1042,6 @@ public:
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
 									clientItem.msgId);
-								send_response_to_client(gCacheItemList[j].responsePacket, \
-									clientItem.clientId, \
-									gCacheItemList[j].msgId, \
-									clientItem.msgId);
 
 								send_response_to_client(gCacheItemList[j].subscriptionPacket, \
 									clientItem.clientId, \
@@ -1331,7 +1327,7 @@ public slots:
 					if ((gCacheItemList[i].subscriptionFlag == true) && (gCacheItemList[i].subscriptionStr == msgBody.subscription))
 					{
 						// update subscription packet
-						gCacheItemList[i].subscriptionPacket = p;
+						//gCacheItemList[i].subscriptionPacket = p;
 						if (gCacheItemList[i].cachedFlag == false)
 						{
 							gCacheItemList[i].cachedFlag = true;
@@ -1356,7 +1352,7 @@ public slots:
 							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
 							{
 								log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
-								send_response_to_client(gCacheItemList[i].subscriptionPacket, \
+								send_response_to_client(p,//gCacheItemList[i].subscriptionPacket, \
 									gCacheItemList[i].clientList[j].clientId, \
 									gCacheItemList[i].msgId, \
 									gCacheItemList[i].clientList[j].msgId);
