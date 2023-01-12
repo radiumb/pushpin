@@ -439,7 +439,7 @@ public:
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 			
-			if (!strcmp(packet.uri.toEncoded().data(), "ws://localhost:7999/"))
+			if ((gCacheClient.seqCount == 0) && (!strcmp(packet.uri.toEncoded().data(), "ws://localhost:7999/")))
 			{
 				gCacheClient.initialized = false;
 				gCacheClient.msgIdCount = 1;
@@ -1042,10 +1042,6 @@ public:
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
 									clientItem.msgId);
-								send_response_to_client(gCacheItemList[j].responsePacket, \
-									clientItem.clientId, \
-									gCacheItemList[j].msgId, \
-									clientItem.msgId);
 
 								send_response_to_client(gCacheItemList[j].subscriptionPacket, \
 									clientItem.clientId, \
@@ -1061,9 +1057,9 @@ public:
 							}
 
 							// make keep alive request
-							ZhttpRequestPacket keepAlivePacket = packet;
-							keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
-							buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
+							//ZhttpRequestPacket keepAlivePacket = packet;
+							//keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+							//buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 
 							goto OUT_STREAM_SOCK_WRITE;
 						}
@@ -1084,9 +1080,9 @@ public:
 						sendNewCacheClientRequest(packet, msgBody.id, instanceAddress);
 						
 						// make original packet to keep-alive
-						ZhttpRequestPacket keepAlivePacket = packet;
-						keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
-						buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
+						//ZhttpRequestPacket keepAlivePacket = packet;
+						//keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+						//buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 
 						goto OUT_STREAM_SOCK_WRITE;
 					}
@@ -1480,6 +1476,20 @@ public slots:
 						break;
 					}
 				}
+			}
+		}
+		else
+		{
+			if (p.type == ZhttpResponsePacket::Data)
+			{
+				log_debug("asdfasdfasdfasdf %d", p.body.size());
+/*				
+				if (p.body.size() > 0)
+				{
+					// make invalid
+					p.type = ZhttpResponsePacket::KeepAlive;
+				}
+*/
 			}
 		}
 
