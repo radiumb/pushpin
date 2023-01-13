@@ -765,7 +765,7 @@ public:
 							msgBody->flagChanges = true;
 							if (m.type() == QVariant::List)
 							{
-								QList n = m.toList();
+								QList<QVariant> n = m.toList();
 								if (n.count() == 2)
 								{
 									if ((n[0].canConvert<QString>()) && (n[1].canConvert<QString>()))
