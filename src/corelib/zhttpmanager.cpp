@@ -1411,8 +1411,8 @@ public slots:
 									iter.next();
 									QString patternStr(qPrintable(iter.key()));
 									qsizetype idxStart = gCacheItemList[i].subscriptionPacket.body.indexOf(patternStr);
-									qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+iter.key().length()+4);
-									gCacheItemList[i].subscriptionPacket.body.replace(idxStart+iter.key().length()+4, idxEnd-(idxStart+iter.key().length()+4), qPrintable(iter.value()));
+									qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+iter.key().length()+3);
+									gCacheItemList[i].subscriptionPacket.body.replace(idxStart+iter.key().length()+3, idxEnd-(idxStart+iter.key().length()+3), qPrintable(iter.value()));
 								}
 							}
 							log_debug("qwerqwerqwer %s", gCacheItemList[i].subscriptionPacket.body.data());
