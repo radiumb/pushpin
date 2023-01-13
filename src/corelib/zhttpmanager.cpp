@@ -1385,7 +1385,7 @@ public slots:
 							log_debug("asdfasdfasdfasdfasdf");
 							if (msgBody.flagBlock)
 							{
-								log_debug("Block = %s", qPrintable(msgBoy.block));
+								log_debug("Block = %s", qPrintable(msgBody.block));
 							}
 							if (msgBody.flagChanges)
 							{
