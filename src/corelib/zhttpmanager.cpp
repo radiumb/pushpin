@@ -1361,6 +1361,20 @@ public slots:
 					{
 						// update subscription packet
 						//gCacheItemList[i].subscriptionPacket = p;
+						log_debug("asdfasdfasdfasdfasdf");
+						if (msgBody.flagBlock)
+						{
+							log_debug("Block = %s", qPrintable(msgBody.block));
+						}
+						if (msgBody.flagChanges)
+						{
+							QMapIterator<QString, QString> iter(msgBody.changes);
+							while(iter.hasNext())
+							{
+								iter.next();
+								log_debug("Changes = %s,%s", qPrintable(iter.key()), qPrintable(iter.value()));
+							}
+						}
 						if (gCacheItemList[i].cachedFlag == false)
 						{
 							gCacheItemList[i].subscriptionPacket = p;
@@ -1382,10 +1396,11 @@ public slots:
 						}
 						else
 						{
-							log_debug("asdfasdfasdfasdfasdf");
 							if (msgBody.flagBlock)
 							{
-								log_debug("Block = %s", qPrintable(msgBody.block));
+								qsizetype idxStart = gCacheItemList[i].subscriptionPacket.body.indexOf("\"block\":\"");
+								qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+9);
+								gCacheItemList[i].subscriptionPacket.body.replace(idxStart+9, idxEnd-(idxStart+9), QByteArray(msgBody.block.data()));
 							}
 							if (msgBody.flagChanges)
 							{
@@ -1393,9 +1408,12 @@ public slots:
 								while(iter.hasNext())
 								{
 									iter.next();
-									log_debug("Changes = %s,%s", qPrintable(iter.key()), qPrintable(iter.value()));
+									qsizetype idxStart = gCacheItemList[i].subscriptionPacket.body.indexOf(iter.key().data());
+									qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+iter.key().length()+4);
+									gCacheItemList[i].subscriptionPacket.body.replace(idxStart+iter.key().length()+4, idxEnd-(idxStart+iter.key().length()+4), QByteArray(iter.value().data()));
 								}
 							}
+							log_debug("qwerqwerqwer %s", gCacheItemList[i].subscriptionPacket.body.data());
 
 							// send update subscribe to all clients
 							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
@@ -1405,7 +1423,7 @@ public slots:
 									gCacheItemList[i].clientList[j].clientId, \
 									gCacheItemList[i].msgId, \
 									gCacheItemList[i].clientList[j].msgId);
-								send_response_to_client(p, \
+								send_response_to_client(gCacheItemList[i].subscriptionPacket, \
 									gCacheItemList[i].clientList[j].clientId, \
 									gCacheItemList[i].msgId, \
 									gCacheItemList[i].clientList[j].msgId);
