@@ -1398,7 +1398,7 @@ public slots:
 						{
 							if (msgBody.flagBlock)
 							{
-								QByteArrayView patternStr("\"block\":\"");
+								QString patternStr("\"block\":\"");
 								qsizetype idxStart = gCacheItemList[i].subscriptionPacket.body.indexOf(patternStr);
 								qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+9);
 								gCacheItemList[i].subscriptionPacket.body.replace(idxStart+9, idxEnd-(idxStart+9), QByteArray(qPrintable(msgBody.block)));
@@ -1409,7 +1409,7 @@ public slots:
 								while(iter.hasNext())
 								{
 									iter.next();
-									QByteArrayView patternStr(qPrintable(iter.key()));
+									QString patternStr(qPrintable(iter.key()));
 									qsizetype idxStart = gCacheItemList[i].subscriptionPacket.body.indexOf(patternStr);
 									qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+iter.key().length()+4);
 									gCacheItemList[i].subscriptionPacket.body.replace(idxStart+iter.key().length()+4, idxEnd-(idxStart+iter.key().length()+4), qPrintable(iter.value()));
@@ -1421,10 +1421,6 @@ public slots:
 							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
 							{
 								log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
-								//send_response_to_client(gCacheItemList[i].subscriptionPacket, \
-									gCacheItemList[i].clientList[j].clientId, \
-									gCacheItemList[i].msgId, \
-									gCacheItemList[i].clientList[j].msgId);
 								send_response_to_client(gCacheItemList[i].subscriptionPacket, \
 									gCacheItemList[i].clientList[j].clientId, \
 									gCacheItemList[i].msgId, \
