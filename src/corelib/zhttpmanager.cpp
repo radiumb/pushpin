@@ -1398,9 +1398,10 @@ public slots:
 						{
 							if (msgBody.flagBlock)
 							{
-								qsizetype idxStart = gCacheItemList[i].subscriptionPacket.body.indexOf("\"block\":\"");
+								QByteArrayView patternStr("\"block\":\"");
+								qsizetype idxStart = gCacheItemList[i].subscriptionPacket.body.indexOf(patternStr);
 								qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+9);
-								gCacheItemList[i].subscriptionPacket.body.replace(idxStart+9, idxEnd-(idxStart+9), QByteArray(msgBody.block.data()));
+								gCacheItemList[i].subscriptionPacket.body.replace(idxStart+9, idxEnd-(idxStart+9), QByteArray(qPrintable(msgBody.block)));
 							}
 							if (msgBody.flagChanges)
 							{
@@ -1408,9 +1409,10 @@ public slots:
 								while(iter.hasNext())
 								{
 									iter.next();
-									qsizetype idxStart = gCacheItemList[i].subscriptionPacket.body.indexOf(iter.key().data());
+									QByteArrayView patternStr(qPrintable(iter.key()));
+									qsizetype idxStart = gCacheItemList[i].subscriptionPacket.body.indexOf(patternStr);
 									qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+iter.key().length()+4);
-									gCacheItemList[i].subscriptionPacket.body.replace(idxStart+iter.key().length()+4, idxEnd-(idxStart+iter.key().length()+4), QByteArray(iter.value().data()));
+									gCacheItemList[i].subscriptionPacket.body.replace(idxStart+iter.key().length()+4, idxEnd-(idxStart+iter.key().length()+4), qPrintable(iter.value()));
 								}
 							}
 							log_debug("qwerqwerqwer %s", gCacheItemList[i].subscriptionPacket.body.data());
