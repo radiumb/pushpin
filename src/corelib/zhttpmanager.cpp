@@ -768,7 +768,7 @@ public:
 								QList n = m.toList();
 								if (n.count() == 2)
 								{
-									if ((n[0].canConvert<QString>()) && (n[1].canConvert<QString>())
+									if ((n[0].canConvert<QString>()) && (n[1].canConvert<QString>()))
 									{
 										msgBody->changes.insert(n[0].toString(), n[1].toString());
 									}									
