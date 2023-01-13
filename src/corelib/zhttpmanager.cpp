@@ -125,11 +125,15 @@ struct JsonMsgBody {
 	bool flagParams;
 	bool flagResult;
 	bool flagSubscription;
+	bool flagBlock;
+	bool flagChanges;
 	int id;
 	QString method;
 	QString params;
 	QString result;
 	QString subscription;
+	QString block;
+	QMap<QString, QString> changes;
 };
 
 class ZhttpManager::Private : public QObject
@@ -684,6 +688,8 @@ public:
 		msgBody->flagParams = false;
 		msgBody->flagResult = false;
 		msgBody->flagSubscription = false;
+		msgBody->flagBlock = false;
+		msgBody->flagChanges = false;
 
 		// id
 		if(jsonData.contains("id"))
@@ -743,6 +749,33 @@ public:
 				{
 					msgBody->flagSubscription = true;
 					msgBody->subscription = jsonParamsData["subscription"].toString();
+				}
+				if (jsonParamsData.contains("result") && (jsonParamsData["result"].type() == QVariant::Map))
+				{
+					QVariantMap jsonResultData = jsonParamsData["result"].toMap();
+					if (jsonResultData.contains("block")  && jsonResultData["block"].canConvert<QString>())
+					{
+						msgBody->flagBlock = true;
+						msgBody->block = jsonResultData["block"].toString();
+					}
+					if (jsonResultData.contains("changes")  && (jsonResultData["changes"].type() == QVariant::List))
+					{
+						for (QVariant m : jsonResultData["changes"].toList())
+						{
+							msgBody->flagChanges = true;
+							if (m.type() == QVariant::List)
+							{
+								QList n = m.toList();
+								if (n.count() == 2)
+								{
+									if ((n[0].canConvert<QString>()) && (n[1].canConvert<QString>())
+									{
+										msgBody->changes.insert(n[0].toString(), n[1].toString());
+									}									
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -1349,6 +1382,21 @@ public slots:
 						}
 						else
 						{
+							log_debug("asdfasdfasdfasdfasdf");
+							if (msgBody.flagBlock)
+							{
+								log_debug("Block = %s", qPrintable(msgBoy.block));
+							}
+							if (msgBody.flagChanges)
+							{
+								QMapIterator<QString, QString> iter(msgBody.changes);
+								while(iter.hasNext())
+								{
+									iter.next();
+									log_debug("Changes = %s,%s", qPrintable(iter.key()), qPrintable(iter.value()));
+								}
+							}
+
 							// send update subscribe to all clients
 							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
 							{
