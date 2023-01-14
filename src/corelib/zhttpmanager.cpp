@@ -1376,8 +1376,15 @@ public slots:
 							{
 								QString patternStr("\"block\":\"");
 								qsizetype idxStart = gCacheItemList[i].subscriptionPacket.body.indexOf(patternStr);
-								qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+9);
-								gCacheItemList[i].subscriptionPacket.body.replace(idxStart+9, idxEnd-(idxStart+9), QByteArray(qPrintable(msgBody.block)));
+								if (idxStart >= 0)
+								{
+									qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+9);
+									gCacheItemList[i].subscriptionPacket.body.replace(idxStart+9, idxEnd-(idxStart+9), QByteArray(qPrintable(msgBody.block)));
+								}
+								else
+								{
+									log_debug("asdfasdfasdfasdf");
+								}
 							}
 							if (msgBody.flagChanges)
 							{
@@ -1387,8 +1394,16 @@ public slots:
 									iter.next();
 									QString patternStr(qPrintable(iter.key()));
 									qsizetype idxStart = gCacheItemList[i].subscriptionPacket.body.indexOf(patternStr);
-									qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+iter.key().length()+3);
-									gCacheItemList[i].subscriptionPacket.body.replace(idxStart+iter.key().length()+3, idxEnd-(idxStart+iter.key().length()+3), qPrintable(iter.value()));
+									if (idxStart >= 0)
+									{
+										qsizetype idxEnd = gCacheItemList[i].subscriptionPacket.body.indexOf("\"", idxStart+iter.key().length()+3);
+										gCacheItemList[i].subscriptionPacket.body.replace(idxStart+iter.key().length()+3, idxEnd-(idxStart+iter.key().length()+3), qPrintable(iter.value()));
+									}
+									else
+									{
+										log_debug("qwerqwerqwerqwer");
+									}
+									
 								}
 							}
 							if (!msgBody.flagBlock && !msgBody.flagChanges) // it`s for non state_subscribeStorage methods
