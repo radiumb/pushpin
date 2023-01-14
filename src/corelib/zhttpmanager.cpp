@@ -1415,6 +1415,11 @@ public slots:
 									gCacheItemList[i].subscriptionPacket.body.replace(idxStart+iter.key().length()+3, idxEnd-(idxStart+iter.key().length()+3), qPrintable(iter.value()));
 								}
 							}
+							if (!msgBody.flagBlock && !msgBody.flagChanges)
+							{
+								gCacheItemList[i].subscriptionPacket = p;
+							}
+							
 							log_debug("qwerqwerqwer %s", gCacheItemList[i].subscriptionPacket.body.data());
 
 							// send update subscribe to all clients
