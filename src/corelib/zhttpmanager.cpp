@@ -619,15 +619,6 @@ public:
 
 	void replySubscriptionContent(int cacheItemId, int newMsgId, const QByteArray &newPacketId, const QByteArray &instanceAddress, int credits)
 	{
-		ZhttpResponsePacket creditPacket;
-		ZhttpResponsePacket::Id tempId;
-		tempId.id = newPacketId.data();
-		tempId.seq = -1;
-		creditPacket.ids.append(tempId);
-		creditPacket.from = instanceAddress.data();
-		creditPacket.type = ZhttpResponsePacket::Credit;
-		creditPacket.credits = credits;
-
 		ZhttpResponsePacket responsePacket = gCacheItemList[cacheItemId].responsePacket;
 		// replace id str
 		char oldIdStr[64], newIdStr[64];
@@ -652,7 +643,6 @@ public:
 			ZWebSocket *sock = clientSocksByRid.value(ZWebSocket::Rid(instanceId, id.id));
 			if(sock)
 			{
-				sock->handle(id.id, id.seq, creditPacket);
 				sock->handle(id.id, id.seq, responsePacket);
 				sock->handle(id.id, id.seq, subscriptionPacket);
 				continue;
@@ -662,7 +652,6 @@ public:
 			ZhttpRequest *req = clientReqsByRid.value(ZhttpRequest::Rid(instanceId, id.id));
 			if(req)
 			{
-				req->handle(id.id, id.seq, creditPacket);
 				req->handle(id.id, id.seq, responsePacket);
 				req->handle(id.id, id.seq, subscriptionPacket);
 				continue;
@@ -1071,6 +1060,7 @@ public:
 
 							if (gCacheItemList[j].cachedFlag == true)
 							{
+/*
 								send_response_to_client(gCacheItemList[j].responsePacket, \
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
@@ -1080,8 +1070,8 @@ public:
 									clientItem.clientId, \
 									gCacheItemList[j].msgId, \
 									clientItem.msgId);
-
-//								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(packet.body.size()));
+*/
+								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(packet.body.size()));
 								log_debug("[CACHEITEM] Replied with subscription cache content for method \"%s\"", methodStr);
 							}
 							else
