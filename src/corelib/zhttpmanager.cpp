@@ -1359,25 +1359,11 @@ public slots:
 				{
 					if ((gCacheItemList[i].subscriptionFlag == true) && (gCacheItemList[i].subscriptionStr == msgBody.subscription))
 					{
-						// update subscription packet
-						//gCacheItemList[i].subscriptionPacket = p;
-						log_debug("asdfasdfasdfasdfasdf");
-						if (msgBody.flagBlock)
-						{
-							log_debug("Block = %s", qPrintable(msgBody.block));
-						}
-						if (msgBody.flagChanges)
-						{
-							QMapIterator<QString, QString> iter(msgBody.changes);
-							while(iter.hasNext())
-							{
-								iter.next();
-								log_debug("Changes = %s,%s", qPrintable(iter.key()), qPrintable(iter.value()));
-							}
-						}
 						if (gCacheItemList[i].cachedFlag == false)
 						{
+							// update subscription packet
 							gCacheItemList[i].subscriptionPacket = p;
+
 							gCacheItemList[i].cachedFlag = true;
 							log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d subscription=%s", gCacheItemList[i].msgId, qPrintable(msgBody.subscription));
 							// send update subscribe to all clients
@@ -1415,13 +1401,11 @@ public slots:
 									gCacheItemList[i].subscriptionPacket.body.replace(idxStart+iter.key().length()+3, idxEnd-(idxStart+iter.key().length()+3), qPrintable(iter.value()));
 								}
 							}
-							if (!msgBody.flagBlock && !msgBody.flagChanges)
+							if (!msgBody.flagBlock && !msgBody.flagChanges) // it`s for non state_subscribeStorage methods
 							{
 								gCacheItemList[i].subscriptionPacket = p;
 							}
 							
-							log_debug("qwerqwerqwer %s", gCacheItemList[i].subscriptionPacket.body.data());
-
 							// send update subscribe to all clients
 							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
 							{
