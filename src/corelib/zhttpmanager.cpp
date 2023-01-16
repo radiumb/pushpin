@@ -81,8 +81,8 @@ static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry 
 
 // variable to store config values
 static int cfgGroupByteCount, cfgGroupCount;
-static int cfgCacheByteCount, cfgCacheItemMaxSizeKbytes, cfgCacheItemMaxCount, cfgCacheTimeoutSeconds, cfgCacheMethodCount;
-static int cfgSubscribeItemMaxSizeKbytes, cfgSubscribeItemMaxCount, cfgSubscribeTimeoutSeconds, cfgSubscribeMethodCount;
+static int cfgCacheByteCount, cfgCacheItemMaxSizeKbytes, cfgCacheAutoRefreshFlag, cfgCacheTimeoutSeconds, cfgCacheMethodCount;
+static int cfgSubscribeItemMaxSizeKbytes, cfgCacheItemMaxCount, cfgSubscribeTimeoutSeconds, cfgSubscribeMethodCount;
 
 // cache item struct
 struct ClientItem {
@@ -466,24 +466,24 @@ public:
 				shm_read_count = 200 + cfgGroupByteCount;
 				cfgCacheByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				cfgCacheItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgCacheItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgCacheAutoRefreshFlag = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				cfgCacheTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				cfgCacheMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
 				if (cfgCacheItemMaxSizeKbytes <= 0) cfgCacheItemMaxSizeKbytes = 1024;		// default
-				if (cfgCacheItemMaxCount <= 0) cfgCacheItemMaxCount = 64;		// default
+				if (cfgCacheAutoRefreshFlag <= 0) cfgCacheAutoRefreshFlag = 0;		// default
 				if (cfgCacheTimeoutSeconds <= 0) cfgCacheTimeoutSeconds = 5;	// default
 
 				// subscribe
 				shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount;
 				shm_read_count += 4; // cache subscribe byte count
 				cfgSubscribeItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgSubscribeItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgCacheItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				cfgSubscribeTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				cfgSubscribeMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
 				if (cfgSubscribeItemMaxSizeKbytes <= 0) cfgSubscribeItemMaxSizeKbytes = 1024;		// default
-				if (cfgSubscribeItemMaxCount <= 0) cfgSubscribeItemMaxCount = 512;		// default
+				if (cfgCacheItemMaxCount <= 0) cfgCacheItemMaxCount = 512;		// default
 				if (cfgSubscribeTimeoutSeconds <= 0) cfgSubscribeTimeoutSeconds = 3600*4;	// default
 				shmdt(shm_str);
 			}
@@ -517,16 +517,20 @@ public:
 					// add ws Cache expiry
 					wsCacheExpiry++;
 
-					log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
-					gCacheItemList[i].msgId = gCacheClient.msgIdCount;
-					gCacheItemList[i].clientList.clear();
-					gCacheItemList[i].createdSeconds = time(NULL);
-					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
-/*
-					gCacheItemList.removeAt(i);
-					itemCount = gCacheItemList.count();
-					i--;
-*/
+					if (cfgCacheAutoRefreshFlag != 0)
+					{
+						log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
+						gCacheItemList[i].msgId = gCacheClient.msgIdCount;
+						gCacheItemList[i].clientList.clear();
+						gCacheItemList[i].createdSeconds = time(NULL);
+						sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
+					}
+					else
+					{
+						gCacheItemList.removeAt(i);
+						itemCount = gCacheItemList.count();
+						i--;
+					}				
 				}
 			}
 			else
@@ -1023,7 +1027,7 @@ public:
 					}
 					
 					// Register cache item
-					if (cacheItemCount <= (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount))
+					if (cacheItemCount <= cfgCacheItemMaxCount)
 					{
 						// Register new cache item
 						registerCacheItem(packet, packet.ids[0].id, msgBody.id, paramsHash, false, instanceAddress);
@@ -1045,7 +1049,7 @@ public:
 					}
 					else
 					{
-						log_debug("[CACHEITEM] Cache item count exceed Max limit=%d", (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount));
+						log_debug("[CACHEITEM] Cache item count exceed Max limit=%d", cfgCacheItemMaxCount);
 					}
 					
 					goto OUT_STREAM_SOCK_WRITE;
@@ -1109,7 +1113,7 @@ public:
 					}
 
 					// Register new cache item
-					if (gCacheItemList.count() <= (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount))
+					if (gCacheItemList.count() <= cfgCacheItemMaxCount)
 					{
 						// Register new cache item
 						registerCacheItem(packet, packet.ids[0].id, msgBody.id, paramsHash, true, instanceAddress);
@@ -1131,7 +1135,7 @@ public:
 					}
 					else
 					{
-						log_debug("[CACHEITEM] Cache Subscription item count exceed Max limit=%d", (cfgCacheItemMaxCount+cfgSubscribeItemMaxCount));
+						log_debug("[CACHEITEM] Cache Subscription item count exceed Max limit=%d", cfgCacheItemMaxCount);
 					}
 
 					goto OUT_STREAM_SOCK_WRITE;
