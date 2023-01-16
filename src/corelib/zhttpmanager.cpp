@@ -582,8 +582,18 @@ public:
 		gCacheItemList.append(cacheItem);
 	}
 
-	void replyCachedContent(int cacheItemId, int newMsgId, const QByteArray &newPacketId, const QByteArray &instanceAddress)
+	void replyCachedContent(int cacheItemId, int newMsgId, const QByteArray &newPacketId, const QByteArray &instanceAddress, int credits)
 	{
+		ZhttpResponsePacket creditPacket = gCacheItemList[cacheItemId].responsePacket;
+		creditPacket.ids[0].id = newPacketId.data();
+		creditPacket.ids[0].seq = -1;
+		creditPacket.from = instanceAddress.data();
+		creditPacket.type = ZhttpResponsePacket::Credit;
+		creditPacket.credits = credits;
+		creditPacket.body.clear();
+		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, creditPacket.toVariant(), "body", "%s CACHE: IN %s", "[CACHEITEM]", creditPacket.from.data());
+		
 		ZhttpResponsePacket responsePacket = gCacheItemList[cacheItemId].responsePacket;
 
 		// replace id str
@@ -619,6 +629,16 @@ public:
 
 	void replySubscriptionContent(int cacheItemId, int newMsgId, const QByteArray &newPacketId, const QByteArray &instanceAddress, int credits)
 	{
+		ZhttpResponsePacket creditPacket = gCacheItemList[cacheItemId].responsePacket;
+		creditPacket.ids[0].id = newPacketId.data();
+		creditPacket.ids[0].seq = -1;
+		creditPacket.from = instanceAddress.data();
+		creditPacket.type = ZhttpResponsePacket::Credit;
+		creditPacket.credits = credits;
+		creditPacket.body.clear();
+		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, creditPacket.toVariant(), "body", "%s CACHE: IN %s", "[CACHEITEM]", creditPacket.from.data());
+
 		ZhttpResponsePacket responsePacket = gCacheItemList[cacheItemId].responsePacket;
 		// replace id str
 		char oldIdStr[64], newIdStr[64];
@@ -963,7 +983,7 @@ public:
 						{
 							if (gCacheItemList[j].cachedFlag == true)
 							{
-								replyCachedContent(j, msgBody.id, packet.ids[0].id, instanceAddress);
+								replyCachedContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(packet.body.size()));
 								log_debug("[CACHEITEM] Replied with Cache content for method \"%s\"", methodStr);
 								gCacheItemList[j].createdSeconds = time(NULL);
 							}
