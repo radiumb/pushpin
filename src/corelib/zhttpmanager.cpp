@@ -77,12 +77,14 @@ static long wsRpcAuthorCount = 0, wsRpcBabeCount = 0, wsRpcBeefyCount = 0, wsRpc
 static long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
 static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
-static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0;
+static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0, wsCacheItemCount = 0;
 
 // variable to store config values
 static int cfgGroupByteCount, cfgGroupCount;
 static int cfgCacheByteCount, cfgCacheItemMaxSizeKbytes, cfgCacheAutoRefreshFlag, cfgCacheTimeoutSeconds, cfgCacheMethodCount;
 static int cfgSubscribeItemMaxSizeKbytes, cfgCacheItemMaxCount, cfgSubscribeTimeoutSeconds, cfgSubscribeMethodCount;
+
+static int cacheScanPtr = 0;
 
 // cache item struct
 struct ClientItem {
@@ -506,8 +508,22 @@ public:
 		// first, delete old cache items
 		time_t currSeconds = time(NULL);
 
-		itemCount = gCacheItemList.count();
-		for (int i = 0; i < itemCount; i++)
+		// will check 50 per every time
+		int start, end;
+		if ((itemCount-cacheScanPtr) >= 50)
+		{
+			start = cacheScanPtr;
+			end = start + 50;
+			cacheScanPtr += 50;
+		}
+		else
+		{
+			start = cacheScanPtr;
+			end = itemCount;
+			cacheScanPtr = 0;
+		}
+		
+		for (int i = start; i < end; i++)
 		{
 			int diff = (int)(currSeconds - gCacheItemList[i].createdSeconds);
 			if (!gCacheItemList[i].subscriptionFlag)
@@ -971,6 +987,10 @@ public:
 			
 			// get item count
 			int cacheItemCount = gCacheItemList.count();
+
+			// Count cache item
+			wsCacheItemCount = cacheItemCount;
+			memcpy(&shm_str[120], (char *)&wsCacheItemCount, 4);
 
 			// Cache method Lookup
 			int shm_read_count = 200 + cfgGroupByteCount + 20;
