@@ -544,7 +544,7 @@ public:
 					else
 					{
 						gCacheItemList.removeAt(i);
-						itemCount = gCacheItemList.count();
+						end--;//itemCount = gCacheItemList.count();
 						i--;
 					}				
 				}
@@ -563,7 +563,7 @@ public:
 					sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
 */
 					gCacheItemList.removeAt(i);
-					itemCount = gCacheItemList.count();
+					end--;//itemCount = gCacheItemList.count();
 					i--;
 
 				}
@@ -572,7 +572,7 @@ public:
 				{
 					gCacheItemList.removeAt(i);
 					
-					itemCount = gCacheItemList.count();
+					end--;//itemCount = gCacheItemList.count();
 					i--;
 				}
 			}
