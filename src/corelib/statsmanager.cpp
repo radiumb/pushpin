@@ -282,7 +282,8 @@ public:
 			wsCacheLookup,
 			wsCacheExpiry,
 			wsCacheMultiPart,
-			wsCacheItemCount
+			wsCacheItemCount,
+			wsSubscriptionItemCount
 		};
 
 		Type mtype;
@@ -400,6 +401,7 @@ public:
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheExpiry, "cache_expiry", "counter", "Number of websocket Cache expiry event");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheMultiPart, "cache_multi_part", "counter", "Number of websocket Cache detected multi-part response");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheItemCount, "cache_item_count", "counter", "Number of websocket Cache items");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsSubscriptionItemCount, "subscription_item_count", "counter", "Number of websocket Subscription items");
 		// Group count add
 		key_t shm_key = ftok("shmfile",65);
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
@@ -416,7 +418,7 @@ public:
 			memcpy(groupName, &shm_str[shm_read_count], 256); shm_read_count += 256;	
 			shm_read_count += 4; // event skip
 			shm_read_count += 20*mCnt;	
-			PrometheusMetric::Type groupType = (PrometheusMetric::Type)(PrometheusMetric::wsCacheItemCount+i+1);
+			PrometheusMetric::Type groupType = (PrometheusMetric::Type)(PrometheusMetric::wsSubscriptionItemCount+i+1);
 			prometheusMetrics += PrometheusMetric(groupType, groupName, "counter", groupName);	
 		}
 		shmdt(shm_str);
@@ -1227,7 +1229,7 @@ private slots:
 			long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
 			long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 			long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
-			long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0, wsCacheItemCount = 0;
+			long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0, wsCacheItemCount = 0, wsSubscriptionItemCount = 0;
 
 			// read shared memory
 			key_t key = ftok("shmfile",65);
@@ -1262,6 +1264,7 @@ private slots:
 			wsCacheExpiry = *(long *)&str[112];
 			wsCacheMultiPart = *(long *)&str[116];
 			wsCacheItemCount = *(long *)&str[120];
+			wsSubscriptionItemCount = *(long *)&str[124];
 			shmdt(str);
 			//shmctl(shmid,IPC_RMID,NULL);
 
@@ -1301,6 +1304,7 @@ private slots:
 				case PrometheusMetric::wsCacheExpiry: value = QVariant((int)wsCacheExpiry); break;
 				case PrometheusMetric::wsCacheMultiPart: value = QVariant((int)wsCacheMultiPart); break;
 				case PrometheusMetric::wsCacheItemCount: value = QVariant((int)wsCacheItemCount); break;
+				case PrometheusMetric::wsSubscriptionItemCount: value = QVariant((int)wsSubscriptionItemCount); break;
 
 				default: {
 					// Group count add
@@ -1318,7 +1322,7 @@ private slots:
 						shm_read_count += 256;	// skip name
 						long eventCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						shm_read_count += 20*mCnt;	
-						if (m.mtype == (PrometheusMetric::wsCacheItemCount+i+1))
+						if (m.mtype == (PrometheusMetric::wsSubscriptionItemCount+i+1))
 						{
 							value = QVariant((int)eventCount); break;
 						}						
