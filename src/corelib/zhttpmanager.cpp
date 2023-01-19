@@ -71,7 +71,7 @@
 // needs to match the peer
 #define ZHTTP_IDS_MAX 128
 
-#define ACCESS_TIME_LIMIT	60
+#define ACCESS_TIME_LIMIT	99999
 
 // variable to count ws
 static long wsRequestCount = 0, wsMessageSentCount = 0;
