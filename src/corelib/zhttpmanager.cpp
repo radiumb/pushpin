@@ -513,7 +513,8 @@ public:
 		time_t currSeconds = time(NULL);
 
 		// will check 50 per every time
-		int start, end;
+		int start = 0, end = itemCount;
+/*
 		if ((itemCount-cacheScanPtr) >= 50)
 		{
 			start = cacheScanPtr;
@@ -526,7 +527,7 @@ public:
 			end = itemCount;
 			cacheScanPtr = 0;
 		}
-		
+*/		
 		for (int i = start; i < end; i++)
 		{
 			int accessDiff = (int)(currSeconds - gCacheItemList[i].accessTimeCount);
