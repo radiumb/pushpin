@@ -98,7 +98,8 @@ struct CacheItem {
 	int oldMsgId;
 	int msgId;
 	char methodNameParamHashVal[20];
-	time_t createdSeconds;
+	time_t refreshTimeCount;
+	time_t accessTimeCount;
 	int accessCount;
 	bool cachedFlag;
 	ZhttpRequestPacket requestPacket;
@@ -528,10 +529,11 @@ public:
 		
 		for (int i = start; i < end; i++)
 		{
-			int diff = (int)(currSeconds - gCacheItemList[i].createdSeconds);
+			int accessDiff = (int)(currSeconds - gCacheItemList[i].accessTimeCount);
+			int refreshDiff = (int)(currSeconds - gCacheItemList[i].refreshTimeCount);
 			if (!gCacheItemList[i].subscriptionFlag)
 			{
-				if (diff > ACCESS_TIME_LIMIT)
+				if (accessDiff > ACCESS_TIME_LIMIT)
 				{
 					gCacheItemList[i].accessCount--;
 					if (gCacheItemList[i].accessCount <= 0)
@@ -545,16 +547,20 @@ public:
 						i--;
 						continue;
 					}
+					else
+					{
+						gCacheItemList[i].accessTimeCount = time(NULL);
+					}
 				}
 				
-				if (diff > cacheTimeOut)
+				if (refreshDiff > cacheTimeOut)
 				{
 					if (cfgCacheAutoRefreshFlag != 0)
 					{
 						log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
 						gCacheItemList[i].msgId = gCacheClient.msgIdCount;
 						gCacheItemList[i].clientList.clear();
-						gCacheItemList[i].createdSeconds = time(NULL);
+						gCacheItemList[i].refreshTimeCount = time(NULL);
 						sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
 					}
 					else
@@ -618,7 +624,8 @@ public:
 		struct CacheItem cacheItem;
 		cacheItem.msgId = gCacheClient.msgIdCount;
 		memcpy(cacheItem.methodNameParamHashVal, methodNameParamsHashVal, 20);
-		cacheItem.createdSeconds = time(NULL);
+		cacheItem.refreshTimeCount = time(NULL);
+		cacheItem.accessTimeCount = time(NULL);
 		cacheItem.accessCount = 1;
 		cacheItem.cachedFlag = false;
 		cacheItem.subscriptionFlag = subcriptionFlag;
@@ -1062,7 +1069,7 @@ public:
 								clientItem.clientId = packet.ids[0].id;
 								gCacheItemList[j].clientList.append(clientItem);
 								log_debug("[CACHEITEM] Adding new client id msgId=%d clientId=%s", clientItem.msgId, (const char *)clientItem.clientId);
-								gCacheItemList[j].createdSeconds = time(NULL);
+								gCacheItemList[j].refreshTimeCount = time(NULL);
 							}
 
 							// add ws Cache hit
@@ -1509,7 +1516,9 @@ public slots:
 				// create new subscription item
 				struct CacheItem cacheItem;
 				cacheItem.msgId = -1;
-				cacheItem.createdSeconds = time(NULL);
+				cacheItem.refreshTimeCount = time(NULL);
+				cacheItem.accessTimeCount = time(NULL);
+				cacheItem.accessCount = 1;
 				cacheItem.cachedFlag = false;
 				cacheItem.subscriptionFlag = true;
 				cacheItem.subscriptionStr = msgBody.subscription;
