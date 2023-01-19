@@ -578,7 +578,7 @@ public:
 			}
 			else
 			{
-				if ((diff > subscriptionTimeOut) && (gCacheItemList[i].clientList.count() == 0))
+				if ((refreshDiff > subscriptionTimeOut) && (gCacheItemList[i].clientList.count() == 0))
 				{
 					// add ws Cache expiry
 					wsCacheExpiry++;
@@ -590,7 +590,7 @@ public:
 					continue;
 				}
 
-				if ((diff > subscriptionInvalidTimeOut) && (gCacheItemList[i].msgId == -1))
+				if ((refreshDiff > subscriptionInvalidTimeOut) && (gCacheItemList[i].msgId == -1))
 				{
 					gCacheItemList.removeAt(i);
 					end--;
