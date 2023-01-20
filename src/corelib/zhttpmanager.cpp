@@ -552,8 +552,8 @@ public:
 					gCacheItemList[i].accessCount--;
 					if (gCacheItemList[i].accessCount <= 0)
 					{
-						gCacheItemList[i].accessCount = 0;
-/*						
+//						gCacheItemList[i].accessCount = 0;
+						
 						// add ws Cache expiry
 						wsCacheExpiry++;
 
@@ -562,7 +562,7 @@ public:
 						end--;
 						i--;
 						continue;
-*/
+
 					}
 					else
 					{
@@ -1143,7 +1143,7 @@ public:
 					}
 					
 					// Register cache item
-					if (cacheItemCount <= cfgCacheItemMaxCount)
+					if (wsCacheItemCount <= cfgCacheItemMaxCount)
 					{
 						// Register new cache item
 						registerCacheItem(packet, packet.ids[0].id, msgBody.id, methodNameHash, paramsHash, false, instanceAddress);
@@ -1229,30 +1229,20 @@ public:
 					}
 
 					// Register new cache item
-					if (gCacheItemList.count() <= cfgCacheItemMaxCount)
-					{
-						// Register new cache item
-						registerCacheItem(packet, packet.ids[0].id, msgBody.id, methodNameHash, paramsHash, true, instanceAddress);
-						log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
+					registerCacheItem(packet, packet.ids[0].id, msgBody.id, methodNameHash, paramsHash, true, instanceAddress);
+					log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
-						// add ws Cache insert
-						wsCacheInsert++;
-						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
+					// add ws Cache insert
+					wsCacheInsert++;
+					memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
 
-						// Send new client cache request packet
-						sendNewCacheClientRequest(packet, msgBody.id, instanceAddress);
-						
-						// make original packet to keep-alive
-						ZhttpRequestPacket keepAlivePacket = packet;
-						keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
-						buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
-
-						goto OUT_STREAM_SOCK_WRITE;
-					}
-					else
-					{
-						log_debug("[CACHEITEM] Cache Subscription item count exceed Max limit=%d", cfgCacheItemMaxCount);
-					}
+					// Send new client cache request packet
+					sendNewCacheClientRequest(packet, msgBody.id, instanceAddress);
+					
+					// make original packet to keep-alive
+					ZhttpRequestPacket keepAlivePacket = packet;
+					keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+					buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 
 					goto OUT_STREAM_SOCK_WRITE;
 				}
