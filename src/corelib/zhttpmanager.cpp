@@ -630,7 +630,7 @@ public:
 			if (!gCacheItemList[i].subscriptionFlag)
 			{
 				cacheItemCount++;
-				if (!gCacheItemList[i].areFlag == true)
+				if (gCacheItemList[i].areFlag == true)
 				{
 					areItemCount++;
 				}
