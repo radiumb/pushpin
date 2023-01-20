@@ -403,7 +403,7 @@ public:
 		long ws_chche_subscribe_item_maxsize_kbytes = (long)settings.value("websocket/ws_cache_subscribe_item_maxsize_kbytes").toInt();
 		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_subscribe_item_maxsize_kbytes, 4); shm_write_count += 4;
 
-		long ws_chche_subscribe_item_maxcount = (long)settings.value("websocket/ws_cache_subscribe_item_maxcount").toInt();
+		long ws_chche_subscribe_item_maxcount = (long)settings.value("websocket/ws_cache_item_maxcount").toInt();
 		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_subscribe_item_maxcount, 4); shm_write_count += 4;
 		
 		long ws_chche_subscribe_timeout_seconds = (long)settings.value("websocket/ws_cache_subscribe_timeout_seconds").toInt();
