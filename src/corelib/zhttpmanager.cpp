@@ -71,7 +71,7 @@
 // needs to match the peer
 #define ZHTTP_IDS_MAX 128
 
-#define ACCESS_TIME_LIMIT	99999
+#define ACCESS_TIME_LIMIT	60
 
 // variable to count ws
 static long wsRequestCount = 0, wsMessageSentCount = 0;
@@ -84,7 +84,8 @@ static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry 
 // variable to store config values
 static int cfgGroupByteCount, cfgGroupCount;
 static int cfgCacheByteCount, cfgCacheItemMaxSizeKbytes, cfgCacheAutoRefreshFlag, cfgCacheTimeoutSeconds, cfgCacheMethodCount;
-static int cfgSubscribeItemMaxSizeKbytes, cfgCacheItemMaxCount, cfgSubscribeTimeoutSeconds, cfgSubscribeMethodCount;
+static int cfgSubscriptionByteCount, cfgSubscribeItemMaxSizeKbytes, cfgCacheItemMaxCount, cfgSubscribeTimeoutSeconds, cfgSubscribeMethodCount;
+static int cfgAreByteCount, cfgAreItemMaxSizeKbytes, cfgAreItemMaxCount, cfgAreTimeoutSeconds, cfgAreMethodCount;
 
 static int cacheScanPtr = 0;
 
@@ -98,6 +99,7 @@ struct CacheItem {
 	int oldMsgId;
 	int msgId;
 	char methodNameParamHashVal[20];
+	bood areFlag;
 	time_t refreshTimeCount;
 	time_t accessTimeCount;
 	int accessCount;
@@ -482,7 +484,7 @@ public:
 
 				// subscribe
 				shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount;
-				shm_read_count += 4; // cache subscribe byte count
+				cfgSubscriptionByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				cfgSubscribeItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				cfgCacheItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				cfgSubscribeTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
@@ -491,6 +493,19 @@ public:
 				if (cfgSubscribeItemMaxSizeKbytes <= 0) cfgSubscribeItemMaxSizeKbytes = 1024;		// default
 				if (cfgCacheItemMaxCount <= 0) cfgCacheItemMaxCount = 512;		// default
 				if (cfgSubscribeTimeoutSeconds <= 0) cfgSubscribeTimeoutSeconds = 3600*4;	// default
+
+				// auto-refresh exception
+				shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount + cfgSubscriptionByteCount;
+				cfgAreByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgAreItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgAreItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgAreTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgAreMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+				if (cfgAreItemMaxSizeKbytes <= 0) cfgAreItemMaxSizeKbytes = 1024;		// default
+				if (cfgAreItemMaxCount <= 0) cfgAreItemMaxCount = 512;		// default
+				if (cfgAreTimeoutSeconds <= 0) cfgAreTimeoutSeconds = 3600*4;	// default
+
 				shmdt(shm_str);
 			}
 
@@ -514,7 +529,6 @@ public:
 
 		// will check 50 per every time
 		int start = 0, end = itemCount;
-/*
 		if ((itemCount-cacheScanPtr) >= 50)
 		{
 			start = cacheScanPtr;
@@ -527,14 +541,14 @@ public:
 			end = itemCount;
 			cacheScanPtr = 0;
 		}
-*/		
+
 		for (int i = start; i < end; i++)
 		{
 			int accessDiff = (int)(currSeconds - gCacheItemList[i].accessTimeCount);
 			int refreshDiff = (int)(currSeconds - gCacheItemList[i].refreshTimeCount);
 			if (!gCacheItemList[i].subscriptionFlag)
 			{
-				if (accessDiff > ACCESS_TIME_LIMIT)
+				if ((gCacheItemList[i].areFlag == false) && (accessDiff > ACCESS_TIME_LIMIT))
 				{
 					gCacheItemList[i].accessCount--;
 					if (gCacheItemList[i].accessCount <= 0)
@@ -619,7 +633,7 @@ public:
 		wsSubscriptionItemCount = subscriptionItemCount;
 	}
 
-	void registerCacheItem(const ZhttpRequestPacket &clientPacket, QByteArray clientId, int msgId, char *methodNameParamsHashVal, bool subcriptionFlag, const QByteArray &instanceAddress)
+	void registerCacheItem(const ZhttpRequestPacket &clientPacket, QByteArray clientId, int msgId, char *methodNameHashVal, char *methodNameParamsHashVal, bool subcriptionFlag, const QByteArray &instanceAddress)
 	{
 		// create new cache item
 		struct CacheItem cacheItem;
@@ -630,6 +644,27 @@ public:
 		cacheItem.accessCount = 1;
 		cacheItem.cachedFlag = false;
 		cacheItem.subscriptionFlag = subcriptionFlag;
+
+		//// search auto-refresh exception method list
+		// open shared memory
+		key_t shm_key = ftok("shmfile",65);
+		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
+		cacheItem.areFlag = false;
+		int shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount + cfgSubscriptionByteCount + 20;
+		for (int i = 0; i < cfgAreMethodCount; i++)
+		{
+			char areMethodNameHash[20];
+			memcpy(areMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
+				
+			if (!memcmp(areMethodNameHash, methodNameHashVal, 20))
+			{
+				cacheItem.areFlag = true;
+				break;
+			}
+		}
+		shmdt(shm_str);
 
 		// save the request packet with new id
 		cacheItem.oldMsgId = msgId;
@@ -1090,7 +1125,7 @@ public:
 					if (cacheItemCount <= cfgCacheItemMaxCount)
 					{
 						// Register new cache item
-						registerCacheItem(packet, packet.ids[0].id, msgBody.id, paramsHash, false, instanceAddress);
+						registerCacheItem(packet, packet.ids[0].id, msgBody.id, methodNameHash, paramsHash, false, instanceAddress);
 						log_debug("[CACHEITEM] Registered New Cache Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 						// add ws Cache insert
@@ -1176,7 +1211,7 @@ public:
 					if (gCacheItemList.count() <= cfgCacheItemMaxCount)
 					{
 						// Register new cache item
-						registerCacheItem(packet, packet.ids[0].id, msgBody.id, paramsHash, true, instanceAddress);
+						registerCacheItem(packet, packet.ids[0].id, msgBody.id, methodNameHash, paramsHash, true, instanceAddress);
 						log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 						// add ws Cache insert

@@ -310,8 +310,20 @@ public:
 		QStringList ws_chche_subscribe_methods = settings.value("websocket/ws_cache_subscribe_methods").toStringList();
 		long cache_subscribe_method_count = ws_chche_subscribe_methods.count();
 		cache_subscribe_byte_count += cache_subscribe_method_count*20; // for cache methods
-		
+
 		total_shm_byte_count += cache_subscribe_byte_count;
+
+		// Cache Auto Refresh Exception
+		long cache_ARE_byte_count = 4; // for cache auto refresh exception byte count
+		cache_ARE_byte_count += 4; // for cache ARE max size kbyte
+		cache_ARE_byte_count += 4; // for cache ARE item max count
+		cache_ARE_byte_count += 4; // for cache ARE timeout value
+		cache_ARE_byte_count += 4; // for cache ARE method count
+		QStringList ws_chche_ARE_methods = settings.value("websocket/ws_cache_auto_refresh_exception_methods").toStringList();
+		long cache_ARE_method_count = ws_chche_ARE_methods.count();
+		cache_ARE_byte_count += cache_ARE_method_count*20; // for cache methods
+		
+		total_shm_byte_count += cache_ARE_byte_count;
 
 		// Write to shared memory
 		long shm_write_count = 200;
@@ -401,6 +413,34 @@ public:
 		for (long i = 0; i < cache_subscribe_method_count; i++)
 		{
 			QByteArray hash = QCryptographicHash::hash(ws_chche_subscribe_methods[i].toLower().toUtf8(),QCryptographicHash::Sha1);
+			memcpy(&shm_str[shm_write_count], hash.data(), 20); shm_write_count += 20;
+		}
+
+		// Parse websocket ARE cache config
+		//////////////////////////////////////////////////////////////
+		// cache ARE byte count (4byte)
+		// cache ARE item maxsize kbytes (4byte)
+		// cache ARE item maxcount (4byte)
+		// cache ARE timeout seconds (4byte)
+		// cache ARE method count (4byte)
+		// cache ARE method1 hash (20byte)
+		// cache ARE method2 hash (20byte)
+		// ...
+		memcpy(&shm_str[shm_write_count], (char *)&cache_RE_byte_count, 4); shm_write_count += 4;
+
+		long ws_chche_ARE_item_maxsize_kbytes = (long)settings.value("websocket/ws_cache_auto_refresh_exception_item_maxsize_kbytes").toInt();
+		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_ARE_item_maxsize_kbytes, 4); shm_write_count += 4;
+
+		long ws_chche_ARE_item_maxcount = (long)settings.value("websocket/ws_cache_auto_refresh_exception_item_maxcount").toInt();
+		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_ARE_item_maxcount, 4); shm_write_count += 4;
+		
+		long ws_chche_ARE_timeout_seconds = (long)settings.value("websocket/ws_cache_auto_refresh_exception_timeout_seconds").toInt();
+		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_ARE_timeout_seconds, 4); shm_write_count += 4;
+
+		memcpy(&shm_str[shm_write_count], (char *)&cache_ARE_method_count, 4); shm_write_count += 4;
+		for (long i = 0; i < cache_ARE_method_count; i++)
+		{
+			QByteArray hash = QCryptographicHash::hash(ws_chche_ARE_methods[i].toLower().toUtf8(),QCryptographicHash::Sha1);
 			memcpy(&shm_str[shm_write_count], hash.data(), 20); shm_write_count += 20;
 		}
 
@@ -558,7 +598,7 @@ public:
 		}
 
 		log_info("started");
-/*
+
 		log_info("starting wscat child process");
 
 		pid_t pid;
@@ -585,7 +625,7 @@ public:
 			
 			exit(0);
 		}
-*/
+
 	}
 
 private slots:
