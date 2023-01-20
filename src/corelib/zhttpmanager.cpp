@@ -99,7 +99,7 @@ struct CacheItem {
 	int oldMsgId;
 	int msgId;
 	char methodNameParamHashVal[20];
-	bood areFlag;
+	bool areFlag;
 	time_t refreshTimeCount;
 	time_t accessTimeCount;
 	int accessCount;
