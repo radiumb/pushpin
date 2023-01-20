@@ -426,7 +426,7 @@ public:
 		// cache ARE method1 hash (20byte)
 		// cache ARE method2 hash (20byte)
 		// ...
-		memcpy(&shm_str[shm_write_count], (char *)&cache_RE_byte_count, 4); shm_write_count += 4;
+		memcpy(&shm_str[shm_write_count], (char *)&cache_ARE_byte_count, 4); shm_write_count += 4;
 
 		long ws_chche_ARE_item_maxsize_kbytes = (long)settings.value("websocket/ws_cache_auto_refresh_exception_item_maxsize_kbytes").toInt();
 		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_ARE_item_maxsize_kbytes, 4); shm_write_count += 4;
