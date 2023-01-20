@@ -71,21 +71,20 @@
 // needs to match the peer
 #define ZHTTP_IDS_MAX 128
 
-#define ACCESS_TIME_LIMIT	60
-
 // variable to count ws
 static long wsRequestCount = 0, wsMessageSentCount = 0;
 static long wsRpcAuthorCount = 0, wsRpcBabeCount = 0, wsRpcBeefyCount = 0, wsRpcChainCount = 0, wsRpcChildStateCount = 0;
 static long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
 static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
-static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0, wsCacheItemCount = 0, wsSubscriptionItemCount = 0;
+static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0;
+static long wsCacheItemCount = 0, wsSubscriptionItemCount = 0, wsAutoRefreshItemCount = 0, wsAREItemCount = 0;
 
 // variable to store config values
 static int cfgGroupByteCount, cfgGroupCount;
 static int cfgCacheByteCount, cfgCacheItemMaxSizeKbytes, cfgCacheAutoRefreshFlag, cfgCacheTimeoutSeconds, cfgCacheMethodCount;
 static int cfgSubscriptionByteCount, cfgSubscribeItemMaxSizeKbytes, cfgCacheItemMaxCount, cfgSubscribeTimeoutSeconds, cfgSubscribeMethodCount;
-static int cfgAreByteCount, cfgAreItemMaxSizeKbytes, cfgAreItemMaxCount, cfgAreTimeoutSeconds, cfgAreMethodCount;
+static int cfgAreByteCount, cfgAreItemMaxSizeKbytes, cfgAreItemMaxCount, cfgAccessTimeoutLimt, cfgAreMethodCount;
 
 static int cacheScanPtr = 0;
 
@@ -499,12 +498,12 @@ public:
 				cfgAreByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				cfgAreItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				cfgAreItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgAreTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+				cfgAccessTimeoutLimt = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 				cfgAreMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
 				if (cfgAreItemMaxSizeKbytes <= 0) cfgAreItemMaxSizeKbytes = 1024;		// default
 				if (cfgAreItemMaxCount <= 0) cfgAreItemMaxCount = 512;		// default
-				if (cfgAreTimeoutSeconds <= 0) cfgAreTimeoutSeconds = 3600*4;	// default
+				if (cfgAccessTimeoutLimt <= 0) cfgAccessTimeoutLimt = 30;	// default
 
 				shmdt(shm_str);
 			}
@@ -548,11 +547,13 @@ public:
 			int refreshDiff = (int)(currSeconds - gCacheItemList[i].refreshTimeCount);
 			if (!gCacheItemList[i].subscriptionFlag)
 			{
-				if ((gCacheItemList[i].areFlag == false) && (accessDiff > ACCESS_TIME_LIMIT))
+				if ((gCacheItemList[i].areFlag == false) && (accessDiff > cfgAccessTimeoutLimt))
 				{
 					gCacheItemList[i].accessCount--;
 					if (gCacheItemList[i].accessCount <= 0)
 					{
+						gCacheItemList[i].accessCount = 0;
+/*						
 						// add ws Cache expiry
 						wsCacheExpiry++;
 
@@ -561,6 +562,7 @@ public:
 						end--;
 						i--;
 						continue;
+*/
 					}
 					else
 					{
@@ -572,11 +574,14 @@ public:
 				{
 					if (cfgCacheAutoRefreshFlag != 0)
 					{
-						log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
-						gCacheItemList[i].msgId = gCacheClient.msgIdCount;
-						gCacheItemList[i].clientList.clear();
-						gCacheItemList[i].refreshTimeCount = time(NULL);
-						sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
+						if ((gCacheItemList[i].areFlag == true) || (gCacheItemList[i].accessCount > 0))
+						{
+							log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
+							gCacheItemList[i].msgId = gCacheClient.msgIdCount;
+							gCacheItemList[i].clientList.clear();
+							gCacheItemList[i].refreshTimeCount = time(NULL);
+							sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
+						}
 					}
 					else
 					{
@@ -618,11 +623,22 @@ public:
 		// count cache items
 		int cacheItemCount = 0;
 		int subscriptionItemCount = 0;
+		int autorefreshItemCount = 0;
+		int areItemCount = 0;
 		for (int i = 0; i < gCacheItemList.count(); i++)
 		{
 			if (!gCacheItemList[i].subscriptionFlag)
 			{
 				cacheItemCount++;
+				if (!gCacheItemList[i].areFlag == true)
+				{
+					areItemCount++;
+				}
+
+				if ((gCacheItemList[i].areFlag == true) || (gCacheItemList[i].accessCount > 0))
+				{
+					autorefreshItemCount++;
+				}
 			}
 			else
 			{
@@ -631,6 +647,8 @@ public:
 		}
 		wsCacheItemCount = cacheItemCount;
 		wsSubscriptionItemCount = subscriptionItemCount;
+		wsAutoRefreshItemCount = autorefreshItemCount;
+		wsAREItemCount = areItemCount;
 	}
 
 	void registerCacheItem(const ZhttpRequestPacket &clientPacket, QByteArray clientId, int msgId, char *methodNameHashVal, char *methodNameParamsHashVal, bool subcriptionFlag, const QByteArray &instanceAddress)
@@ -951,6 +969,8 @@ public:
 		memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
 		memcpy(&shm_str[120], (char *)&wsCacheItemCount, 4);
 		memcpy(&shm_str[124], (char *)&wsSubscriptionItemCount, 4);
+		memcpy(&shm_str[128], (char *)&wsAutoRefreshItemCount, 4);
+		memcpy(&shm_str[132], (char *)&wsAREItemCount, 4);
 
 		// Check packets for cache client, if so, update seq
 		if (packet.ids[0].id == gCacheClient.clientId)
