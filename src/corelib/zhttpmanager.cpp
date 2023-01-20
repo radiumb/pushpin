@@ -661,6 +661,7 @@ public:
 			if (!memcmp(areMethodNameHash, methodNameHashVal, 20))
 			{
 				cacheItem.areFlag = true;
+				log_debug("[CACHEITEM] added auto-refresh exception method");
 				break;
 			}
 		}
