@@ -87,6 +87,7 @@ static int cfgSubscriptionByteCount, cfgSubscribeItemMaxSizeKbytes, cfgCacheItem
 static int cfgAreByteCount, cfgAreItemMaxSizeKbytes, cfgAreItemMaxCount, cfgAccessTimeoutLimt, cfgAreMethodCount;
 
 static int cacheScanPtr = 0;
+static int subscriptionScanPtr = 0;
 
 // cache item struct
 struct ClientItem {
@@ -106,12 +107,13 @@ struct CacheItem {
 	ZhttpRequestPacket requestPacket;
 	QByteArray requestInstanceAddress;
 	ZhttpResponsePacket responsePacket;
-	bool subscriptionFlag;
 	QString subscriptionStr;
 	ZhttpResponsePacket subscriptionPacket;
 	QList<ClientItem> clientList;
 };
 QList<CacheItem> gCacheItemList;
+QList<CacheItem> gExpiredItemList;
+QList<CacheItem> gSubscriptionItemList;
 
 // closed client item
 struct CacheClientItem {
@@ -519,7 +521,7 @@ public:
 		}
 	}
 
-	void deleteOldCacheItem(int cacheTimeOut, int subscriptionTimeOut, int subscriptionInvalidTimeOut)
+	void deleteOldCacheItem(int cacheTimeOut)
 	{
 		// cache lookup
 		int itemCount = gCacheItemList.count();
@@ -545,113 +547,127 @@ public:
 		{
 			int accessDiff = (int)(currSeconds - gCacheItemList[i].accessTimeCount);
 			int refreshDiff = (int)(currSeconds - gCacheItemList[i].refreshTimeCount);
-			if (!gCacheItemList[i].subscriptionFlag)
+
+			if ((gCacheItemList[i].areFlag == false) && (accessDiff > cfgAccessTimeoutLimt))
 			{
-				if ((gCacheItemList[i].areFlag == false) && (accessDiff > cfgAccessTimeoutLimt))
-				{
-					gCacheItemList[i].accessCount--;
-					if (gCacheItemList[i].accessCount <= 0)
-					{
-//						gCacheItemList[i].accessCount = 0;
-						
-						// add ws Cache expiry
-						wsCacheExpiry++;
-
-						// remove cache item
-						gCacheItemList.removeAt(i);
-						end--;
-						i--;
-						continue;
-
-					}
-					else
-					{
-						gCacheItemList[i].accessTimeCount = time(NULL);
-					}
-				}
-				
-				if (refreshDiff > cacheTimeOut)
-				{
-					if (cfgCacheAutoRefreshFlag != 0)
-					{
-						if ((gCacheItemList[i].areFlag == true) || (gCacheItemList[i].accessCount > 0))
-						{
-							log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
-							gCacheItemList[i].msgId = gCacheClient.msgIdCount;
-							gCacheItemList[i].clientList.clear();
-							gCacheItemList[i].refreshTimeCount = time(NULL);
-							sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
-						}
-					}
-					else
-					{
-						// add ws Cache expiry
-						wsCacheExpiry++;
-
-						// remove cache item
-						gCacheItemList.removeAt(i);
-						end--;
-						i--;
-						continue;
-					}				
-				}
-			}
-			else
-			{
-				if ((refreshDiff > subscriptionTimeOut) && (gCacheItemList[i].clientList.count() == 0))
+				gCacheItemList[i].accessCount--;
+				if (gCacheItemList[i].accessCount <= 0)
 				{
 					// add ws Cache expiry
 					wsCacheExpiry++;
 
-					// remove subscription cache item
+					// remove cache item
 					gCacheItemList.removeAt(i);
 					end--;
 					i--;
 					continue;
-				}
 
-				if ((refreshDiff > subscriptionInvalidTimeOut) && (gCacheItemList[i].msgId == -1))
+				}
+				else
 				{
+					gCacheItemList[i].accessTimeCount = time(NULL);
+				}
+			}
+			
+			if (refreshDiff > cacheTimeOut)
+			{
+				if (cfgCacheAutoRefreshFlag != 0)
+				{
+					if ((gCacheItemList[i].areFlag == true) || (gCacheItemList[i].accessCount > 0))
+					{
+						log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
+						gCacheItemList[i].msgId = gCacheClient.msgIdCount;
+						gCacheItemList[i].clientList.clear();
+						gCacheItemList[i].refreshTimeCount = time(NULL);
+						sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
+					}
+				}
+				else
+				{
+					// add ws Cache expiry
+					wsCacheExpiry++;
+
+					// remove cache item
 					gCacheItemList.removeAt(i);
 					end--;
 					i--;
 					continue;
-				}
+				}				
 			}
 		}
 
 		// count cache items
 		int cacheItemCount = 0;
-		int subscriptionItemCount = 0;
 		int autorefreshItemCount = 0;
 		int areItemCount = 0;
 		for (int i = 0; i < gCacheItemList.count(); i++)
 		{
-			if (!gCacheItemList[i].subscriptionFlag)
+			cacheItemCount++;
+			if (gCacheItemList[i].areFlag == true)
 			{
-				cacheItemCount++;
-				if (gCacheItemList[i].areFlag == true)
-				{
-					areItemCount++;
-				}
-
-				if ((gCacheItemList[i].areFlag == true) || (gCacheItemList[i].accessCount > 0))
-				{
-					autorefreshItemCount++;
-				}
+				areItemCount++;
 			}
-			else
+
+			if ((gCacheItemList[i].areFlag == true) || (gCacheItemList[i].accessCount > 0))
 			{
-				subscriptionItemCount++;
+				autorefreshItemCount++;
 			}
 		}
 		wsCacheItemCount = cacheItemCount;
-		wsSubscriptionItemCount = subscriptionItemCount;
 		wsAutoRefreshItemCount = autorefreshItemCount;
 		wsAREItemCount = areItemCount;
 	}
 
-	void registerCacheItem(const ZhttpRequestPacket &clientPacket, QByteArray clientId, int msgId, char *methodNameHashVal, char *methodNameParamsHashVal, bool subcriptionFlag, const QByteArray &instanceAddress)
+	void deleteOldSuscriptionItem(int subscriptionTimeOut, int subscriptionInvalidTimeOut)
+	{
+		// cache lookup
+		int itemCount = gSubscriptionItemList.count();
+		// first, delete old cache items
+		time_t currSeconds = time(NULL);
+
+		// will check 50 per every time
+		int start = 0, end = itemCount;
+		if ((itemCount-subscriptionScanPtr) >= 50)
+		{
+			start = subscriptionScanPtr;
+			end = start + 50;
+			subscriptionScanPtr += 50;
+		}
+		else
+		{
+			start = subscriptionScanPtr;
+			end = itemCount;
+			subscriptionScanPtr = 0;
+		}
+
+		for (int i = start; i < end; i++)
+		{
+			if ((refreshDiff > subscriptionTimeOut) && (gSubscriptionItemList[i].clientList.count() == 0))
+			{
+				// add ws Subscription expiry
+				wsCacheExpiry++;
+
+				// remove subscription item
+				gSubscriptionItemList.removeAt(i);
+				end--;
+				i--;
+				continue;
+			}
+
+			if ((refreshDiff > subscriptionInvalidTimeOut) && (gSubscriptionItemList[i].msgId == -1))
+			{
+				gSubscriptionItemList.removeAt(i);
+				end--;
+				i--;
+				continue;
+			}
+		}
+
+		// count subscription items
+		wsSubscriptionItemCount = gSubscriptionItemList.count();
+	}
+
+	void registerCacheItem(const ZhttpRequestPacket &clientPacket, QByteArray clientId, int msgId, char *methodNameHashVal, char *methodNameParamsHashVal, const QByteArray &instanceAddress)
 	{
 		// create new cache item
 		struct CacheItem cacheItem;
@@ -661,7 +677,6 @@ public:
 		cacheItem.accessTimeCount = time(NULL);
 		cacheItem.accessCount = 1;
 		cacheItem.cachedFlag = false;
-		cacheItem.subscriptionFlag = subcriptionFlag;
 
 		//// search auto-refresh exception method list
 		// open shared memory
@@ -696,6 +711,30 @@ public:
 		cacheItem.clientList.append(clientItem);
 
 		gCacheItemList.append(cacheItem);
+	}
+
+	void registerSubscriptionItem(const ZhttpRequestPacket &clientPacket, QByteArray clientId, int msgId, char *methodNameHashVal, char *methodNameParamsHashVal, const QByteArray &instanceAddress)
+	{
+		// create new cache item
+		struct CacheItem cacheItem;
+		cacheItem.msgId = gCacheClient.msgIdCount;
+		memcpy(cacheItem.methodNameParamHashVal, methodNameParamsHashVal, 20);
+		cacheItem.refreshTimeCount = time(NULL);
+		cacheItem.accessTimeCount = time(NULL);
+		cacheItem.accessCount = 1;
+		cacheItem.cachedFlag = false;
+
+		// save the request packet with new id
+		cacheItem.oldMsgId = msgId;
+		cacheItem.requestPacket = clientPacket;
+		cacheItem.requestInstanceAddress = instanceAddress;
+		
+		struct ClientItem clientItem;
+		clientItem.msgId = msgId;
+		clientItem.clientId = clientId;
+		cacheItem.clientList.append(clientItem);
+
+		gSubscriptionItemList.append(cacheItem);
 	}
 
 	void replyCachedContent(int cacheItemId, int newMsgId, const QByteArray &newPacketId, const QByteArray &instanceAddress, int credits)
@@ -745,7 +784,7 @@ public:
 
 	void replySubscriptionContent(int cacheItemId, int newMsgId, const QByteArray &newPacketId, const QByteArray &instanceAddress, int credits)
 	{
-		ZhttpResponsePacket creditPacket = gCacheItemList[cacheItemId].responsePacket;
+		ZhttpResponsePacket creditPacket = gSubscriptionItemList[cacheItemId].responsePacket;
 		creditPacket.ids[0].id = newPacketId.data();
 		creditPacket.ids[0].seq = -1;
 		creditPacket.from = instanceAddress.data();
@@ -755,10 +794,10 @@ public:
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, creditPacket.toVariant(), "body", "%s CACHE: IN %s", "[CACHEITEM]", creditPacket.from.data());
 
-		ZhttpResponsePacket responsePacket = gCacheItemList[cacheItemId].responsePacket;
+		ZhttpResponsePacket responsePacket = gSubscriptionItemList[cacheItemId].responsePacket;
 		// replace id str
 		char oldIdStr[64], newIdStr[64];
-		qsnprintf(oldIdStr, 64, "\"id\":%d", gCacheItemList[cacheItemId].msgId);
+		qsnprintf(oldIdStr, 64, "\"id\":%d", gSubscriptionItemList[cacheItemId].msgId);
 		qsnprintf(newIdStr, 64, "\"id\":%d", newMsgId);
 		responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 
@@ -768,7 +807,7 @@ public:
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, responsePacket.toVariant(), "body", "%s CACHE: IN %s", "[CACHEITEM]", responsePacket.from.data());
 		
-		ZhttpResponsePacket subscriptionPacket = gCacheItemList[cacheItemId].subscriptionPacket;
+		ZhttpResponsePacket subscriptionPacket = gSubscriptionItemList[cacheItemId].subscriptionPacket;
 		subscriptionPacket.ids[0].id = newPacketId.data();
 		subscriptionPacket.ids[0].seq = -1;
 		subscriptionPacket.from = instanceAddress.data();
@@ -965,7 +1004,8 @@ public:
 		}
 
 		// delete old cache items
-		deleteOldCacheItem(cfgCacheTimeoutSeconds, cfgSubscribeTimeoutSeconds, 20);
+		deleteOldCacheItem(cfgCacheTimeoutSeconds);
+		deleteOldSubscriptionItem(cfgSubscribeTimeoutSeconds, 20);
 		memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
 		memcpy(&shm_str[120], (char *)&wsCacheItemCount, 4);
 		memcpy(&shm_str[124], (char *)&wsSubscriptionItemCount, 4);
@@ -989,20 +1029,20 @@ public:
 			goto OUT_STREAM_SOCK_WRITE;
 		}
 
-		// if cancel/close request, remove client from the cache client list
+		// if cancel/close request, remove client from the subscription client list
 		if ((packet.type == ZhttpRequestPacket::Cancel) || (packet.type == ZhttpRequestPacket::Close))
 		{
-			int cacheItemCount = gCacheItemList.count();
-			for (int i = 0; i < cacheItemCount; i++)
+			int subscriptionItemCount = gSubscriptionItemList.count();
+			for (int i = 0; i < subscriptionItemCount; i++)
 			{
-				for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
+				for (int j = 0; j < gSubscriptionItemList[i].clientList.count(); j++)
 				{
-					if (gCacheItemList[i].clientList[j].clientId == packet.ids[0].id)
+					if (gSubscriptionItemList[i].clientList[j].clientId == packet.ids[0].id)
 					{
-						gCacheItemList[i].clientList.removeAt(j);
+						gSubscriptionItemList[i].clientList.removeAt(j);
 						log_debug("[CACHEITEM] Deleted cached client clientId=%s, msgId=%d, subscriptionStr=%s", \
-							packet.ids[0].id.data(), gCacheItemList[i].msgId, \
-							gCacheItemList[i].subscriptionFlag ? qPrintable(gCacheItemList[i].subscriptionStr) : "NO SUBSCRIPTION");
+							packet.ids[0].id.data(), gSubscriptionItemList[i].msgId, \
+							gSubscriptionItemList[i].subscriptionFlag ? qPrintable(gSubscriptionItemList[i].subscriptionStr) : "NO SUBSCRIPTION");
 						j--;
 					}
 				}
@@ -1084,11 +1124,9 @@ public:
 			// add ws Cache lookup count
 			wsCacheLookup++;
 			memcpy(&shm_str[108], (char *)&wsCacheLookup, 4);
-			
-			// get item count
-			int cacheItemCount = gCacheItemList.count();
 
 			// Cache method Lookup
+			int cacheItemCount = gCacheItemList.count();
 			int shm_read_count = 200 + cfgGroupByteCount + 20;
 			for (int i = 0; i < cfgCacheMethodCount; i++)
 			{
@@ -1099,13 +1137,17 @@ public:
 					for (int j = 0; j < cacheItemCount; j++)
 					{
 						// if method name is in cache config list
-						if ((gCacheItemList[j].subscriptionFlag == false) && (!memcmp(gCacheItemList[j].methodNameParamHashVal, paramsHash, 20)))
+						if (!memcmp(gCacheItemList[j].methodNameParamHashVal, paramsHash, 20))
 						{
+							// add ws Cache hit
+							wsCacheHit++;
+							memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
+							gCacheItemList[j].accessCount++;
+
 							if (gCacheItemList[j].cachedFlag == true)
 							{
 								replyCachedContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(packet.body.size()));
 								log_debug("[CACHEITEM] Replied with Cache content for method \"%s\"", methodStr);
-								gCacheItemList[j].accessCount++;
 							}
 							else
 							{
@@ -1129,10 +1171,6 @@ public:
 								gCacheItemList[j].refreshTimeCount = time(NULL);
 							}
 
-							// add ws Cache hit
-							wsCacheHit++;
-							memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
-
 							// make keep alive request
 							ZhttpRequestPacket keepAlivePacket = packet;
 							keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
@@ -1143,7 +1181,7 @@ public:
 					}
 					
 					// Register cache item
-					if (wsCacheItemCount <= cfgCacheItemMaxCount)
+					if (cacheItemCount <= cfgCacheItemMaxCount)
 					{
 						// Register new cache item
 						registerCacheItem(packet, packet.ids[0].id, msgBody.id, methodNameHash, paramsHash, false, instanceAddress);
@@ -1173,6 +1211,7 @@ public:
 			}
 
 			// subscription request lookup
+			int subscriptionItemCount = gSubscriptionItemList.count();
 			shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount + 20;
 			for (int i = 0; i < cfgSubscribeMethodCount; i++)
 			{
@@ -1181,42 +1220,42 @@ public:
 					
 				if (!memcmp(cacheSubscribeMethodNameHash, methodNameHash, 20))
 				{
-					for (int j = 0; j < cacheItemCount; j++)
+					for (int j = 0; j < subscriptionItemCount; j++)
 					{
 						// if method name is in subscription config list
-						if ((gCacheItemList[j].subscriptionFlag) && (!memcmp(gCacheItemList[j].methodNameParamHashVal, paramsHash, 20)))
+						if (!memcmp(gSubscriptionItemList[j].methodNameParamHashVal, paramsHash, 20))
 						{
 							// add ws Cache hit
 							wsCacheHit++;
 							memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
+							gSubscriptionItemList[j].accessCount++;
 
-							// add client to list
-							struct ClientItem clientItem;
-							clientItem.msgId = msgBody.id;
-							clientItem.clientId = packet.ids[0].id;
-							gCacheItemList[j].clientList.append(clientItem);
-							log_debug("[CACHEITEM] Adding new client id msgId=%d clientId=%s", clientItem.msgId, (const char *)clientItem.clientId);
-							gCacheItemList[j].accessCount++;
-
-							if (gCacheItemList[j].cachedFlag == true)
+							if (gSubscriptionItemList[j].cachedFlag == true)
 							{
-/*
-								send_response_to_client(gCacheItemList[j].responsePacket, \
-									clientItem.clientId, \
-									gCacheItemList[j].msgId, \
-									clientItem.msgId);
-
-								send_response_to_client(gCacheItemList[j].subscriptionPacket, \
-									clientItem.clientId, \
-									gCacheItemList[j].msgId, \
-									clientItem.msgId);
-*/
 								replySubscriptionContent(j, msgBody.id, packet.ids[0].id, instanceAddress, static_cast<int>(packet.body.size()));
 								log_debug("[CACHEITEM] Replied with subscription cache content for method \"%s\"", methodStr);
 							}
 							else
 							{
 								log_debug("[CACHEITEM] Already subscription registered, but not added content \"%s\"", methodStr);
+							}
+
+							// add client to list
+							int k;
+							for (k = 0; k < gSubscriptionItemList[j].clientList.count(); k++)
+							{
+								if (gSubscriptionItemList[j].clientList[k].clientId == packet.ids[0].id)
+									break;
+							}
+							if (k == gSubscriptionItemList[j].clientList.count())
+							{
+								// add client to list
+								struct ClientItem clientItem;
+								clientItem.msgId = msgBody.id;
+								clientItem.clientId = packet.ids[0].id;
+								gSubscriptionItemList[j].clientList.append(clientItem);
+								log_debug("[CACHEITEM] Adding new client id msgId=%d clientId=%s", clientItem.msgId, (const char *)clientItem.clientId);
+								gSubscriptionItemList[j].refreshTimeCount = time(NULL);
 							}
 
 							// make keep alive request
@@ -1229,7 +1268,7 @@ public:
 					}
 
 					// Register new cache item
-					registerCacheItem(packet, packet.ids[0].id, msgBody.id, methodNameHash, paramsHash, true, instanceAddress);
+					registerSubscriptionItem(packet, packet.ids[0].id, msgBody.id, methodNameHash, paramsHash, instanceAddress);
 					log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 					// add ws Cache insert
@@ -1470,41 +1509,40 @@ public slots:
 				goto ZWS_CLIENT_IN_WRITE;
 			}
 
-			// get cache item list count
-			int cacheItemCount = gCacheItemList.count();
 			if (msgBody.flagSubscription == true)
 			{
-				// Search item in cache list
-				for (int i = 0; i < cacheItemCount; i++)
+				// Search item in subscription list
+				int subscriptionItemCount = gSubscriptionItemList.count();
+				for (int i = 0; i < subscriptionItemCount; i++)
 				{
-					if ((gCacheItemList[i].subscriptionFlag == true) && (gCacheItemList[i].subscriptionStr == msgBody.subscription))
+					if (gSubscriptionItemList[i].subscriptionStr == msgBody.subscription)
 					{
-						if (gCacheItemList[i].cachedFlag == false)
+						if (gSubscriptionItemList[i].cachedFlag == false)
 						{
 							// update subscription packet
-							gCacheItemList[i].subscriptionPacket = p;
+							gSubscriptionItemList[i].subscriptionPacket = p;
 
-							gCacheItemList[i].cachedFlag = true;
-							log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d subscription=%s", gCacheItemList[i].msgId, qPrintable(msgBody.subscription));
+							gSubscriptionItemList[i].cachedFlag = true;
+							log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d subscription=%s", gSubscriptionItemList[i].msgId, qPrintable(msgBody.subscription));
 							// send update subscribe to all clients
-							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
+							for (int j = 0; j < gSubscriptionItemList[i].clientList.count(); j++)
 							{
-								log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
-								send_response_to_client(gCacheItemList[i].responsePacket, \
-									gCacheItemList[i].clientList[j].clientId, \
-									gCacheItemList[i].msgId, \
-									gCacheItemList[i].clientList[j].msgId);
-								send_response_to_client(gCacheItemList[i].subscriptionPacket, \
-									gCacheItemList[i].clientList[j].clientId, \
-									gCacheItemList[i].msgId, \
-									gCacheItemList[i].clientList[j].msgId);
+								log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gSubscriptionItemList[i].clientList[j].clientId);
+								send_response_to_client(gSubscriptionItemList[i].responsePacket, \
+									gSubscriptionItemList[i].clientList[j].clientId, \
+									gSubscriptionItemList[i].msgId, \
+									gSubscriptionItemList[i].clientList[j].msgId);
+								send_response_to_client(gSubscriptionItemList[i].subscriptionPacket, \
+									gSubscriptionItemList[i].clientList[j].clientId, \
+									gSubscriptionItemList[i].msgId, \
+									gSubscriptionItemList[i].clientList[j].msgId);
 							}
 						}
 						else
 						{
 							if ((msgBody.flagBlock) || (msgBody.flagChanges))
 							{
-								ZhttpResponsePacket tempPacket = gCacheItemList[i].subscriptionPacket;
+								ZhttpResponsePacket tempPacket = gSubscriptionItemList[i].subscriptionPacket;
 
 								QString patternStr("\"block\":\"");
 								qsizetype idxStart = tempPacket.body.indexOf(patternStr);
@@ -1536,21 +1574,21 @@ public slots:
 									
 								}
 
-								gCacheItemList[i].subscriptionPacket = tempPacket;
+								gSubscriptionItemList[i].subscriptionPacket = tempPacket;
 							}
 							else // it`s for non state_subscribeStorage methods
 							{
-								gCacheItemList[i].subscriptionPacket = p;
+								gSubscriptionItemList[i].subscriptionPacket = p;
 							}
 							
 							// send update subscribe to all clients
-							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
+							for (int j = 0; j < gSubscriptionItemList[i].clientList.count(); j++)
 							{
-								log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
+								log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gSubscriptionItemList[i].clientList[j].clientId);
 								send_response_to_client(p, \
-									gCacheItemList[i].clientList[j].clientId, \
-									gCacheItemList[i].msgId, \
-									gCacheItemList[i].clientList[j].msgId);
+									gSubscriptionItemList[i].clientList[j].clientId, \
+									gSubscriptionItemList[i].msgId, \
+									gSubscriptionItemList[i].clientList[j].msgId);
 							}
 						}
 
@@ -1570,8 +1608,7 @@ public slots:
 				cacheItem.subscriptionFlag = true;
 				cacheItem.subscriptionStr = msgBody.subscription;
 				cacheItem.subscriptionPacket = p;
-				gCacheItemList.append(cacheItem);
-				cacheItemCount = gCacheItemList.count();
+				gSubscriptionItemList.append(cacheItem);
 				log_debug("[CACHEITEM] Registered Subscription for \"%s\"", qPrintable(msgBody.subscription));
 
 				// make invalild
@@ -1590,86 +1627,97 @@ public slots:
 				wsMessageSentCount++;
 				memcpy(&shm_str[8], (char *)&wsMessageSentCount, 4);
 
+				// if mult-part response ?
+				if (p.more == true)
+				{
+					// add ws Cache multi-part response
+					wsCacheMultiPart++;
+					memcpy(&shm_str[116], (char *)&wsCacheMultiPart, 4);
+
+					log_debug("[CACHEITEM] Detected multi-parts response, no cache id %d", msgBody.id);
+					// make invalid
+					p.type = ZhttpResponsePacket::KeepAlive;
+					goto ZWS_CLIENT_IN_WRITE;
+				}
+
+				int cacheItemCount = gCacheItemList.count();
 				for (int i = 0; i < cacheItemCount; i++)
 				{
 					if (gCacheItemList[i].msgId == msgBody.id)
 					{
-						if (p.more == true)
-						{
-							// add ws Cache multi-part response
-							wsCacheMultiPart++;
-							memcpy(&shm_str[116], (char *)&wsCacheMultiPart, 4);
+						gCacheItemList[i].responsePacket = p;
 
-							log_debug("[CACHEITEM] Detected multi-parts response, no cache id %d", msgBody.id);
+						gCacheItemList[i].cachedFlag = true;
+						log_debug("[CACHEITEM] Added Cache content for method id=%d", msgBody.id);
+
+						// send response to all clients
+						for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
+						{
+							log_debug("[CACHEITEM] Sending Cache content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
+							send_response_to_client(gCacheItemList[i].responsePacket, \
+								gCacheItemList[i].clientList[j].clientId, \
+								gCacheItemList[i].msgId, \
+								gCacheItemList[i].clientList[j].msgId);
 						}
-						else if ((gCacheItemList[i].subscriptionFlag == false) && (p.body.size() < (cfgCacheItemMaxSizeKbytes<<10)))
+						// make invalid
+						p.type = ZhttpResponsePacket::KeepAlive;
+						goto ZWS_CLIENT_IN_WRITE;
+					}
+				}
+
+				int subscriptionItemCount = gSubscriptionItemList.count();
+				for (int i = 0; i < subscriptionItemCount; i++)
+				{
+					if (gSubscriptionItemList[i].msgId == msgBody.id)
+					{
+						// id
+						if(!msgBody.flagResult)
 						{
-							gCacheItemList[i].responsePacket = p;
-
-							gCacheItemList[i].cachedFlag = true;
-							log_debug("[CACHEITEM] Added Cache content for method id=%d", msgBody.id);
-
-							// send response to all clients
-							for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
-							{
-								log_debug("[CACHEITEM] Sending Cache content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
-								send_response_to_client(gCacheItemList[i].responsePacket, \
-									gCacheItemList[i].clientList[j].clientId, \
-									gCacheItemList[i].msgId, \
-									gCacheItemList[i].clientList[j].msgId);
-							}
-							// make invalid
 							p.type = ZhttpResponsePacket::KeepAlive;
+							goto ZWS_CLIENT_IN_WRITE;
 						}
-						else if ((gCacheItemList[i].subscriptionFlag == true) && (p.body.size() < (cfgSubscribeItemMaxSizeKbytes<<10)))
+
+						gSubscriptionItemList[i].responsePacket = p;
+						gSubscriptionItemList[i].subscriptionStr = msgBody.result;
+						log_debug("[CACHEITEM] Registered Subscription result for \"%s\"", qPrintable(msgBody.result));
+
+						// Search in CacheItemList
+						int willRemoveItemNum = -1;
+						for (int j = 0; j < subscriptionItemCount; j++)
 						{
-							// id
-							if(!msgBody.flagResult)
+							if ((gSubscriptionItemList[j].msgId == -1) && (gSubscriptionItemList[j].subscriptionStr == msgBody.result))
 							{
-								goto ZWS_CLIENT_IN_WRITE;
+								gSubscriptionItemList[i].subscriptionPacket = gSubscriptionItemList[j].subscriptionPacket;
+								gSubscriptionItemList[i].cachedFlag = true;
+								willRemoveItemNum = j;
+								log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d result=%s", msgBody.id, qPrintable(msgBody.result));
+								break;
 							}
-
-							gCacheItemList[i].responsePacket = p;
-							gCacheItemList[i].subscriptionStr = msgBody.result;
-							log_debug("[CACHEITEM] Registered Subscription result for \"%s\"", qPrintable(msgBody.result));
-
-							// Search in CacheItemList
-							for (int j = 0; j < cacheItemCount; j++)
-							{
-								if ((gCacheItemList[j].msgId == -1) && (gCacheItemList[j].subscriptionStr == msgBody.result))
-								{
-									gCacheItemList[i].subscriptionPacket = gCacheItemList[j].subscriptionPacket;
-									gCacheItemList[i].cachedFlag = true;
-									gCacheItemList.removeAt(j);
-									cacheItemCount = gCacheItemList.count();
-									log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d result=%s", msgBody.id, qPrintable(msgBody.result));
-									break;
-								}
-							}
-
-							if (gCacheItemList[i].cachedFlag == true)
-							{
-								// send update subscribe to all clients
-								for (int j = 0; j < gCacheItemList[i].clientList.count(); j++)
-								{
-									log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gCacheItemList[i].clientList[j].clientId);
-									send_response_to_client(gCacheItemList[i].responsePacket, \
-										gCacheItemList[i].clientList[j].clientId, \
-										gCacheItemList[i].msgId, \
-										gCacheItemList[i].clientList[j].msgId);
-									send_response_to_client(gCacheItemList[i].subscriptionPacket, \
-										gCacheItemList[i].clientList[j].clientId, \
-										gCacheItemList[i].msgId, \
-										gCacheItemList[i].clientList[j].msgId);
-								}
-							}
-							// make invalid
-							p.type = ZhttpResponsePacket::KeepAlive;
 						}
-						else
+
+						if (gSubscriptionItemList[i].cachedFlag == true)
 						{
-							log_debug("[CACHEITEM] Response size exceed to cache item max size=%d kytes", gCacheItemList[i].subscriptionFlag?cfgSubscribeItemMaxSizeKbytes:cfgCacheItemMaxSizeKbytes);
+							// send update subscribe to all clients
+							for (int j = 0; j < gSubscriptionItemList[i].clientList.count(); j++)
+							{
+								log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gSubscriptionItemList[i].clientList[j].clientId);
+								send_response_to_client(gSubscriptionItemList[i].responsePacket, \
+									gSubscriptionItemList[i].clientList[j].clientId, \
+									gSubscriptionItemList[i].msgId, \
+									gSubscriptionItemList[i].clientList[j].msgId);
+								send_response_to_client(gSubscriptionItemList[i].subscriptionPacket, \
+									gSubscriptionItemList[i].clientList[j].clientId, \
+									gSubscriptionItemList[i].msgId, \
+									gSubscriptionItemList[i].clientList[j].msgId);
+							}
 						}
+						if (willRemoveItemNum >= 0)
+						{
+							gSubscriptionItemList.removeAt(willRemoveItemNum);
+						}
+												
+						// make invalid
+						p.type = ZhttpResponsePacket::KeepAlive;
 						break;
 					}
 				}
