@@ -642,6 +642,7 @@ public:
 
 		for (int i = start; i < end; i++)
 		{
+			int refreshDiff = (int)(currSeconds - gSubscriptionItemList[i].refreshTimeCount);
 			if ((refreshDiff > subscriptionTimeOut) && (gSubscriptionItemList[i].clientList.count() == 0))
 			{
 				// add ws Subscription expiry
@@ -713,7 +714,7 @@ public:
 		gCacheItemList.append(cacheItem);
 	}
 
-	void registerSubscriptionItem(const ZhttpRequestPacket &clientPacket, QByteArray clientId, int msgId, char *methodNameHashVal, char *methodNameParamsHashVal, const QByteArray &instanceAddress)
+	void registerSubscriptionItem(const ZhttpRequestPacket &clientPacket, QByteArray clientId, int msgId, char *methodNameParamsHashVal, const QByteArray &instanceAddress)
 	{
 		// create new cache item
 		struct CacheItem cacheItem;
@@ -1184,7 +1185,7 @@ public:
 					if (cacheItemCount <= cfgCacheItemMaxCount)
 					{
 						// Register new cache item
-						registerCacheItem(packet, packet.ids[0].id, msgBody.id, methodNameHash, paramsHash, false, instanceAddress);
+						registerCacheItem(packet, packet.ids[0].id, msgBody.id, methodNameHash, paramsHash, instanceAddress);
 						log_debug("[CACHEITEM] Registered New Cache Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 						// add ws Cache insert
@@ -1268,7 +1269,7 @@ public:
 					}
 
 					// Register new cache item
-					registerSubscriptionItem(packet, packet.ids[0].id, msgBody.id, methodNameHash, paramsHash, instanceAddress);
+					registerSubscriptionItem(packet, packet.ids[0].id, msgBody.id, paramsHash, instanceAddress);
 					log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 					// add ws Cache insert
