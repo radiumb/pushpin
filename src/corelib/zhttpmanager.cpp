@@ -115,6 +115,8 @@ QList<CacheItem> gCacheItemList;
 QList<CacheItem> gExpiredItemList;
 QList<CacheItem> gSubscriptionItemList;
 
+QList<ClientItem> gClientList;
+
 // closed client item
 struct CacheClientItem {
 	bool initialized;
@@ -1048,6 +1050,18 @@ public:
 					}
 				}
 			}
+
+			// delete client from gClientList
+			int clientCount = gClientList.count();
+			for (int i = 0; i < clientCount; i++)
+			{
+				if (gClientList[i].clientId == packet.ids[0].id)
+				{
+					gClientList.removeAt(i);
+					i--;
+					clientCount--;
+				}
+			}
 		}
 		else if ((packet.type == ZhttpRequestPacket::Credit) && (gCacheClient.creditCount > 0))
 		{
@@ -1474,9 +1488,28 @@ public slots:
 		int shmid = shmget(key,0,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shmid,(void*)0,0);
 
-		// Cache
-		if (p.ids[0].id == gCacheClient.clientId)
+		
+		if ((p.code == 101) && (p.ids[0].id != gCacheClient.clientId))
 		{
+			QByteArray clientId = p.ids[0].id;
+			
+			int k;
+			for (k = 0; k < gClientList.count(); k++)
+			{
+				if (clientId == gClientList.clientId)
+					break;
+			}
+			if (k == gClientList.count())
+			{
+				// Add to client list
+				struct ClientItem clientItem;
+				clientItem.clientId = clientId;
+				gClientList.append(clientItem);
+			}
+		}
+		else if (p.ids[0].id == gCacheClient.clientId)
+		{
+			// Cache
 			if (gCacheClient.initialized == false)
 			{
 				if (p.code == 101)
