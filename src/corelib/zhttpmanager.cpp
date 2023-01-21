@@ -618,7 +618,7 @@ public:
 		wsAREItemCount = areItemCount;
 	}
 
-	void deleteOldSuscriptionItem(int subscriptionTimeOut, int subscriptionInvalidTimeOut)
+	void deleteOldSubscriptionItem(int subscriptionTimeOut, int subscriptionInvalidTimeOut)
 	{
 		// cache lookup
 		int itemCount = gSubscriptionItemList.count();
@@ -1042,7 +1042,7 @@ public:
 						gSubscriptionItemList[i].clientList.removeAt(j);
 						log_debug("[CACHEITEM] Deleted cached client clientId=%s, msgId=%d, subscriptionStr=%s", \
 							packet.ids[0].id.data(), gSubscriptionItemList[i].msgId, \
-							gSubscriptionItemList[i].subscriptionFlag ? qPrintable(gSubscriptionItemList[i].subscriptionStr) : "NO SUBSCRIPTION");
+							gSubscriptionItemList[i].subscriptionStr);
 						j--;
 					}
 				}
@@ -1605,7 +1605,6 @@ public slots:
 				cacheItem.accessTimeCount = time(NULL);
 				cacheItem.accessCount = 1;
 				cacheItem.cachedFlag = false;
-				cacheItem.subscriptionFlag = true;
 				cacheItem.subscriptionStr = msgBody.subscription;
 				cacheItem.subscriptionPacket = p;
 				gSubscriptionItemList.append(cacheItem);
