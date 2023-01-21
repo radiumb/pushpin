@@ -1496,7 +1496,7 @@ public slots:
 			int k;
 			for (k = 0; k < gClientList.count(); k++)
 			{
-				if (clientId == gClientList.clientId)
+				if (clientId == gClientList[k].clientId)
 					break;
 			}
 			if (k == gClientList.count())
