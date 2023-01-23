@@ -1157,7 +1157,7 @@ public:
 							// add ws Cache hit
 							wsCacheHit++;
 							memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
-							gCacheItemList[j].accessCount++;
+							gCacheItemList[j].accessCount = 2;
 
 							if (gCacheItemList[j].cachedFlag == true)
 							{
@@ -1243,7 +1243,7 @@ public:
 							// add ws Cache hit
 							wsCacheHit++;
 							memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
-							gSubscriptionItemList[j].accessCount++;
+							gSubscriptionItemList[j].accessCount = 2;
 
 							if (gSubscriptionItemList[j].cachedFlag == true)
 							{
