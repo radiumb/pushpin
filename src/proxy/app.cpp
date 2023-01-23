@@ -258,7 +258,7 @@ public:
 
 		if(!args.ipcPrefix.isEmpty())
 			settings.setIpcPrefix(args.ipcPrefix);
-
+		
 		// Parse websocket count group
 		//////////////////////////////////////////////////////////////
 		// group byte count (4byte)
@@ -445,6 +445,19 @@ public:
 		}
 
 		shmdt(shm_str);
+
+		// read cache client command strng
+		QString cacheClientBin = "";
+		if(settings.contains("websocket/cache_client_bin"))
+			cacheClientBin = settings.value("websocket/cache_client_bin").toString();
+		// read cache client command option
+		QString cacheClientOption = "";
+		if(settings.contains("websocket/cache_client_option"))
+			cacheClientOption = settings.value("websocket/cache_client_option").toString();
+		// read cache client command url
+		QString cacheClientUrl = "";
+		if(settings.contains("websocket/cache_client_url"))
+			cacheClientUrl = settings.value("websocket/cache_client_url").toString();
 		
 		QStringList services = settings.value("runner/services").toStringList();
 
@@ -610,19 +623,11 @@ public:
 		}
 		else if (pid == 0){
 			// create wscat
-			char * argv_list1[] = {(char *)"/bin/wscat", (char *)"-c", (char *)"ws://localhost:7999/", NULL};
+			char * argv_list1[] = {cacheClientBin.data(), cacheClientOption.data(), cacheClientUrl.data(), NULL};
 
-			execve("/bin/wscat",argv_list1, NULL);
+			execve(cacheClientBin.data(),argv_list1, NULL);
 			log_debug("failed to start wscat error=%d", errno);
 
-			if (errno == 2)
-			{
-				// create wscat
-				char * argv_list2[] = {(char *)"/usr/local/bin/wscat", (char *)"-c", (char *)"ws://localhost:7999/", NULL};
-				execve("/usr/local/bin/wscat",argv_list2, NULL);
-				log_debug("failed to start wscat error=%d", errno);
-			}
-			
 			exit(0);
 		}
 
