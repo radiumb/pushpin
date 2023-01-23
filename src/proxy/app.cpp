@@ -625,7 +625,7 @@ public:
 			// create wscat
 			char * argv_list1[] = {cacheClientBin.toLocal8Bit().data(), cacheClientOption.toLocal8Bit().data(), cacheClientUrl.toLocal8Bit().data(), NULL};
 
-			execve(cacheClientBin.data(),argv_list1, NULL);
+			execve(cacheClientBin.toLocal8Bit().data(),argv_list1, NULL);
 			log_debug("failed to start wscat error=%d", errno);
 
 			exit(0);
