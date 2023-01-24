@@ -739,9 +739,10 @@ public:
 		// save the request packet with new id
 		cacheItem.oldMsgId = msgId;
 		cacheItem.requestPacket = clientPacket;
+		cacheItem.requestInstanceAddress = instanceAddress;
 
 		// unsubscribe request
-		cacheItem.unsubscribeFlag = -1;
+		cacheItem.unsubscribeMsgId = -1;
 
 
 		struct ClientItem clientItem;
@@ -1357,7 +1358,7 @@ public:
 			log_debug("[CACHE ITME] not hit method = %s", methodStr);
 			if (!strcmp(methodStr, "state_unsubscribestorage") && (msgBody.flagId) && (msgBody.flagMethod) && (msgBody.flagParams))
 			{
-				int diffLength = msgBody.flagParams.length() - msgBody.flagMethod.length();
+				int diffLength = msgBody.params.length() - msgBody.method.length();
 				if (diffLength > 0)
 				{
 					QString paramStr = msgBody.params.right(diffLength);
