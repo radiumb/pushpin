@@ -110,6 +110,8 @@ struct CacheItem {
 	ZhttpResponsePacket responsePacket;
 	QString subscriptionStr;
 	ZhttpResponsePacket subscriptionPacket;
+	int unsubscribeMsgId;
+	ZhttpRequestPacket unsubscribePacket;
 	QList<ClientItem> clientList;
 };
 QList<CacheItem> gCacheItemList;
@@ -651,6 +653,12 @@ public:
 				// add ws Subscription expiry
 				wsSubscriptionExpiry++;
 
+				// send unsubscribe request
+				if (gSubscriptionItemList[i].unsubscribeMsgId != -1)
+				{
+					sendUnsubscribeRequest(gSubscriptionItemList[i].unsubscribePacket, gSubscriptionItemList[i].unsubscribeMsgId, gSubscriptionItemList[i].requestInstanceAddress);
+				}
+
 				// remove subscription item
 				gSubscriptionItemList.removeAt(i);
 				end--;
@@ -731,8 +739,11 @@ public:
 		// save the request packet with new id
 		cacheItem.oldMsgId = msgId;
 		cacheItem.requestPacket = clientPacket;
-		cacheItem.requestInstanceAddress = instanceAddress;
-		
+
+		// unsubscribe request
+		cacheItem.unsubscribeFlag = -1;
+
+
 		struct ClientItem clientItem;
 		clientItem.msgId = msgId;
 		clientItem.clientId = clientId;
@@ -870,7 +881,7 @@ public:
 		if(jsonData.contains("method") && jsonData["method"].type() == QVariant::String)
 		{
 			msgBody->flagMethod = true;
-			msgBody->method = jsonData["method"].toString();
+			msgBody->method = jsonData["method"].toString().toLower();
 		}
 		
 		// params
@@ -977,6 +988,34 @@ public:
 
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "%s client: OUT %s", "NewCacheClientRequest", instanceAddress.data(), tempPacket.type);
+
+		QList<QByteArray> tmpMsg;
+		tmpMsg += instanceAddress;
+		tmpMsg += QByteArray();
+		tmpMsg += tmpBuf;
+		client_out_stream_sock->write(tmpMsg);
+
+	}
+
+	void sendUnsubscribeRequest(const ZhttpRequestPacket &packet, int oldMsgId, const QByteArray &instanceAddress)
+	{
+		// Create new packet by cache client
+		ZhttpRequestPacket tempPacket = packet;
+		tempPacket.ids[0].id = gCacheClient.clientId; // id
+		tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
+		gCacheClient.seqCount++;
+		// message id
+		char oldIdStr[64], newIdStr[64];
+		qsnprintf(oldIdStr, 64, "\"id\":%d", oldMsgId);
+		qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClient.msgIdCount);
+		gCacheClient.msgIdCount++;
+		tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+
+		QVariant vTempPacket = tempPacket.toVariant();
+		QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
+
+		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "%s client: OUT %s", "UnsubscribeRequest", instanceAddress.data(), tempPacket.type);
 
 		QList<QByteArray> tmpMsg;
 		tmpMsg += instanceAddress;
@@ -1316,6 +1355,39 @@ public:
 
 			// log unhitted method
 			log_debug("[CACHE ITME] not hit method = %s", methodStr);
+			if (!strcmp(methodStr, "state_unsubscribestorage") && (msgBody.flagId) && (msgBody.flagMethod) && (msgBody.flagParams))
+			{
+				int diffLength = msgBody.flagParams.length() - msgBody.flagMethod.length();
+				if (diffLength > 0)
+				{
+					QString paramStr = msgBody.params.right(diffLength);
+					subscriptionItemCount = gSubscriptionItemList.count();
+					for (int i = 0; i < subscriptionItemCount; i++)
+					{
+						if (gSubscriptionItemList[i].subscriptionStr == paramStr)
+						{
+							int clientCount = gSubscriptionItemList[i].clientList.count();
+							for (int j = 0; j < clientCount; j++)
+							{
+								if (packet.ids[0].id == gSubscriptionItemList[i].clientList[j].clientId)
+								{
+									log_debug("[CACHEITEM] deleting client in subscription list %s", qPrintable(paramStr));
+									gSubscriptionItemList[i].unsubscribeMsgId = msgBody.id;
+									gSubscriptionItemList[i].unsubscribePacket = packet;
+									gSubscriptionItemList[i].refreshTimeCount = time(NULL);
+									gSubscriptionItemList[i].clientList.removeAt(j);
+									j--;
+									clientCount--;
+								}
+								
+							}
+							
+						}
+						
+					}
+				}
+			}
+			
 		}
 	
 OUT_STREAM_SOCK_WRITE:
