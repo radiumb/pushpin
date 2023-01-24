@@ -1313,6 +1313,9 @@ public:
 					goto OUT_STREAM_SOCK_WRITE;
 				}
 			}
+
+			// log unhitted method
+			log_debug("[CACHE ITME] not hit method = %s", methodStr);
 		}
 	
 OUT_STREAM_SOCK_WRITE:
