@@ -78,7 +78,7 @@ static long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, ws
 static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
 static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsRequestMultiPart = 0;
-static long wsSubscriptionInsert = 0, wsSubscriptionHit = 0, wsSubscriptionLookup = 0, wsSubscriptionExpiry = 0, wsSubscriptionMultiPart = 0;
+static long wsSubscriptionInsert = 0, wsSubscriptionHit = 0, wsSubscriptionLookup = 0, wsSubscriptionExpiry = 0, wsResponseMultiPart = 0;
 static long wsCacheItemCount = 0, wsSubscriptionItemCount = 0, wsAutoRefreshItemCount = 0, wsAREItemCount = 0;
 
 // variable to store config values
