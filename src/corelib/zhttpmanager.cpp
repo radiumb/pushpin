@@ -650,20 +650,20 @@ public:
 			int refreshDiff = (int)(currSeconds - gSubscriptionItemList[i].refreshTimeCount);
 			if ((refreshDiff > subscriptionTimeOut) && (gSubscriptionItemList[i].clientList.count() == 0))
 			{
-				// add ws Subscription expiry
-				wsSubscriptionExpiry++;
-
 				// send unsubscribe request
 				if (gSubscriptionItemList[i].unsubscribeMsgId != -1)
 				{
-					sendUnsubscribeRequest(gSubscriptionItemList[i].unsubscribePacket, gSubscriptionItemList[i].unsubscribeMsgId, gSubscriptionItemList[i].requestInstanceAddress);
-				}
+					// add ws Subscription expiry
+					wsSubscriptionExpiry++;
 
-				// remove subscription item
-				gSubscriptionItemList.removeAt(i);
-				end--;
-				i--;
-				continue;
+					sendUnsubscribeRequest(gSubscriptionItemList[i].unsubscribePacket, gSubscriptionItemList[i].unsubscribeMsgId, gSubscriptionItemList[i].requestInstanceAddress);
+
+					// remove subscription item
+					gSubscriptionItemList.removeAt(i);
+					end--;
+					i--;
+					continue;
+				}
 			}
 
 			if ((refreshDiff > subscriptionInvalidTimeOut) && (gSubscriptionItemList[i].msgId == -1))
