@@ -281,7 +281,12 @@ public:
 			wsCacheHit, 
 			wsCacheLookup,
 			wsCacheExpiry,
-			wsCacheMultiPart,
+			wsRequestMultiPart,
+			wsSubscriptionInsert, 
+			wsSubscriptionHit, 
+			wsSubscriptionLookup,
+			wsSubscriptionExpiry,
+			wsResponseMultiPart,
 			wsCacheItemCount,
 			wsSubscriptionItemCount,
 			wsAutoRefreshItemCount,
@@ -401,7 +406,12 @@ public:
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheHit, "cache_hit", "counter", "Number of websocket Cache hit event");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheLookup, "cache_lookup", "counter", "Number of websocket Cache lookup event");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheExpiry, "cache_expiry", "counter", "Number of websocket Cache expiry event");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheMultiPart, "cache_multi_part", "counter", "Number of websocket Cache detected multi-part response");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRequestMultiPart, "request_multi_part", "counter", "Number of websocket Cache detected multi-part request");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsSubscriptionInsert, "subscription_insert", "counter", "Number of websocket Subscripion insert event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsSubscriptionHit, "subscription_hit", "counter", "Number of websocket Subscripion hit event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsSubscriptionLookup, "subscription_lookup", "counter", "Number of websocket Subscripion lookup event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsSubscriptionExpiry, "subscription_expiry", "counter", "Number of websocket Subscripion expiry event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsResponseMultiPart, "response_multi_part", "counter", "Number of websocket Subscripion detected multi-part response");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheItemCount, "cache_item_count", "counter", "Number of websocket Cache items");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsSubscriptionItemCount, "subscription_item_count", "counter", "Number of websocket Subscription items");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsAutoRefreshItemCount, "auto_refresh_item_count", "counter", "Number of websocket Auto-Refresh items");
@@ -1233,7 +1243,8 @@ private slots:
 			long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
 			long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 			long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
-			long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0;
+			long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsRequestMultiPart = 0;
+			long wsSubscriptionInsert = 0, wsSubscriptionHit = 0, wsSubscriptionLookup = 0, wsSubscriptionExpiry = 0, wsResponseMultiPart = 0;
 			long wsCacheItemCount = 0, wsSubscriptionItemCount = 0, wsAutoRefreshItemCount = 0, wsAREItemCount = 0;
 
 			// read shared memory
@@ -1267,11 +1278,16 @@ private slots:
 			wsCacheHit = *(long *)&str[104];
 			wsCacheLookup = *(long *)&str[108];
 			wsCacheExpiry = *(long *)&str[112];
-			wsCacheMultiPart = *(long *)&str[116];
-			wsCacheItemCount = *(long *)&str[120];
-			wsSubscriptionItemCount = *(long *)&str[124];
-			wsAutoRefreshItemCount = *(long *)&str[128];
-			wsAREItemCount = *(long *)&str[132];
+			wsRequestMultiPart = *(long *)&str[116];
+			wsSubscriptionInsert = *(long *)&str[120];
+			wsSubscriptionHit = *(long *)&str[124];
+			wsSubscriptionLookup = *(long *)&str[128];
+			wsSubscriptionExpiry = *(long *)&str[132];
+			wsResponseMultiPart = *(long *)&str[136];
+			wsCacheItemCount = *(long *)&str[140];
+			wsSubscriptionItemCount = *(long *)&str[144];
+			wsAutoRefreshItemCount = *(long *)&str[148];
+			wsAREItemCount = *(long *)&str[152];
 			shmdt(str);
 			//shmctl(shmid,IPC_RMID,NULL);
 
@@ -1309,7 +1325,12 @@ private slots:
 				case PrometheusMetric::wsCacheHit: value = QVariant((int)wsCacheHit); break;
 				case PrometheusMetric::wsCacheLookup: value = QVariant((int)wsCacheLookup); break;
 				case PrometheusMetric::wsCacheExpiry: value = QVariant((int)wsCacheExpiry); break;
-				case PrometheusMetric::wsCacheMultiPart: value = QVariant((int)wsCacheMultiPart); break;
+				case PrometheusMetric::wsRequestMultiPart: value = QVariant((int)wsRequestMultiPart); break;
+				case PrometheusMetric::wsSubscriptionInsert: value = QVariant((int)wsSubscriptionInsert); break;
+				case PrometheusMetric::wsSubscriptionHit: value = QVariant((int)wsSubscriptionHit); break;
+				case PrometheusMetric::wsSubscriptionLookup: value = QVariant((int)wsSubscriptionLookup); break;
+				case PrometheusMetric::wsSubscriptionExpiry: value = QVariant((int)wsSubscriptionExpiry); break;
+				case PrometheusMetric::wsResponseMultiPart: value = QVariant((int)wsResponseMultiPart); break;
 				case PrometheusMetric::wsCacheItemCount: value = QVariant((int)wsCacheItemCount); break;
 				case PrometheusMetric::wsSubscriptionItemCount: value = QVariant((int)wsSubscriptionItemCount); break;
 				case PrometheusMetric::wsAutoRefreshItemCount: value = QVariant((int)wsAutoRefreshItemCount); break;

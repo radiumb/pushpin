@@ -77,7 +77,8 @@ static long wsRpcAuthorCount = 0, wsRpcBabeCount = 0, wsRpcBeefyCount = 0, wsRpc
 static long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
 static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
 static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
-static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsCacheMultiPart = 0;
+static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsRequestMultiPart = 0;
+static long wsSubscriptionInsert = 0, wsSubscriptionHit = 0, wsSubscriptionLookup = 0, wsSubscriptionExpiry = 0, wsSubscriptionMultiPart = 0;
 static long wsCacheItemCount = 0, wsSubscriptionItemCount = 0, wsAutoRefreshItemCount = 0, wsAREItemCount = 0;
 
 // variable to store config values
@@ -648,7 +649,7 @@ public:
 			if ((refreshDiff > subscriptionTimeOut) && (gSubscriptionItemList[i].clientList.count() == 0))
 			{
 				// add ws Subscription expiry
-				wsCacheExpiry++;
+				wsSubscriptionExpiry++;
 
 				// remove subscription item
 				gSubscriptionItemList.removeAt(i);
@@ -1010,10 +1011,11 @@ public:
 		deleteOldCacheItem(cfgCacheTimeoutSeconds);
 		deleteOldSubscriptionItem(cfgSubscribeTimeoutSeconds, 20);
 		memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
-		memcpy(&shm_str[120], (char *)&wsCacheItemCount, 4);
-		memcpy(&shm_str[124], (char *)&wsSubscriptionItemCount, 4);
-		memcpy(&shm_str[128], (char *)&wsAutoRefreshItemCount, 4);
-		memcpy(&shm_str[132], (char *)&wsAREItemCount, 4);
+		memcpy(&shm_str[132], (char *)&wsSubscriptionExpiry, 4);
+		memcpy(&shm_str[140], (char *)&wsCacheItemCount, 4);
+		memcpy(&shm_str[144], (char *)&wsSubscriptionItemCount, 4);
+		memcpy(&shm_str[148], (char *)&wsAutoRefreshItemCount, 4);
+		memcpy(&shm_str[152], (char *)&wsAREItemCount, 4);
 
 		// Check packets for cache client, if so, update seq
 		if (packet.ids[0].id == gCacheClient.clientId)
@@ -1096,8 +1098,8 @@ public:
 			if (packet.more == true)
 			{
 				// add ws Cache multi-part request
-				wsCacheMultiPart++;
-				memcpy(&shm_str[116], (char *)&wsCacheMultiPart, 4);
+				wsRequestMultiPart++;
+				memcpy(&shm_str[116], (char *)&wsRequestMultiPart, 4);
 
 				log_debug("[CACHEITEM] Detected multi-parts request");
 				goto OUT_STREAM_SOCK_WRITE;
@@ -1241,8 +1243,8 @@ public:
 						if (!memcmp(gSubscriptionItemList[j].methodNameParamHashVal, paramsHash, 20))
 						{
 							// add ws Cache hit
-							wsCacheHit++;
-							memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
+							wsSubscriptionHit++;
+							memcpy(&shm_str[124], (char *)&wsSubscriptionHit, 4);
 							gSubscriptionItemList[j].accessCount = 2;
 
 							if (gSubscriptionItemList[j].cachedFlag == true)
@@ -1287,8 +1289,8 @@ public:
 					log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 					// add ws Cache insert
-					wsCacheInsert++;
-					memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
+					wsSubscriptionInsert++;
+					memcpy(&shm_str[120], (char *)&wsSubscriptionInsert, 4);
 
 					// Send new client cache request packet
 					sendNewCacheClientRequest(packet, msgBody.id, instanceAddress);
@@ -1664,8 +1666,8 @@ public slots:
 				if (p.more == true)
 				{
 					// add ws Cache multi-part response
-					wsCacheMultiPart++;
-					memcpy(&shm_str[116], (char *)&wsCacheMultiPart, 4);
+					wsResponseMultiPart++;
+					memcpy(&shm_str[136], (char *)&wsResponseMultiPart, 4);
 
 					log_debug("[CACHEITEM] Detected multi-parts response, no cache id %d", msgBody.id);
 					// make invalid
