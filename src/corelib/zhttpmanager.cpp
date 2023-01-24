@@ -1139,9 +1139,19 @@ public:
 			memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
 			
 			// add ws Cache lookup count
-			wsCacheLookup++;
-			memcpy(&shm_str[108], (char *)&wsCacheLookup, 4);
-
+			char *pch;
+			pch = strstr(methodStr, "_subscribe");
+			if (pch == NULL)
+			{
+				wsCacheLookup++;
+				memcpy(&shm_str[108], (char *)&wsCacheLookup, 4);
+			}
+			else
+			{
+				wsSubscriptionLookup++;
+				memcpy(&shm_str[128], (char *)&wsSubscriptionLookup, 4);
+			}
+			
 			// Cache method Lookup
 			int cacheItemCount = gCacheItemList.count();
 			int shm_read_count = 200 + cfgGroupByteCount + 20;
