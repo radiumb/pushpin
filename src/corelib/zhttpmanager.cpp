@@ -462,7 +462,7 @@ public:
 				QByteArray headerKey = QByteArray("Socket-Owner");
 				if (packet.headers.contains(headerKey))
 				{
-					QByteArray headerValue = packet.headers.get(QByteArray("Socket-Owner"));
+					QByteArray headerValue = packet.headers.get(headerKey);
 					if (headerValue == QByteArray("Cache_Client"))
 					{
 						gCacheClient.initialized = false;
