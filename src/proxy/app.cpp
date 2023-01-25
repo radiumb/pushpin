@@ -622,9 +622,9 @@ public:
 			log_debug("can't fork to start wscat");
 		}
 		else if (pid == 0){
-			char *bin = cacheClientBin.toLocal8Bit().data();
+			char *bin = cacheClientBin.toStdString().c_str();
 			log_debug("sdfasdf %s", bin);
-			char *option = cacheClientOption.toLocal8Bit().data();
+			char *option = cacheClientOption.toStdString().c_str();
 			log_debug("sdfasdf %s", option);
 			QStringList optionList = cacheClientOption.split(" ");
 			char * argv_list1[20];
@@ -641,7 +641,7 @@ public:
 		
 			for (int i = 0; i < optionList.length(); i++)
 			{
-				argv_list1[i+1] = optionList[i].toLocal8Bit().data();
+				argv_list1[i+1] = optionList[i].toStdString().c_str();
 				log_debug(argv_list1[i+1]);
 			}
 			
