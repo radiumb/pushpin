@@ -630,7 +630,7 @@ public:
 			log_debug(option);
 
 			QStringList optionList = cacheClientOption.split(" ");
-			char * argv_list1[] = new char *[optionList.length()+2];
+			char ** argv_list1 = new char *[optionList.length()+2];
 			argv_list1[0] = bin;
 		
 			for (int i = 0; i < optionList.length(); i++)
