@@ -627,26 +627,19 @@ public:
 			log_debug(bin);
 			char *option = new char[cacheClientOption.length() + 1];
 			strcpy(option, cacheClientOption.toStdString().c_str());
-			log_debug(bin);
+			log_debug(option);
 
 			QStringList optionList = cacheClientOption.split(" ");
-			char * argv_list1[20];
-			for (int i = 0; i < 20; i++)
-			{
-				argv_list1[i] = NULL;
-			}
-			argv_list1[0] = (char *)bin;
-			if (optionList.length() > 18)
-			{
-				log_info("[CacheClient] Too many option in config list");
-				exit(0);	
-			}
+			char * argv_list1[] = new char *[optionList.length()+2];
+			argv_list1[0] = bin;
 		
 			for (int i = 0; i < optionList.length(); i++)
 			{
-				argv_list1[i+1] = (char *)optionList[i].toStdString().c_str();
+				argv_list1[i+1] = new char[optionList[i].length() + 1];
+				strcpy(argv_list1[i+1], optionList[i].toStdString().c_str());
 				log_debug(argv_list1[i+1]);
 			}
+			argv_list1[optionList.length()+1] = NULL;
 			
 			// create wscat
 			//char * argv_list1[] = {bin, "-H", "asdf:qwer", "-c", "ws://localhost:7999/ws", NULL};
