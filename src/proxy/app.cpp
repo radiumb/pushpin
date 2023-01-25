@@ -622,10 +622,13 @@ public:
 			log_debug("can't fork to start wscat");
 		}
 		else if (pid == 0){
-			const char *bin = cacheClientBin.toStdString().c_str();
-			log_debug("sdfasdf %s", bin);
-			const char *option = cacheClientOption.toStdString().c_str();
-			log_debug("sdfasdf %s", option);
+			char *bin = new char[acheClientBin.length() + 1];
+			strcpy(bin, maquina.toStdString().c_str());
+			log_debug(bin);
+			char *option = new char[cacheClientOption.length() + 1];
+			strcpy(option, cacheClientOption.toStdString().c_str());
+			log_debug(bin);
+
 			QStringList optionList = cacheClientOption.split(" ");
 			char * argv_list1[20];
 			for (int i = 0; i < 20; i++)
