@@ -623,9 +623,9 @@ public:
 		}
 		else if (pid == 0){
 			char *bin = cacheClientBin.toLocal8Bit().data();
-			log_debug(bin);
+			log_debug("sdfasdf %s", bin);
 			char *option = cacheClientOption.toLocal8Bit().data();
-			
+			log_debug("sdfasdf %s", option);
 			QStringList optionList = cacheClientOption.split(" ");
 			char * argv_list1[20];
 			for (int i = 0; i < 20; i++)
