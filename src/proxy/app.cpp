@@ -623,11 +623,13 @@ public:
 		}
 		else if (pid == 0){
 			char *option = cacheClientOption.toLocal8Bit().data();
+			char *newenviron[] = { NULL };
+
 			log_debug(option);
 			// create wscat
-			char * argv_list1[] = {NULL, option, NULL};
+			char * argv_list1[] = {cacheClientBin.toLocal8Bit().data(), option, NULL};
 
-			execve(cacheClientBin.toLocal8Bit().data(),argv_list1, NULL);
+			execve(cacheClientBin.toLocal8Bit().data(),argv_list1, newenviron);
 			log_debug("failed to start wscat error=%d", errno);
 
 			exit(0);
