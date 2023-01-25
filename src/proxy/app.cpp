@@ -629,7 +629,7 @@ public:
 			log_debug(bin);
 			log_debug(option);
 			// create wscat
-			char * argv_list1[] = {bin, option, NULL};
+			char * argv_list1[] = {bin, "-H", "asdf:qwer", "-c", "ws://localhost:7999/ws", NULL};
 
 			execve(bin, argv_list1, newenviron);
 			log_debug("failed to start wscat error=%d", errno);
