@@ -632,7 +632,7 @@ public:
 			{
 				argv_list1[i] = NULL;
 			}
-			argv_list1[0] = bin;
+			argv_list1[0] = (char *)bin;
 			if (optionList.length() > 18)
 			{
 				log_info("[CacheClient] Too many option in config list");
