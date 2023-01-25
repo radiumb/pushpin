@@ -622,8 +622,8 @@ public:
 			log_debug("can't fork to start wscat");
 		}
 		else if (pid == 0){
-			char *bin = new char[acheClientBin.length() + 1];
-			strcpy(bin, maquina.toStdString().c_str());
+			char *bin = new char[cacheClientBin.length() + 1];
+			strcpy(bin, cacheClientBin.toStdString().c_str());
 			log_debug(bin);
 			char *option = new char[cacheClientOption.length() + 1];
 			strcpy(option, cacheClientOption.toStdString().c_str());
