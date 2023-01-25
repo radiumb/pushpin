@@ -623,14 +623,32 @@ public:
 		}
 		else if (pid == 0){
 			char *bin = cacheClientBin.toLocal8Bit().data();
+			log_debug(bin);
 			char *option = cacheClientOption.toLocal8Bit().data();
-			char *newenviron[] = { NULL };
-
-			log_debug(option);
+			
+			QStringList optionList = cacheClientOption.split(" ");
+			char * argv_list1[20];
+			for (int i = 0; i < 20; i++)
+			{
+				argv_list1[i] = NULL;
+			}
+			argv_list1[0] = bin;
+			if (optionList.length() > 18)
+			{
+				log_info("[CacheClient] Too many option in config list");
+				exit(0);	
+			}
+		
+			for (int i = 0; i < optionList.length(); i++)
+			{
+				argv_list1[i+1] = optionList[i].toLocal8Bit().data();
+				log_debug(argv_list1[i+1]);
+			}
+			
 			// create wscat
-			char * argv_list1[] = {bin, "-H", "asdf:qwer", "-c", "ws://localhost:7999/ws", NULL};
+			//char * argv_list1[] = {bin, "-H", "asdf:qwer", "-c", "ws://localhost:7999/ws", NULL};
 
-			execve(bin, argv_list1, newenviron);
+			execve(bin, argv_list1, NULL);
 			log_debug("failed to start wscat error=%d", errno);
 
 			exit(0);
