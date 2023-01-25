@@ -627,7 +627,7 @@ public:
 			const char *option = cacheClientOption.toStdString().c_str();
 			log_debug("sdfasdf %s", option);
 			QStringList optionList = cacheClientOption.split(" ");
-			const char * argv_list1[20];
+			char * argv_list1[20];
 			for (int i = 0; i < 20; i++)
 			{
 				argv_list1[i] = NULL;
@@ -641,7 +641,7 @@ public:
 		
 			for (int i = 0; i < optionList.length(); i++)
 			{
-				argv_list1[i+1] = optionList[i].toStdString().c_str();
+				argv_list1[i+1] = (char *)optionList[i].toStdString().c_str();
 				log_debug(argv_list1[i+1]);
 			}
 			
