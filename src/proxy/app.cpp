@@ -624,10 +624,8 @@ public:
 		else if (pid == 0){
 			char *bin = new char[cacheClientBin.length() + 1];
 			strcpy(bin, cacheClientBin.toStdString().c_str());
-			log_debug(bin);
 			char *option = new char[cacheClientOption.length() + 1];
 			strcpy(option, cacheClientOption.toStdString().c_str());
-			log_debug(option);
 
 			QStringList optionList = cacheClientOption.split(" ");
 			char ** argv_list1 = new char *[optionList.length()+2];
@@ -637,12 +635,11 @@ public:
 			{
 				argv_list1[i+1] = new char[optionList[i].length() + 1];
 				strcpy(argv_list1[i+1], optionList[i].toStdString().c_str());
-				log_debug(argv_list1[i+1]);
 			}
 			argv_list1[optionList.length()+1] = NULL;
 			
 			// create wscat
-			//char * argv_list1[] = {bin, "-H", "asdf:qwer", "-c", "ws://localhost:7999/ws", NULL};
+			//char * argv_list1[] = {bin, "-H", "Socket-Owner:Cache_Client", "-c", "ws://localhost:7999/ws", NULL};
 
 			execve(bin, argv_list1, NULL);
 			log_debug("failed to start wscat error=%d", errno);
