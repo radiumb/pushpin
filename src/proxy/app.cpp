@@ -622,14 +622,16 @@ public:
 			log_debug("can't fork to start wscat");
 		}
 		else if (pid == 0){
+			char *bin = cacheClientBin.toLocal8Bit().data();
 			char *option = cacheClientOption.toLocal8Bit().data();
 			char *newenviron[] = { NULL };
 
+			log_debug(bin);
 			log_debug(option);
 			// create wscat
-			char * argv_list1[] = {cacheClientBin.toLocal8Bit().data(), option, NULL};
+			char * argv_list1[] = {bin, option, NULL};
 
-			execve(cacheClientBin.toLocal8Bit().data(),argv_list1, newenviron);
+			execve(bin, argv_list1, newenviron);
 			log_debug("failed to start wscat error=%d", errno);
 
 			exit(0);
