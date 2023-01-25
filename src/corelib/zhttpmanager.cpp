@@ -457,62 +457,71 @@ public:
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 			
-			if (!strcmp(packet.uri.toEncoded().data(), "ws://localhost:7999/"))
+			if (gCacheClient.initialized == false)
 			{
-				gCacheClient.initialized = false;
-				gCacheClient.msgIdCount = 1;
-				gCacheClient.seqCount = 1;
-				gCacheClient.clientId = packet.ids[0].id;
-				log_debug("[SUBSCRIBE] %s", gCacheClient.clientId.data());
+				QByteArray headerKey = QByteArray("Socket-Owner");
+				if (packet.headers.contains(headerKey))
+				{
+					QByteArray headerValue = packet.headers.get(QByteArray("Socket-Owner"));
+					if (headerValue == QByteArray("Cache_Client"))
+					{
+						gCacheClient.initialized = false;
+						gCacheClient.msgIdCount = 1;
+						gCacheClient.seqCount = 1;
+						gCacheClient.clientId = packet.ids[0].id;
+						log_debug("[SUBSCRIBE] %s", gCacheClient.clientId.data());
 
-				//// read config values
-				// open shared memory
-				key_t shm_key = ftok("shmfile",65);
-				int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-				char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+						//// read config values
+						// open shared memory
+						key_t shm_key = ftok("shmfile",65);
+						int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+						char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
-				// group
-				int shm_read_count = 200;
-				cfgGroupByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgGroupCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						// group
+						int shm_read_count = 200;
+						cfgGroupByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgGroupCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
-				// cache
-				shm_read_count = 200 + cfgGroupByteCount;
-				cfgCacheByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgCacheItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgCacheAutoRefreshFlag = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgCacheTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgCacheMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						// cache
+						shm_read_count = 200 + cfgGroupByteCount;
+						cfgCacheByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgCacheItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgCacheAutoRefreshFlag = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgCacheTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgCacheMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
-				if (cfgCacheItemMaxSizeKbytes <= 0) cfgCacheItemMaxSizeKbytes = 1024;		// default
-				if (cfgCacheAutoRefreshFlag <= 0) cfgCacheAutoRefreshFlag = 0;		// default
-				if (cfgCacheTimeoutSeconds <= 0) cfgCacheTimeoutSeconds = 5;	// default
+						if (cfgCacheItemMaxSizeKbytes <= 0) cfgCacheItemMaxSizeKbytes = 1024;		// default
+						if (cfgCacheAutoRefreshFlag <= 0) cfgCacheAutoRefreshFlag = 0;		// default
+						if (cfgCacheTimeoutSeconds <= 0) cfgCacheTimeoutSeconds = 5;	// default
 
-				// subscribe
-				shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount;
-				cfgSubscriptionByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgSubscribeItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgCacheItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgSubscribeTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgSubscribeMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						// subscribe
+						shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount;
+						cfgSubscriptionByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgSubscribeItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgCacheItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgSubscribeTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgSubscribeMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
-				if (cfgSubscribeItemMaxSizeKbytes <= 0) cfgSubscribeItemMaxSizeKbytes = 1024;		// default
-				if (cfgCacheItemMaxCount <= 0) cfgCacheItemMaxCount = 512;		// default
-				if (cfgSubscribeTimeoutSeconds <= 0) cfgSubscribeTimeoutSeconds = 3600*4;	// default
+						if (cfgSubscribeItemMaxSizeKbytes <= 0) cfgSubscribeItemMaxSizeKbytes = 1024;		// default
+						if (cfgCacheItemMaxCount <= 0) cfgCacheItemMaxCount = 512;		// default
+						if (cfgSubscribeTimeoutSeconds <= 0) cfgSubscribeTimeoutSeconds = 3600*4;	// default
 
-				// auto-refresh exception
-				shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount + cfgSubscriptionByteCount;
-				cfgAreByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgAreItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgAreItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgAccessTimeoutLimt = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-				cfgAreMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						// auto-refresh exception
+						shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount + cfgSubscriptionByteCount;
+						cfgAreByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgAreItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgAreItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgAccessTimeoutLimt = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgAreMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
-				if (cfgAreItemMaxSizeKbytes <= 0) cfgAreItemMaxSizeKbytes = 1024;		// default
-				if (cfgAreItemMaxCount <= 0) cfgAreItemMaxCount = 512;		// default
-				if (cfgAccessTimeoutLimt <= 0) cfgAccessTimeoutLimt = 30;	// default
+						if (cfgAreItemMaxSizeKbytes <= 0) cfgAreItemMaxSizeKbytes = 1024;		// default
+						if (cfgAreItemMaxCount <= 0) cfgAreItemMaxCount = 512;		// default
+						if (cfgAccessTimeoutLimt <= 0) cfgAccessTimeoutLimt = 30;	// default
 
-				shmdt(shm_str);
+						shmdt(shm_str);
+					}
+					
+				}
 			}
 
 			client_out_sock->write(QList<QByteArray>() << buf);
