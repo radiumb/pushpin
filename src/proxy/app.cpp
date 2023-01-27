@@ -372,7 +372,7 @@ public:
 		// ...
 		memcpy(&shm_str[shm_write_count], (char *)&cache_byte_count, 4); shm_write_count += 4;
 
-		long ws_chche_item_maxsize_kbytes = (long)settings.value("websocket/ws_cache_item_maxsize_kbytes").toInt();
+		long ws_chche_item_maxsize_kbytes = (long)settings.value("websocket/ws_cache_enable_flag").toInt();
 		memcpy(&shm_str[shm_write_count], (char *)&ws_chche_item_maxsize_kbytes, 4); shm_write_count += 4;
 
 		long ws_cache_auto_refresh = (long)settings.value("websocket/ws_cache_auto_refresh").toInt();

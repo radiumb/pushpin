@@ -83,7 +83,7 @@ static long wsCacheItemCount = 0, wsSubscriptionItemCount = 0, wsAutoRefreshItem
 
 // variable to store config values
 static int cfgGroupByteCount, cfgGroupCount;
-static int cfgCacheByteCount, cfgCacheItemMaxSizeKbytes, cfgCacheAutoRefreshFlag, cfgCacheTimeoutSeconds, cfgCacheMethodCount;
+static int cfgCacheByteCount, cfgCacheEnableFlag, cfgCacheAutoRefreshFlag, cfgCacheTimeoutSeconds, cfgCacheMethodCount;
 static int cfgSubscriptionByteCount, cfgSubscribeItemMaxSizeKbytes, cfgCacheItemMaxCount, cfgSubscribeTimeoutSeconds, cfgSubscribeMethodCount;
 static int cfgAreByteCount, cfgAreItemMaxSizeKbytes, cfgAreItemMaxCount, cfgAccessTimeoutLimt, cfgAreMethodCount;
 
@@ -457,7 +457,7 @@ public:
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 			
-			if (gCacheClient.initialized == false)
+			if ((cfgCacheEnableFlag == 1) && (gCacheClient.initialized == false))
 			{
 				QByteArray headerKey = QByteArray("Socket-Owner");
 				if (packet.headers.contains(headerKey))
@@ -485,12 +485,14 @@ public:
 						// cache
 						shm_read_count = 200 + cfgGroupByteCount;
 						cfgCacheByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-						cfgCacheItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+						cfgCacheEnableFlag = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgCacheAutoRefreshFlag = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgCacheTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgCacheMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
-						if (cfgCacheItemMaxSizeKbytes <= 0) cfgCacheItemMaxSizeKbytes = 1024;		// default
+						if ((cfgCacheEnableFlag != 0) && (cfgCacheEnableFlag != 1))
+							cfgCacheEnableFlag = 1;
+				
 						if (cfgCacheAutoRefreshFlag <= 0) cfgCacheAutoRefreshFlag = 0;		// default
 						if (cfgCacheTimeoutSeconds <= 0) cfgCacheTimeoutSeconds = 5;	// default
 
@@ -542,26 +544,15 @@ public:
 		// first, delete old cache items
 		time_t currSeconds = time(NULL);
 
-		// will check 50 per every time
-		int start = 0, end = itemCount;
-		if ((itemCount-cacheScanPtr) >= 50)
+		if (cacheScanPtr >= itemCount)
 		{
-			start = cacheScanPtr;
-			end = start + 50;
-			cacheScanPtr += 50;
-		}
-		else
-		{
-			start = cacheScanPtr;
-			end = itemCount;
 			cacheScanPtr = 0;
 		}
+		
 
-		for (int i = start; i < end; i++)
+		for (int i=cacheScanPtr; i < itemCount; i++)
 		{
 			int accessDiff = (int)(currSeconds - gCacheItemList[i].accessTimeCount);
-			int refreshDiff = (int)(currSeconds - gCacheItemList[i].refreshTimeCount);
-
 			if ((gCacheItemList[i].areFlag == false) && (accessDiff > cfgAccessTimeoutLimt))
 			{
 				gCacheItemList[i].accessCount--;
@@ -572,10 +563,7 @@ public:
 
 					// remove cache item
 					gCacheItemList.removeAt(i);
-					end--;
-					i--;
-					continue;
-
+					break;
 				}
 				else
 				{
@@ -583,6 +571,7 @@ public:
 				}
 			}
 			
+			int refreshDiff = (int)(currSeconds - gCacheItemList[i].refreshTimeCount);
 			if (refreshDiff > cacheTimeOut)
 			{
 				if (cfgCacheAutoRefreshFlag != 0)
@@ -594,6 +583,8 @@ public:
 						gCacheItemList[i].clientList.clear();
 						gCacheItemList[i].refreshTimeCount = time(NULL);
 						sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
+						cacheScanPtr++;
+						break;
 					}
 				}
 				else
@@ -603,11 +594,11 @@ public:
 
 					// remove cache item
 					gCacheItemList.removeAt(i);
-					end--;
-					i--;
-					continue;
+					break;
 				}				
 			}
+
+			cacheScanPtr++;
 		}
 
 		// count cache items
@@ -640,21 +631,12 @@ public:
 		time_t currSeconds = time(NULL);
 
 		// will check 50 per every time
-		int start = 0, end = itemCount;
-		if ((itemCount-subscriptionScanPtr) >= 50)
+		if (subscriptionScanPtr >= itemCount)
 		{
-			start = subscriptionScanPtr;
-			end = start + 50;
-			subscriptionScanPtr += 50;
-		}
-		else
-		{
-			start = subscriptionScanPtr;
-			end = itemCount;
 			subscriptionScanPtr = 0;
 		}
 
-		for (int i = start; i < end; i++)
+		for (int i = subscriptionScanPtr; i < itemCount; i++)
 		{
 			int refreshDiff = (int)(currSeconds - gSubscriptionItemList[i].refreshTimeCount);
 			if ((refreshDiff > subscriptionTimeOut) && (gSubscriptionItemList[i].clientList.count() == 0))
@@ -669,19 +651,17 @@ public:
 
 					// remove subscription item
 					gSubscriptionItemList.removeAt(i);
-					end--;
-					i--;
-					continue;
+					break;
 				}
 			}
 
 			if ((refreshDiff > subscriptionInvalidTimeOut) && (gSubscriptionItemList[i].msgId == -1))
 			{
 				gSubscriptionItemList.removeAt(i);
-				end--;
-				i--;
-				continue;
+				break;
 			}
+
+			subscriptionScanPtr++;
 		}
 
 		// count subscription items
@@ -1046,15 +1026,16 @@ public:
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
 
-		// open shared memory
-		key_t shm_key = ftok("shmfile",65);
-		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
-
+		// if cache client is not initialized
 		if (gCacheClient.initialized != true)
 		{
 			goto OUT_STREAM_SOCK_WRITE;
 		}
+
+		// open shared memory
+		key_t shm_key = ftok("shmfile",65);
+		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
 		// delete old cache items
 		deleteOldCacheItem(cfgCacheTimeoutSeconds);
