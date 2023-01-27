@@ -676,7 +676,7 @@ public:
 		memcpy(cacheItem.methodNameParamHashVal, methodNameParamsHashVal, 20);
 		cacheItem.refreshTimeCount = time(NULL);
 		cacheItem.accessTimeCount = time(NULL);
-		cacheItem.accessCount = 1;
+		cacheItem.accessCount = 2;
 		cacheItem.cachedFlag = false;
 
 		//// search auto-refresh exception method list
@@ -722,7 +722,7 @@ public:
 		memcpy(cacheItem.methodNameParamHashVal, methodNameParamsHashVal, 20);
 		cacheItem.refreshTimeCount = time(NULL);
 		cacheItem.accessTimeCount = time(NULL);
-		cacheItem.accessCount = 1;
+		cacheItem.accessCount = 2;
 		cacheItem.cachedFlag = false;
 
 		// save the request packet with new id
