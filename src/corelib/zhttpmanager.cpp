@@ -457,7 +457,7 @@ public:
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 			
-			if ((cfgCacheEnableFlag == 1) && (gCacheClient.initialized == false))
+			if (gCacheClient.initialized == false)
 			{
 				QByteArray headerKey = QByteArray("Socket-Owner");
 				if (packet.headers.contains(headerKey))
@@ -1032,7 +1032,7 @@ public:
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
 		// if cache client is not initialized
-		if (gCacheClient.initialized != true)
+		if ((cfgCacheEnableFlag != 1) || (gCacheClient.initialized != true))
 		{
 			goto OUT_STREAM_SOCK_WRITE;
 		}
@@ -1565,6 +1565,12 @@ public slots:
 		key_t key = ftok("shmfile",65);
 		int shmid = shmget(key,0,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shmid,(void*)0,0);
+
+		// if cache is not enabled
+		if (cfgCacheEnableFlag != 1)
+		{
+			goto ZWS_CLIENT_IN_WRITE;
+		}
 
 		
 		if ((p.code == 101) && (p.ids[0].id != gCacheClient.clientId))
