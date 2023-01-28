@@ -1046,12 +1046,12 @@ public:
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
 
 		// if health client, skip
-		for (i = 0; i < gHealthClientList.count(); i++)
+		for (int i = 0; i < gHealthClientList.count(); i++)
 		{
 			if (packet.ids[0].id == gHealthClientList[i].clientId)
 			{
-				log_debug("detected health client (health client num = %d)", gHealthClientList.count())
-				goto OUT_STREAM_SOCK_WRITE;;
+				log_debug("detected health client (health client num = %d)", gHealthClientList.count());
+				goto OUT_STREAM_SOCK_WRITE;
 			}
 		}
 
