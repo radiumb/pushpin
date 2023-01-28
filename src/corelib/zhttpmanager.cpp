@@ -119,6 +119,7 @@ QList<CacheItem> gExpiredItemList;
 QList<CacheItem> gSubscriptionItemList;
 
 QList<ClientItem> gClientList;
+QList<ClientItem> gHealthClientList;
 
 // closed client item
 struct CacheClientItem {
@@ -521,6 +522,24 @@ public:
 						if (cfgAccessTimeoutLimt <= 0) cfgAccessTimeoutLimt = 30;	// default
 
 						shmdt(shm_str);
+					}
+					else if (headerValue == QByteArray("Health_Client"))
+					{
+						// add client to health client list
+						QByteArray clientId = packet.ids[0].id;
+						int k;
+						for (k = 0; k < gHealthClientList.count(); k++)
+						{
+							if (clientId == gHealthClientList[k].clientId)
+								break;
+						}
+						if (k == gHealthClientList.count())
+						{
+							// Add to client list
+							struct ClientItem clientItem;
+							clientItem.clientId = clientId;
+							gHealthClientList.append(clientItem);
+						}
 					}
 					
 				}
@@ -1026,6 +1045,16 @@ public:
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
 
+		// if health client, skip
+		for (i = 0; i < gHealthClientList.count(); i++)
+		{
+			if (packet.ids[0].id == gHealthClientList[i].clientId)
+			{
+				log_debug("detected health client (health client num = %d)", gHealthClientList.count())
+				goto OUT_STREAM_SOCK_WRITE;;
+			}
+		}
+
 		// open shared memory
 		key_t shm_key = ftok("shmfile",65);
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
@@ -1090,6 +1119,18 @@ public:
 				if (gClientList[i].clientId == packet.ids[0].id)
 				{
 					gClientList.removeAt(i);
+					i--;
+					clientCount--;
+				}
+			}
+
+			// delete client from gHealthClientList
+			clientCount = gHealthClientList.count();
+			for (int i = 0; i < clientCount; i++)
+			{
+				if (gHealthClientList[i].clientId == packet.ids[0].id)
+				{
+					gHealthClientList.removeAt(i);
 					i--;
 					clientCount--;
 				}
