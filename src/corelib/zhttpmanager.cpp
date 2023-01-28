@@ -462,6 +462,7 @@ public:
 			QByteArray headerKey = QByteArray("Socket-Owner");
 			if (packet.headers.contains(headerKey))
 			{
+				QByteArray headerValue = packet.headers.get(headerKey);
 				if (headerValue == QByteArray("Health_Client"))
 				{
 					// add client to health client list
@@ -484,7 +485,6 @@ public:
 			
 			if (gCacheClient.initialized == false)
 			{
-				
 				if (packet.headers.contains(headerKey))
 				{
 					QByteArray headerValue = packet.headers.get(headerKey);
