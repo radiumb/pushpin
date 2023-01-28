@@ -458,9 +458,33 @@ public:
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 			
+			// check health client
+			QByteArray headerKey = QByteArray("Socket-Owner");
+			if (packet.headers.contains(headerKey))
+			{
+				if (headerValue == QByteArray("Health_Client"))
+				{
+					// add client to health client list
+					QByteArray clientId = packet.ids[0].id;
+					int k;
+					for (k = 0; k < gHealthClientList.count(); k++)
+					{
+						if (clientId == gHealthClientList[k].clientId)
+							break;
+					}
+					if (k == gHealthClientList.count())
+					{
+						// Add to client list
+						struct ClientItem clientItem;
+						clientItem.clientId = clientId;
+						gHealthClientList.append(clientItem);
+					}
+				}
+			}
+			
 			if (gCacheClient.initialized == false)
 			{
-				QByteArray headerKey = QByteArray("Socket-Owner");
+				
 				if (packet.headers.contains(headerKey))
 				{
 					QByteArray headerValue = packet.headers.get(headerKey);
@@ -523,25 +547,6 @@ public:
 
 						shmdt(shm_str);
 					}
-					else if (headerValue == QByteArray("Health_Client"))
-					{
-						// add client to health client list
-						QByteArray clientId = packet.ids[0].id;
-						int k;
-						for (k = 0; k < gHealthClientList.count(); k++)
-						{
-							if (clientId == gHealthClientList[k].clientId)
-								break;
-						}
-						if (k == gHealthClientList.count())
-						{
-							// Add to client list
-							struct ClientItem clientItem;
-							clientItem.clientId = clientId;
-							gHealthClientList.append(clientItem);
-						}
-					}
-					
 				}
 			}
 
