@@ -1045,6 +1045,11 @@ public:
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
 
+		// open shared memory
+		key_t shm_key = ftok("shmfile",65);
+		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
 		// if health client, skip
 		for (int i = 0; i < gHealthClientList.count(); i++)
 		{
@@ -1054,11 +1059,6 @@ public:
 				goto OUT_STREAM_SOCK_WRITE;
 			}
 		}
-
-		// open shared memory
-		key_t shm_key = ftok("shmfile",65);
-		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
 		// if cache client is not initialized
 		if ((cfgCacheEnableFlag != 1) || (gCacheClient.initialized != true))
