@@ -1055,17 +1055,6 @@ public:
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
-		// if health client, skip
-		log_debug("detected health1 client (health client num = %d)", gHealthClientList.count());
-		for (int i = 0; i < gHealthClientList.count(); i++)
-		{
-			if (packet.ids[0].id == gHealthClientList[i].clientId)
-			{
-				log_debug("detected health client (health client num = %d)", gHealthClientList.count());
-				goto OUT_STREAM_SOCK_WRITE;
-			}
-		}
-
 		// if cache client is not initialized
 		if ((cfgCacheEnableFlag != 1) || (gCacheClient.initialized != true))
 		{
@@ -1171,6 +1160,15 @@ public:
 		}
 		else if (packet.type == ZhttpRequestPacket::Data)
 		{
+			// if health client, skip
+			for (int i = 0; i < gHealthClientList.count(); i++)
+			{
+				if (packet.ids[0].id == gHealthClientList[i].clientId)
+				{
+					log_debug("[HEALTH_CLIENT] detected health client (health client num = %d)", gHealthClientList.count());
+					goto OUT_STREAM_SOCK_WRITE;
+				}
+			}
 			// if more flag is true, skip
 			if (packet.more == true)
 			{
