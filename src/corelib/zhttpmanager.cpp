@@ -1051,6 +1051,7 @@ public:
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
 		// if health client, skip
+		log_debug("detected health1 client (health client num = %d)", gHealthClientList.count());
 		for (int i = 0; i < gHealthClientList.count(); i++)
 		{
 			if (packet.ids[0].id == gHealthClientList[i].clientId)
