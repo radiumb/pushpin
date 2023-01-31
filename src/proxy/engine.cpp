@@ -62,7 +62,7 @@
 
 #define DEFAULT_HWM 1000
 
-static long wsConnectCount = 0;
+static long numWsConnect = 0;
 
 class Engine::Private : public QObject
 {
@@ -585,12 +585,12 @@ public:
 		log_debug("IN ws id=%s, %s", sock->rid().second.data(), requestUri.toEncoded().data());
 
 		// count ws connect count
-		wsConnectCount++;
+		numWsConnect++;
 		// Write to shared memory
 		key_t key = ftok("shmfile",65);
 		int shmid = shmget(key,0,0666|IPC_CREAT);
 		char *str = (char*) shmat(shmid,(void*)0,0);
-		memcpy(&str[4], (char *)&wsConnectCount, 4);
+		memcpy(&str[4], (char *)&numWsConnect, 4);
 		shmdt(str);
 
 		bool isSecure = (requestUri.scheme() == "wss");

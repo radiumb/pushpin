@@ -254,43 +254,43 @@ public:
 			ConnectionMinute,
 			MessageReceived,
 			MessageSent,
-			WsRequestReceived,
-			WsConnectionReceived,
-			WsMessageSent,
-			wsRpcAuthorCount, 
-			wsRpcBabeCount, 
-			wsRpcBeefyCount, 
-			wsRpcChainCount, 
-			wsRpcChildStateCount,
-			wsRpcContractsCount, 
-			wsRpcDevCount, 
-			wsRpcEngineCount, 
-			wsRpcEthCount, 
-			wsRpcNetCount,
-			wsRpcWeb3Count, 
-			wsRpcGrandpaCount, 
-			wsRpcMmrCount, 
-			wsRpcOffchainCount, 
-			wsRpcPaymentCount,
-			wsRpcRpcCount, 
-			wsRpcStateCount, 
-			wsRpcSyncstateCount, 
-			wsRpcSystemCount,
-			wsRpcSubscribeCount,
-			wsCacheInsert, 
-			wsCacheHit, 
-			wsCacheLookup,
-			wsCacheExpiry,
-			wsRequestMultiPart,
-			wsSubscriptionInsert, 
-			wsSubscriptionHit, 
-			wsSubscriptionLookup,
-			wsSubscriptionExpiry,
-			wsResponseMultiPart,
-			wsCacheItemCount,
-			wsSubscriptionItemCount,
-			wsAutoRefreshItemCount,
-			wsAREItemCount
+			numRequestReceived,
+			numWsConnect,
+			numMessageSent,
+			numRpcAuthor, 
+			numRpcBabe, 
+			numRpcBeefy, 
+			numRpcChain, 
+			numRpcChildState,
+			numRpcContracts, 
+			numRpcDev, 
+			numRpcEngine, 
+			numRpcEth, 
+			numRpcNet,
+			numRpcWeb3, 
+			numRpcGrandpa, 
+			numRpcMmr, 
+			numRpcOffchain, 
+			numRpcPayment,
+			numRpcRpc, 
+			numRpcState, 
+			numRpcSyncstate, 
+			numRpcSystem,
+			numRpcSubscribe,
+			numCacheInsert, 
+			numCacheHit, 
+			numCacheLookup,
+			numCacheExpiry,
+			numRequestMultiPart,
+			numSubscriptionInsert, 
+			numSubscriptionHit, 
+			numSubscriptionLookup,
+			numSubscriptionExpiry,
+			numResponseMultiPart,
+			numCacheItem,
+			numSubscriptionItem,
+			numAutoRefreshItem,
+			numAREItemCount
 		};
 
 		Type mtype;
@@ -379,43 +379,43 @@ public:
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::ConnectionMinute, "connection_minute", "counter", "Number of minutes clients have been connected");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::MessageReceived, "message_received", "counter", "Number of messages received by the publish API");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::MessageSent,"message_sent", "counter", "Number of messages sent to clients");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::WsRequestReceived, "ws_request_received", "counter", "Number of websocket requests received");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::WsConnectionReceived, "ws_connection_received", "counter", "Number of websocket sconcurrent connections");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::WsMessageSent, "ws_message_sent", "counter", "Number of websocket message sent");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcAuthorCount, "json_method_count_author", "counter", "Number of websocket JSON-RPC author method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcBabeCount, "json_method_count_babe", "counter", "Number of websocket JSON-RPC babe method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcBeefyCount, "json_method_count_beefy", "counter", "Number of websocket JSON-RPC beefy method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcChainCount, "json_method_count_chain", "counter", "Number of websocket JSON-RPC chain method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcChildStateCount, "json_method_count_childstate", "counter", "Number of websocket JSON-RPC childstate method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcContractsCount, "json_method_count_contracts", "counter", "Number of websocket JSON-RPC contracts method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcDevCount, "json_method_count_dev", "counter", "Number of websocket JSON-RPC dev method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcEngineCount, "json_method_count_engine", "counter", "Number of websocket JSON-RPC engine method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcEthCount, "json_method_count_eth", "counter", "Number of websocket JSON-RPC eth method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcNetCount, "json_method_count_eth/net", "counter", "Number of websocket JSON-RPC eth/net method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcWeb3Count, "json_method_count_eth/web3", "counter", "Number of websocket JSON-RPC eth/web3 method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcGrandpaCount, "json_method_count_grandpa", "counter", "Number of websocket JSON-RPC grandpa method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcMmrCount, "json_method_count_mmr", "counter", "Number of websocket JSON-RPC mmr method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcOffchainCount, "json_method_count_offchain", "counter", "Number of websocket JSON-RPC offchain method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcPaymentCount, "json_method_count_paymenet", "counter", "Number of websocket JSON-RPC payment method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcRpcCount, "json_method_count_rpc", "counter", "Number of websocket JSON-RPC rpc method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcStateCount, "json_method_count_state", "counter", "Number of websocket JSON-RPC state method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcSyncstateCount, "json_method_count_syncstate", "counter", "Number of websocket JSON-RPC syncstate method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcSystemCount, "json_method_count_system", "counter", "Number of websocket JSON-RPC system method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRpcSubscribeCount, "json_method_count_subscribe", "counter", "Number of websocket JSON-RPC subscribe method group");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheInsert, "cache_insert", "counter", "Number of websocket Cache insert event");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheHit, "cache_hit", "counter", "Number of websocket Cache hit event");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheLookup, "cache_lookup", "counter", "Number of websocket Cache lookup event");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheExpiry, "cache_expiry", "counter", "Number of websocket Cache expiry event");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsRequestMultiPart, "request_multi_part", "counter", "Number of websocket Cache detected multi-part request");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsSubscriptionInsert, "subscription_insert", "counter", "Number of websocket Subscripion insert event");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsSubscriptionHit, "subscription_hit", "counter", "Number of websocket Subscripion hit event");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsSubscriptionLookup, "subscription_lookup", "counter", "Number of websocket Subscripion lookup event");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsSubscriptionExpiry, "subscription_expiry", "counter", "Number of websocket Subscripion expiry event");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsResponseMultiPart, "response_multi_part", "counter", "Number of websocket Subscripion detected multi-part response");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsCacheItemCount, "cache_item_count", "counter", "Number of websocket Cache items");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsSubscriptionItemCount, "subscription_item_count", "counter", "Number of websocket Subscription items");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsAutoRefreshItemCount, "auto_refresh_item_count", "counter", "Number of websocket Auto-Refresh items");
-		prometheusMetrics += PrometheusMetric(PrometheusMetric::wsAREItemCount, "auto_refresh_exception_item_count", "counter", "Number of websocket Auto-Refresh Exception items");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRequestReceived, "number_of_ws_request_received", "counter", "Number of websocket requests received");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numWsConnect, "number_of_ws_connection_received", "counter", "Number of websocket sconcurrent connections");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numMessageSent, "number_of_ws_message_sent", "counter", "Number of websocket message sent");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcAuthor, "number_of_group_author", "counter", "Number of websocket JSON-RPC author method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcBabe, "number_of_group_babe", "counter", "Number of websocket JSON-RPC babe method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcBeefy, "number_of_group_beefy", "counter", "Number of websocket JSON-RPC beefy method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcChain, "number_of_group_chain", "counter", "Number of websocket JSON-RPC chain method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcChildState, "number_of_group_childstate", "counter", "Number of websocket JSON-RPC childstate method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcContracts, "number_of_group_contracts", "counter", "Number of websocket JSON-RPC contracts method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcDev, "number_of_group_dev", "counter", "Number of websocket JSON-RPC dev method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcEngine, "number_of_group_engine", "counter", "Number of websocket JSON-RPC engine method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcEth, "number_of_group_eth", "counter", "Number of websocket JSON-RPC eth method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcNet, "number_of_group_eth/net", "counter", "Number of websocket JSON-RPC eth/net method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcWeb3, "number_of_group_eth/web3", "counter", "Number of websocket JSON-RPC eth/web3 method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcGrandpa, "number_of_group_grandpa", "counter", "Number of websocket JSON-RPC grandpa method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcMmr, "number_of_group_mmr", "counter", "Number of websocket JSON-RPC mmr method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcOffchain, "number_of_group_offchain", "counter", "Number of websocket JSON-RPC offchain method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcPayment, "number_of_group_paymenet", "counter", "Number of websocket JSON-RPC payment method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcRpc, "number_of_group_rpc", "counter", "Number of websocket JSON-RPC rpc method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcState, "number_of_group_state", "counter", "Number of websocket JSON-RPC state method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcSyncstate, "number_of_group_syncstate", "counter", "Number of websocket JSON-RPC syncstate method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcSystem, "number_of_group_system", "counter", "Number of websocket JSON-RPC system method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcSubscribe, "number_of_group_subscribe", "counter", "Number of websocket JSON-RPC subscribe method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numCacheInsert, "number_of_cache_insert", "counter", "Number of websocket Cache insert event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numCacheHit, "number_of_cache_hit", "counter", "Number of websocket Cache hit event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numCacheLookup, "number_of_cache_lookup", "counter", "Number of websocket Cache lookup event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numCacheExpiry, "number_of_cache_expiry", "counter", "Number of websocket Cache expiry event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRequestMultiPart, "number_of_cache_request_multi_part", "counter", "Number of websocket Cache detected multi-part request");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numSubscriptionInsert, "number_of_subscription_insert", "counter", "Number of websocket Subscripion insert event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numSubscriptionHit, "number_of_subscription_hit", "counter", "Number of websocket Subscripion hit event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numSubscriptionLookup, "number_of_subscription_lookup", "counter", "Number of websocket Subscripion lookup event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numSubscriptionExpiry, "number_of_subscription_expiry", "counter", "Number of websocket Subscripion expiry event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numResponseMultiPart, "number_of_cache_response_multi_part", "counter", "Number of websocket Subscripion detected multi-part response");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numCacheItem, "number_of_cache_item_count", "counter", "Number of websocket Cache items");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numSubscriptionItem, "number_of_subscription_item_count", "counter", "Number of websocket Subscription items");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numAutoRefreshItem, "number_of_cache_auto_refresh_item_count", "counter", "Number of websocket Auto-Refresh items");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numAREItemCount, "number_of_cache_auto_refresh_exception_item_count", "counter", "Number of websocket Auto-Refresh Exception items");
 		// Group count add
 		key_t shm_key = ftok("shmfile",65);
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
@@ -432,7 +432,7 @@ public:
 			memcpy(groupName, &shm_str[shm_read_count], 256); shm_read_count += 256;	
 			shm_read_count += 4; // event skip
 			shm_read_count += 20*mCnt;	
-			PrometheusMetric::Type groupType = (PrometheusMetric::Type)(PrometheusMetric::wsAREItemCount+i+1);
+			PrometheusMetric::Type groupType = (PrometheusMetric::Type)(PrometheusMetric::numAREItemCount+i+1);
 			prometheusMetrics += PrometheusMetric(groupType, groupName, "counter", groupName);	
 		}
 		shmdt(shm_str);
@@ -1238,56 +1238,56 @@ private slots:
 		foreach(const PrometheusMetric &m, prometheusMetrics)
 		{
 			QVariant value;
-			long wsRequestCount=0, wsConnectCount=0, wsMessageSentCount=0;
-			long wsRpcAuthorCount = 0, wsRpcBabeCount = 0, wsRpcBeefyCount = 0, wsRpcChainCount = 0, wsRpcChildStateCount = 0;
-			long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
-			long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
-			long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
-			long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsRequestMultiPart = 0;
-			long wsSubscriptionInsert = 0, wsSubscriptionHit = 0, wsSubscriptionLookup = 0, wsSubscriptionExpiry = 0, wsResponseMultiPart = 0;
-			long wsCacheItemCount = 0, wsSubscriptionItemCount = 0, wsAutoRefreshItemCount = 0, wsAREItemCount = 0;
+			long numRequestReceived=0, numWsConnect=0, numMessageSent=0;
+			long numRpcAuthor = 0, numRpcBabe = 0, numRpcBeefy = 0, numRpcChain = 0, numRpcChildState = 0;
+			long numRpcContracts = 0, numRpcDev = 0, numRpcEngine = 0, numRpcEth = 0, numRpcNet = 0;
+			long numRpcWeb3 = 0, numRpcGrandpa = 0, numRpcMmr = 0, numRpcOffchain = 0, numRpcPayment = 0;
+			long numRpcRpc = 0, numRpcState = 0, numRpcSyncstate = 0, numRpcSystem = 0, numRpcSubscribe = 0;
+			long numCacheInsert = 0, numCacheHit = 0, numCacheLookup = 0, numCacheExpiry = 0, numRequestMultiPart = 0;
+			long numSubscriptionInsert = 0, numSubscriptionHit = 0, numSubscriptionLookup = 0, numSubscriptionExpiry = 0, numResponseMultiPart = 0;
+			long numCacheItem = 0, numSubscriptionItem = 0, numAutoRefreshItem = 0, numAREItemCount = 0;
 
 			// read shared memory
 			key_t key = ftok("shmfile",65);
 			int shmid = shmget(key,0,0666|IPC_CREAT);
 			char *str = (char*) shmat(shmid,(void*)0,0);
-			wsRequestCount = *(long *)&str[0];
-			wsConnectCount = *(long *)&str[4];
-			wsMessageSentCount = *(long *)&str[8];
-			wsRpcAuthorCount = *(long *)&str[20];
-			wsRpcBabeCount = *(long *)&str[24];
-			wsRpcBeefyCount = *(long *)&str[28];
-			wsRpcChainCount = *(long *)&str[32];
-			wsRpcChildStateCount = *(long *)&str[36];
-			wsRpcContractsCount = *(long *)&str[40];
-			wsRpcDevCount = *(long *)&str[44];
-			wsRpcEngineCount = *(long *)&str[48];
-			wsRpcEthCount = *(long *)&str[52];
-			wsRpcNetCount = *(long *)&str[56];
-			wsRpcWeb3Count = *(long *)&str[60];
-			wsRpcGrandpaCount = *(long *)&str[64];
-			wsRpcMmrCount = *(long *)&str[68];
-			wsRpcOffchainCount = *(long *)&str[72];
-			wsRpcPaymentCount = *(long *)&str[76];
-			wsRpcRpcCount = *(long *)&str[80];
-			wsRpcStateCount = *(long *)&str[84];
-			wsRpcSyncstateCount = *(long *)&str[88];
-			wsRpcSystemCount = *(long *)&str[92];
-			wsRpcSubscribeCount = *(long *)&str[96];
-			wsCacheInsert = *(long *)&str[100];
-			wsCacheHit = *(long *)&str[104];
-			wsCacheLookup = *(long *)&str[108];
-			wsCacheExpiry = *(long *)&str[112];
-			wsRequestMultiPart = *(long *)&str[116];
-			wsSubscriptionInsert = *(long *)&str[120];
-			wsSubscriptionHit = *(long *)&str[124];
-			wsSubscriptionLookup = *(long *)&str[128];
-			wsSubscriptionExpiry = *(long *)&str[132];
-			wsResponseMultiPart = *(long *)&str[136];
-			wsCacheItemCount = *(long *)&str[140];
-			wsSubscriptionItemCount = *(long *)&str[144];
-			wsAutoRefreshItemCount = *(long *)&str[148];
-			wsAREItemCount = *(long *)&str[152];
+			numRequestReceived = *(long *)&str[0];
+			numWsConnect = *(long *)&str[4];
+			numMessageSent = *(long *)&str[8];
+			numRpcAuthor = *(long *)&str[20];
+			numRpcBabe = *(long *)&str[24];
+			numRpcBeefy = *(long *)&str[28];
+			numRpcChain = *(long *)&str[32];
+			numRpcChildState = *(long *)&str[36];
+			numRpcContracts = *(long *)&str[40];
+			numRpcDev = *(long *)&str[44];
+			numRpcEngine = *(long *)&str[48];
+			numRpcEth = *(long *)&str[52];
+			numRpcNet = *(long *)&str[56];
+			numRpcWeb3 = *(long *)&str[60];
+			numRpcGrandpa = *(long *)&str[64];
+			numRpcMmr = *(long *)&str[68];
+			numRpcOffchain = *(long *)&str[72];
+			numRpcPayment = *(long *)&str[76];
+			numRpcRpc = *(long *)&str[80];
+			numRpcState = *(long *)&str[84];
+			numRpcSyncstate = *(long *)&str[88];
+			numRpcSystem = *(long *)&str[92];
+			numRpcSubscribe = *(long *)&str[96];
+			numCacheInsert = *(long *)&str[100];
+			numCacheHit = *(long *)&str[104];
+			numCacheLookup = *(long *)&str[108];
+			numCacheExpiry = *(long *)&str[112];
+			numRequestMultiPart = *(long *)&str[116];
+			numSubscriptionInsert = *(long *)&str[120];
+			numSubscriptionHit = *(long *)&str[124];
+			numSubscriptionLookup = *(long *)&str[128];
+			numSubscriptionExpiry = *(long *)&str[132];
+			numResponseMultiPart = *(long *)&str[136];
+			numCacheItem = *(long *)&str[140];
+			numSubscriptionItem = *(long *)&str[144];
+			numAutoRefreshItem = *(long *)&str[148];
+			numAREItemCount = *(long *)&str[152];
 			shmdt(str);
 			//shmctl(shmid,IPC_RMID,NULL);
 
@@ -1298,43 +1298,43 @@ private slots:
 				case PrometheusMetric::ConnectionMinute: value = QVariant(combinedReport.connectionsMinutes); break;
 				case PrometheusMetric::MessageReceived: value = QVariant(combinedReport.messagesReceived); break;
 				case PrometheusMetric::MessageSent: value = QVariant(combinedReport.messagesSent); break;
-				case PrometheusMetric::WsRequestReceived: value = QVariant((int)wsRequestCount); break;
-				case PrometheusMetric::WsConnectionReceived: value = QVariant((int)wsConnectCount); break;
-				case PrometheusMetric::WsMessageSent: value = QVariant((int)wsMessageSentCount); break;
-				case PrometheusMetric::wsRpcAuthorCount: value = QVariant((int)wsRpcAuthorCount); break;
-				case PrometheusMetric::wsRpcBabeCount: value = QVariant((int)wsRpcBabeCount); break;
-				case PrometheusMetric::wsRpcBeefyCount: value = QVariant((int)wsRpcBeefyCount); break;
-				case PrometheusMetric::wsRpcChainCount: value = QVariant((int)wsRpcChainCount); break;
-				case PrometheusMetric::wsRpcChildStateCount: value = QVariant((int)wsRpcChildStateCount); break;
-				case PrometheusMetric::wsRpcContractsCount: value = QVariant((int)wsRpcContractsCount); break;
-				case PrometheusMetric::wsRpcDevCount: value = QVariant((int)wsRpcDevCount); break;
-				case PrometheusMetric::wsRpcEngineCount: value = QVariant((int)wsRpcEngineCount); break;
-				case PrometheusMetric::wsRpcEthCount: value = QVariant((int)wsRpcEthCount); break;
-				case PrometheusMetric::wsRpcNetCount: value = QVariant((int)wsRpcNetCount); break;
-				case PrometheusMetric::wsRpcWeb3Count: value = QVariant((int)wsRpcWeb3Count); break;
-				case PrometheusMetric::wsRpcGrandpaCount: value = QVariant((int)wsRpcGrandpaCount); break;
-				case PrometheusMetric::wsRpcMmrCount: value = QVariant((int)wsRpcMmrCount); break;
-				case PrometheusMetric::wsRpcOffchainCount: value = QVariant((int)wsRpcOffchainCount); break;
-				case PrometheusMetric::wsRpcPaymentCount: value = QVariant((int)wsRpcPaymentCount); break;
-				case PrometheusMetric::wsRpcRpcCount: value = QVariant((int)wsRpcRpcCount); break;
-				case PrometheusMetric::wsRpcStateCount: value = QVariant((int)wsRpcStateCount); break;
-				case PrometheusMetric::wsRpcSyncstateCount: value = QVariant((int)wsRpcSyncstateCount); break;
-				case PrometheusMetric::wsRpcSystemCount: value = QVariant((int)wsRpcSystemCount); break;
-				case PrometheusMetric::wsRpcSubscribeCount: value = QVariant((int)wsRpcSubscribeCount); break;
-				case PrometheusMetric::wsCacheInsert: value = QVariant((int)wsCacheInsert); break;
-				case PrometheusMetric::wsCacheHit: value = QVariant((int)wsCacheHit); break;
-				case PrometheusMetric::wsCacheLookup: value = QVariant((int)wsCacheLookup); break;
-				case PrometheusMetric::wsCacheExpiry: value = QVariant((int)wsCacheExpiry); break;
-				case PrometheusMetric::wsRequestMultiPart: value = QVariant((int)wsRequestMultiPart); break;
-				case PrometheusMetric::wsSubscriptionInsert: value = QVariant((int)wsSubscriptionInsert); break;
-				case PrometheusMetric::wsSubscriptionHit: value = QVariant((int)wsSubscriptionHit); break;
-				case PrometheusMetric::wsSubscriptionLookup: value = QVariant((int)wsSubscriptionLookup); break;
-				case PrometheusMetric::wsSubscriptionExpiry: value = QVariant((int)wsSubscriptionExpiry); break;
-				case PrometheusMetric::wsResponseMultiPart: value = QVariant((int)wsResponseMultiPart); break;
-				case PrometheusMetric::wsCacheItemCount: value = QVariant((int)wsCacheItemCount); break;
-				case PrometheusMetric::wsSubscriptionItemCount: value = QVariant((int)wsSubscriptionItemCount); break;
-				case PrometheusMetric::wsAutoRefreshItemCount: value = QVariant((int)wsAutoRefreshItemCount); break;
-				case PrometheusMetric::wsAREItemCount: value = QVariant((int)wsAREItemCount); break;
+				case PrometheusMetric::numRequestReceived: value = QVariant((int)numRequestReceived); break;
+				case PrometheusMetric::numWsConnect: value = QVariant((int)numWsConnect); break;
+				case PrometheusMetric::numMessageSent: value = QVariant((int)numMessageSent); break;
+				case PrometheusMetric::numRpcAuthor: value = QVariant((int)numRpcAuthor); break;
+				case PrometheusMetric::numRpcBabe: value = QVariant((int)numRpcBabe); break;
+				case PrometheusMetric::numRpcBeefy: value = QVariant((int)numRpcBeefy); break;
+				case PrometheusMetric::numRpcChain: value = QVariant((int)numRpcChain); break;
+				case PrometheusMetric::numRpcChildState: value = QVariant((int)numRpcChildState); break;
+				case PrometheusMetric::numRpcContracts: value = QVariant((int)numRpcContracts); break;
+				case PrometheusMetric::numRpcDev: value = QVariant((int)numRpcDev); break;
+				case PrometheusMetric::numRpcEngine: value = QVariant((int)numRpcEngine); break;
+				case PrometheusMetric::numRpcEth: value = QVariant((int)numRpcEth); break;
+				case PrometheusMetric::numRpcNet: value = QVariant((int)numRpcNet); break;
+				case PrometheusMetric::numRpcWeb3: value = QVariant((int)numRpcWeb3); break;
+				case PrometheusMetric::numRpcGrandpa: value = QVariant((int)numRpcGrandpa); break;
+				case PrometheusMetric::numRpcMmr: value = QVariant((int)numRpcMmr); break;
+				case PrometheusMetric::numRpcOffchain: value = QVariant((int)numRpcOffchain); break;
+				case PrometheusMetric::numRpcPayment: value = QVariant((int)numRpcPayment); break;
+				case PrometheusMetric::numRpcRpc: value = QVariant((int)numRpcRpc); break;
+				case PrometheusMetric::numRpcState: value = QVariant((int)numRpcState); break;
+				case PrometheusMetric::numRpcSyncstate: value = QVariant((int)numRpcSyncstate); break;
+				case PrometheusMetric::numRpcSystem: value = QVariant((int)numRpcSystem); break;
+				case PrometheusMetric::numRpcSubscribe: value = QVariant((int)numRpcSubscribe); break;
+				case PrometheusMetric::numCacheInsert: value = QVariant((int)numCacheInsert); break;
+				case PrometheusMetric::numCacheHit: value = QVariant((int)numCacheHit); break;
+				case PrometheusMetric::numCacheLookup: value = QVariant((int)numCacheLookup); break;
+				case PrometheusMetric::numCacheExpiry: value = QVariant((int)numCacheExpiry); break;
+				case PrometheusMetric::numRequestMultiPart: value = QVariant((int)numRequestMultiPart); break;
+				case PrometheusMetric::numSubscriptionInsert: value = QVariant((int)numSubscriptionInsert); break;
+				case PrometheusMetric::numSubscriptionHit: value = QVariant((int)numSubscriptionHit); break;
+				case PrometheusMetric::numSubscriptionLookup: value = QVariant((int)numSubscriptionLookup); break;
+				case PrometheusMetric::numSubscriptionExpiry: value = QVariant((int)numSubscriptionExpiry); break;
+				case PrometheusMetric::numResponseMultiPart: value = QVariant((int)numResponseMultiPart); break;
+				case PrometheusMetric::numCacheItem: value = QVariant((int)numCacheItem); break;
+				case PrometheusMetric::numSubscriptionItem: value = QVariant((int)numSubscriptionItem); break;
+				case PrometheusMetric::numAutoRefreshItem: value = QVariant((int)numAutoRefreshItem); break;
+				case PrometheusMetric::numAREItemCount: value = QVariant((int)numAREItemCount); break;
 
 				default: {
 					// Group count add
@@ -1352,7 +1352,7 @@ private slots:
 						shm_read_count += 256;	// skip name
 						long eventCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						shm_read_count += 20*mCnt;	
-						if (m.mtype == (PrometheusMetric::wsAREItemCount+i+1))
+						if (m.mtype == (PrometheusMetric::numAREItemCount+i+1))
 						{
 							value = QVariant((int)eventCount); break;
 						}						

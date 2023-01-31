@@ -72,14 +72,14 @@
 #define ZHTTP_IDS_MAX 128
 
 // variable to count ws
-static long wsRequestCount = 0, wsMessageSentCount = 0;
-static long wsRpcAuthorCount = 0, wsRpcBabeCount = 0, wsRpcBeefyCount = 0, wsRpcChainCount = 0, wsRpcChildStateCount = 0;
-static long wsRpcContractsCount = 0, wsRpcDevCount = 0, wsRpcEngineCount = 0, wsRpcEthCount = 0, wsRpcNetCount = 0;
-static long wsRpcWeb3Count = 0, wsRpcGrandpaCount = 0, wsRpcMmrCount = 0, wsRpcOffchainCount = 0, wsRpcPaymentCount = 0;
-static long wsRpcRpcCount = 0, wsRpcStateCount = 0, wsRpcSyncstateCount = 0, wsRpcSystemCount = 0, wsRpcSubscribeCount = 0;
-static long wsCacheInsert = 0, wsCacheHit = 0, wsCacheLookup = 0, wsCacheExpiry = 0, wsRequestMultiPart = 0;
-static long wsSubscriptionInsert = 0, wsSubscriptionHit = 0, wsSubscriptionLookup = 0, wsSubscriptionExpiry = 0, wsResponseMultiPart = 0;
-static long wsCacheItemCount = 0, wsSubscriptionItemCount = 0, wsAutoRefreshItemCount = 0, wsAREItemCount = 0;
+static long numRequestReceived = 0, numMessageSent = 0;
+static long numRpcAuthor = 0, numRpcBabe = 0, numRpcBeefy = 0, numRpcChain = 0, numRpcChildState = 0;
+static long numRpcContracts = 0, numRpcDev = 0, numRpcEngine = 0, numRpcEth = 0, numRpcNet = 0;
+static long numRpcWeb3 = 0, numRpcGrandpa = 0, numRpcMmr = 0, numRpcOffchain = 0, numRpcPayment = 0;
+static long numRpcRpc = 0, numRpcState = 0, numRpcSyncstate = 0, numRpcSystem = 0, numRpcSubscribe = 0;
+static long numCacheInsert = 0, numCacheHit = 0, numCacheLookup = 0, numCacheExpiry = 0, numRequestMultiPart = 0;
+static long numSubscriptionInsert = 0, numSubscriptionHit = 0, numSubscriptionLookup = 0, numSubscriptionExpiry = 0, numResponseMultiPart = 0;
+static long numCacheItem = 0, numSubscriptionItem = 0, numAutoRefreshItem = 0, numAREItemCount = 0;
 
 // variable to store config values
 static int cfgGroupByteCount, cfgGroupCount;
@@ -583,7 +583,7 @@ public:
 				if (gCacheItemList[i].accessCount <= 0)
 				{
 					// add ws Cache expiry
-					wsCacheExpiry++;
+					numCacheExpiry++;
 
 					// remove cache item
 					gCacheItemList.removeAt(i);
@@ -614,7 +614,7 @@ public:
 				else
 				{
 					// add ws Cache expiry
-					wsCacheExpiry++;
+					numCacheExpiry++;
 
 					// remove cache item
 					gCacheItemList.removeAt(i);
@@ -642,9 +642,9 @@ public:
 				autorefreshItemCount++;
 			}
 		}
-		wsCacheItemCount = cacheItemCount;
-		wsAutoRefreshItemCount = autorefreshItemCount;
-		wsAREItemCount = areItemCount;
+		numCacheItem = cacheItemCount;
+		numAutoRefreshItem = autorefreshItemCount;
+		numAREItemCount = areItemCount;
 	}
 
 	void deleteOldSubscriptionItem(int subscriptionTimeOut, int subscriptionInvalidTimeOut)
@@ -669,7 +669,7 @@ public:
 				if (gSubscriptionItemList[i].unsubscribeMsgId != -1)
 				{
 					// add ws Subscription expiry
-					wsSubscriptionExpiry++;
+					numSubscriptionExpiry++;
 
 					sendUnsubscribeRequest(gSubscriptionItemList[i].unsubscribePacket, gSubscriptionItemList[i].unsubscribeMsgId, gSubscriptionItemList[i].requestInstanceAddress);
 
@@ -689,7 +689,7 @@ public:
 		}
 
 		// count subscription items
-		wsSubscriptionItemCount = gSubscriptionItemList.count();
+		numSubscriptionItem = gSubscriptionItemList.count();
 	}
 
 	void registerCacheItem(const ZhttpRequestPacket &clientPacket, QByteArray clientId, int msgId, char *methodNameHashVal, char *methodNameParamsHashVal, const QByteArray &instanceAddress)
@@ -1064,12 +1064,12 @@ public:
 		// delete old cache items
 		deleteOldCacheItem(cfgCacheTimeoutSeconds);
 		deleteOldSubscriptionItem(cfgSubscribeTimeoutSeconds, 20);
-		memcpy(&shm_str[112], (char *)&wsCacheExpiry, 4);
-		memcpy(&shm_str[132], (char *)&wsSubscriptionExpiry, 4);
-		memcpy(&shm_str[140], (char *)&wsCacheItemCount, 4);
-		memcpy(&shm_str[144], (char *)&wsSubscriptionItemCount, 4);
-		memcpy(&shm_str[148], (char *)&wsAutoRefreshItemCount, 4);
-		memcpy(&shm_str[152], (char *)&wsAREItemCount, 4);
+		memcpy(&shm_str[112], (char *)&numCacheExpiry, 4);
+		memcpy(&shm_str[132], (char *)&numSubscriptionExpiry, 4);
+		memcpy(&shm_str[140], (char *)&numCacheItem, 4);
+		memcpy(&shm_str[144], (char *)&numSubscriptionItem, 4);
+		memcpy(&shm_str[148], (char *)&numAutoRefreshItem, 4);
+		memcpy(&shm_str[152], (char *)&numAREItemCount, 4);
 
 		// Check packets for cache client, if so, update seq
 		if (packet.ids[0].id == gCacheClient.clientId)
@@ -1173,8 +1173,8 @@ public:
 			if (packet.more == true)
 			{
 				// add ws Cache multi-part request
-				wsRequestMultiPart++;
-				memcpy(&shm_str[116], (char *)&wsRequestMultiPart, 4);
+				numRequestMultiPart++;
+				memcpy(&shm_str[116], (char *)&numRequestMultiPart, 4);
 
 				log_debug("[CACHEITEM] Detected multi-parts request");
 				goto OUT_STREAM_SOCK_WRITE;
@@ -1218,13 +1218,13 @@ public:
 			pch = strstr(methodStr, "_subscribe");
 			if (pch == NULL)
 			{
-				wsCacheLookup++;
-				memcpy(&shm_str[108], (char *)&wsCacheLookup, 4);
+				numCacheLookup++;
+				memcpy(&shm_str[108], (char *)&numCacheLookup, 4);
 			}
 			else
 			{
-				wsSubscriptionLookup++;
-				memcpy(&shm_str[128], (char *)&wsSubscriptionLookup, 4);
+				numSubscriptionLookup++;
+				memcpy(&shm_str[128], (char *)&numSubscriptionLookup, 4);
 			}
 			
 			// Cache method Lookup
@@ -1242,8 +1242,8 @@ public:
 						if (!memcmp(gCacheItemList[j].methodNameParamHashVal, paramsHash, 20))
 						{
 							// add ws Cache hit
-							wsCacheHit++;
-							memcpy(&shm_str[104], (char *)&wsCacheHit, 4);
+							numCacheHit++;
+							memcpy(&shm_str[104], (char *)&numCacheHit, 4);
 							gCacheItemList[j].accessCount = 2;
 
 							if (gCacheItemList[j].cachedFlag == true)
@@ -1290,8 +1290,8 @@ public:
 						log_debug("[CACHEITEM] Registered New Cache Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 						// add ws Cache insert
-						wsCacheInsert++;
-						memcpy(&shm_str[100], (char *)&wsCacheInsert, 4);
+						numCacheInsert++;
+						memcpy(&shm_str[100], (char *)&numCacheInsert, 4);
 
 						// Send new client cache request packet
 						sendNewCacheClientRequest(packet, msgBody.id, instanceAddress);
@@ -1328,8 +1328,8 @@ public:
 						if (!memcmp(gSubscriptionItemList[j].methodNameParamHashVal, paramsHash, 20))
 						{
 							// add ws Cache hit
-							wsSubscriptionHit++;
-							memcpy(&shm_str[124], (char *)&wsSubscriptionHit, 4);
+							numSubscriptionHit++;
+							memcpy(&shm_str[124], (char *)&numSubscriptionHit, 4);
 							gSubscriptionItemList[j].accessCount = 2;
 
 							if (gSubscriptionItemList[j].cachedFlag == true)
@@ -1374,8 +1374,8 @@ public:
 					log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 					// add ws Cache insert
-					wsSubscriptionInsert++;
-					memcpy(&shm_str[120], (char *)&wsSubscriptionInsert, 4);
+					numSubscriptionInsert++;
+					memcpy(&shm_str[120], (char *)&numSubscriptionInsert, 4);
 
 					// Send new client cache request packet
 					sendNewCacheClientRequest(packet, msgBody.id, instanceAddress);
@@ -1786,15 +1786,15 @@ public slots:
 				}
 
 				// Count (ws messages sent)
-				wsMessageSentCount++;
-				memcpy(&shm_str[8], (char *)&wsMessageSentCount, 4);
+				numMessageSent++;
+				memcpy(&shm_str[8], (char *)&numMessageSent, 4);
 
 				// if mult-part response ?
 				if (p.more == true)
 				{
 					// add ws Cache multi-part response
-					wsResponseMultiPart++;
-					memcpy(&shm_str[136], (char *)&wsResponseMultiPart, 4);
+					numResponseMultiPart++;
+					memcpy(&shm_str[136], (char *)&numResponseMultiPart, 4);
 
 					log_debug("[CACHEITEM] Detected multi-parts response, no cache id %d", msgBody.id);
 					// make invalid
@@ -2149,92 +2149,92 @@ ZWS_CLIENT_IN_WRITE:
 						methodStr[methodLen] = 0;
 
 						if (!memcmp(methodStr, "author_", 7)) {
-							wsRpcAuthorCount++;
-							if (!memcmp(&methodStr[7], "submitandwatchextrinsic", 23)) wsRpcSubscribeCount++;
+							numRpcAuthor++;
+							if (!memcmp(&methodStr[7], "submitandwatchextrinsic", 23)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "babe_", 5)) {
-							wsRpcBabeCount++;
-							if (!memcmp(&methodStr[5], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcBabe++;
+							if (!memcmp(&methodStr[5], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "beefy_", 6)) {
-							wsRpcBeefyCount++;
-							if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcBeefy++;
+							if (!memcmp(&methodStr[6], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "chain_", 6)) {
-							wsRpcChainCount++;
-							if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcChain++;
+							if (!memcmp(&methodStr[6], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "childstate_", 11)) {
-							wsRpcChildStateCount++;
-							if (!memcmp(&methodStr[11], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcChildState++;
+							if (!memcmp(&methodStr[11], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "contracts_", 10)) {
-							wsRpcContractsCount++;
-							if (!memcmp(&methodStr[10], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcContracts++;
+							if (!memcmp(&methodStr[10], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "dev_", 4)) {
-							wsRpcDevCount++;
-							if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcDev++;
+							if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "engine_", 7)) {
-							wsRpcEngineCount++;
-							if (!memcmp(&methodStr[7], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcEngine++;
+							if (!memcmp(&methodStr[7], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "eth_", 4)) {
-							wsRpcEthCount++;
-							if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcEth++;
+							if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "net_", 4)) {
-							wsRpcNetCount++;
-							if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcNet++;
+							if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "web3_", 5)) {
-							wsRpcWeb3Count++;
-							if (!memcmp(&methodStr[5], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcWeb3++;
+							if (!memcmp(&methodStr[5], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "grandpa_", 8)) {
-							wsRpcGrandpaCount++;
-							if (!memcmp(&methodStr[8], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcGrandpa++;
+							if (!memcmp(&methodStr[8], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "mmr_", 4)) {
-							wsRpcMmrCount++;
-							if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcMmr++;
+							if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "offchain_", 9)) {
-							wsRpcOffchainCount++;
-							if (!memcmp(&methodStr[9], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcOffchain++;
+							if (!memcmp(&methodStr[9], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "payment_", 8)) {
-							wsRpcPaymentCount++;
-							if (!memcmp(&methodStr[8], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcPayment++;
+							if (!memcmp(&methodStr[8], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "rpc_", 4)) {
-							wsRpcRpcCount++;
-							if (!memcmp(&methodStr[4], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcRpc++;
+							if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "state_", 6)) {
-							wsRpcStateCount++;
-							if (!memcmp(&methodStr[6], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcState++;
+							if (!memcmp(&methodStr[6], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "sync_state_", 11)) {
-							wsRpcSyncstateCount++;
-							if (!memcmp(&methodStr[11], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcSyncstate++;
+							if (!memcmp(&methodStr[11], "subscribe", 9)) numRpcSubscribe++;
 						} else if (!memcmp(methodStr, "system_", 7)) {
-							wsRpcSystemCount++;
-							if (!memcmp(&methodStr[7], "subscribe", 9)) wsRpcSubscribeCount++;
+							numRpcSystem++;
+							if (!memcmp(&methodStr[7], "subscribe", 9)) numRpcSubscribe++;
 						}
 
 						// read shared memory
 						// Count WS request
-						wsRequestCount++;
+						numRequestReceived++;
 						// Write to shared memory
 						key_t shm_key = ftok("shmfile",65);
 						int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 						char *shm_str = (char*) shmat(shm_id,(void*)0,0);
-						memcpy(&shm_str[0], (char *)&wsRequestCount, 4);
-						memcpy(&shm_str[20], (char *)&wsRpcAuthorCount, 4);
-						memcpy(&shm_str[24], (char *)&wsRpcBabeCount, 4);
-						memcpy(&shm_str[28], (char *)&wsRpcBeefyCount, 4);
-						memcpy(&shm_str[32], (char *)&wsRpcChainCount, 4);
-						memcpy(&shm_str[36], (char *)&wsRpcChildStateCount, 4);
-						memcpy(&shm_str[40], (char *)&wsRpcContractsCount, 4);
-						memcpy(&shm_str[44], (char *)&wsRpcDevCount, 4);
-						memcpy(&shm_str[48], (char *)&wsRpcEngineCount, 4);
-						memcpy(&shm_str[52], (char *)&wsRpcEthCount, 4);
-						memcpy(&shm_str[56], (char *)&wsRpcNetCount, 4);
-						memcpy(&shm_str[60], (char *)&wsRpcWeb3Count, 4);
-						memcpy(&shm_str[64], (char *)&wsRpcGrandpaCount, 4);
-						memcpy(&shm_str[68], (char *)&wsRpcMmrCount, 4);
-						memcpy(&shm_str[72], (char *)&wsRpcOffchainCount, 4);
-						memcpy(&shm_str[76], (char *)&wsRpcPaymentCount, 4);
-						memcpy(&shm_str[80], (char *)&wsRpcRpcCount, 4);
-						memcpy(&shm_str[84], (char *)&wsRpcStateCount, 4);
-						memcpy(&shm_str[88], (char *)&wsRpcSyncstateCount, 4);
-						memcpy(&shm_str[92], (char *)&wsRpcSystemCount, 4);
-						memcpy(&shm_str[96], (char *)&wsRpcSubscribeCount, 4);
+						memcpy(&shm_str[0], (char *)&numRequestReceived, 4);
+						memcpy(&shm_str[20], (char *)&numRpcAuthor, 4);
+						memcpy(&shm_str[24], (char *)&numRpcBabe, 4);
+						memcpy(&shm_str[28], (char *)&numRpcBeefy, 4);
+						memcpy(&shm_str[32], (char *)&numRpcChain, 4);
+						memcpy(&shm_str[36], (char *)&numRpcChildState, 4);
+						memcpy(&shm_str[40], (char *)&numRpcContracts, 4);
+						memcpy(&shm_str[44], (char *)&numRpcDev, 4);
+						memcpy(&shm_str[48], (char *)&numRpcEngine, 4);
+						memcpy(&shm_str[52], (char *)&numRpcEth, 4);
+						memcpy(&shm_str[56], (char *)&numRpcNet, 4);
+						memcpy(&shm_str[60], (char *)&numRpcWeb3, 4);
+						memcpy(&shm_str[64], (char *)&numRpcGrandpa, 4);
+						memcpy(&shm_str[68], (char *)&numRpcMmr, 4);
+						memcpy(&shm_str[72], (char *)&numRpcOffchain, 4);
+						memcpy(&shm_str[76], (char *)&numRpcPayment, 4);
+						memcpy(&shm_str[80], (char *)&numRpcRpc, 4);
+						memcpy(&shm_str[84], (char *)&numRpcState, 4);
+						memcpy(&shm_str[88], (char *)&numRpcSyncstate, 4);
+						memcpy(&shm_str[92], (char *)&numRpcSystem, 4);
+						memcpy(&shm_str[96], (char *)&numRpcSubscribe, 4);
 
 						// Group
 						QString methodName = QString(methodStr);
