@@ -1606,17 +1606,17 @@ public slots:
 			return;
 		}
 
+		// Write to shared memory
+		key_t key = ftok("shmfile",65);
+		int shmid = shmget(key,0,0666|IPC_CREAT);
+		char *shm_str = (char*) shmat(shmid,(void*)0,0);
+
 		if (p.type == ZhttpResponsePacket::Data)
 		{
 			// Count (ws messages sent)
 			numMessageSent++;
 			memcpy(&shm_str[8], (char *)&numMessageSent, 4);
 		}
-
-		// Write to shared memory
-		key_t key = ftok("shmfile",65);
-		int shmid = shmget(key,0,0666|IPC_CREAT);
-		char *shm_str = (char*) shmat(shmid,(void*)0,0);
 
 		// if cache is not enabled
 		if (cfgCacheEnableFlag != 1)
