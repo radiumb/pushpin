@@ -1606,6 +1606,13 @@ public slots:
 			return;
 		}
 
+		if (p.type == ZhttpResponsePacket::Data)
+		{
+			// Count (ws messages sent)
+			numMessageSent++;
+			memcpy(&shm_str[8], (char *)&numMessageSent, 4);
+		}
+
 		// Write to shared memory
 		key_t key = ftok("shmfile",65);
 		int shmid = shmget(key,0,0666|IPC_CREAT);
@@ -1784,10 +1791,6 @@ public slots:
 				{
 					goto ZWS_CLIENT_IN_WRITE;
 				}
-
-				// Count (ws messages sent)
-				numMessageSent++;
-				memcpy(&shm_str[8], (char *)&numMessageSent, 4);
 
 				// if mult-part response ?
 				if (p.more == true)
