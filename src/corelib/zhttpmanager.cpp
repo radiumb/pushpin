@@ -1692,7 +1692,7 @@ public slots:
 			{
 				// if end of multi-parts
 				p = gMultiPartResponsePacket;
-				gMultiPartResponsePacket.clear();
+				gMultiPartResponsePacket.body.clear();
 			}
 			
 
