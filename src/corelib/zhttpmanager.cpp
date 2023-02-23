@@ -1704,8 +1704,9 @@ public slots:
 
 			// parse json body
 			JsonMsgBody msgBody;
-			if (parseJsonMsg(data, &msgBody) < 0)
+			if (parseJsonMsg(p.toVariant(), &msgBody) < 0)
 			{
+				log_debug("[CACHEITEM] failed to parse JSON msg");
 				// make invalild
 				p.type = ZhttpResponsePacket::KeepAlive;
 				goto ZWS_CLIENT_IN_WRITE;
