@@ -121,6 +121,8 @@ QList<CacheItem> gSubscriptionItemList;
 QList<ClientItem> gClientList;
 QList<ClientItem> gHealthClientList;
 
+ZhttpResponsePacket gMultiPartResponsePacket;
+
 // closed client item
 struct CacheClientItem {
 	bool initialized;
@@ -495,6 +497,9 @@ public:
 						gCacheClient.seqCount = 1;
 						gCacheClient.clientId = packet.ids[0].id;
 						log_debug("[SUBSCRIBE] %s", gCacheClient.clientId.data());
+
+						// init multi-part response packet
+						gMultiPartResponsePacket.body.clear();
 
 						//// read config values
 						// open shared memory
@@ -1669,6 +1674,27 @@ public slots:
 			{
 				goto ZWS_CLIENT_IN_WRITE;
 			}
+
+			// if multi-part response
+			if (p.more == true)
+			{
+				// start to store parts
+				if (gMultiPartResponsePacket.data.isEmpty())
+				{
+					gMultiPartResponsePacket = p;
+				}
+				else
+				{
+					gMultiPartResponsePacket.data.append(p.data);
+				}
+			}
+			else if (!gMultiPartResponsePacket.data.isEmpty())
+			{
+				// if end of multi-parts
+				p = gMultiPartResponsePacket;
+				gMultiPartResponsePacket.clear();
+			}
+			
 
 			// parse json body
 			JsonMsgBody msgBody;
