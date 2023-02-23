@@ -1681,6 +1681,7 @@ public slots:
 				// start to store parts
 				if (gMultiPartResponsePacket.body.isEmpty())
 				{
+					log_debug("[CACHEITEM] Detected multi-part response");
 					gMultiPartResponsePacket = p;
 				}
 				else
@@ -1694,6 +1695,7 @@ public slots:
 			}
 			else if (!gMultiPartResponsePacket.body.isEmpty())
 			{
+				log_debug("[CACHEITEM] Ended multi-part response");
 				// if end of multi-parts
 				p = gMultiPartResponsePacket;
 				gMultiPartResponsePacket.body.clear();
