@@ -874,6 +874,7 @@ public:
 		QVariantHash hdata = vpacket.toHash();
 		// parse body as JSON string
 		QJsonParseError error;
+		log_debug("JSON = %s", qPrintable(QString(hdata.value("body").toByteArray())));
 		QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
 		
 		if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
