@@ -1699,7 +1699,7 @@ public slots:
 				log_debug("[CACHEITEM] Ended multi-part response");
 				gMultiPartResponsePacket.body.append(p.body);
 				// if end of multi-parts
-				p = gMultiPartResponsePacket;
+				p.body = gMultiPartResponsePacket.body;
 				gMultiPartResponsePacket.body.clear();
 			}
 			
