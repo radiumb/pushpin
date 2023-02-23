@@ -1682,6 +1682,11 @@ public slots:
 				if (gMultiPartResponsePacket.body.isEmpty())
 				{
 					log_debug("[CACHEITEM] Detected multi-part response");
+
+					// add ws Cache multi-part response
+					numResponseMultiPart++;
+					memcpy(&shm_str[136], (char *)&numResponseMultiPart, 4);
+
 					gMultiPartResponsePacket = p;
 				}
 				else
@@ -1825,20 +1830,7 @@ public slots:
 				{
 					goto ZWS_CLIENT_IN_WRITE;
 				}
-/*
-				// if mult-part response ?
-				if (p.more == true)
-				{
-					// add ws Cache multi-part response
-					numResponseMultiPart++;
-					memcpy(&shm_str[136], (char *)&numResponseMultiPart, 4);
 
-					log_debug("[CACHEITEM] Detected multi-parts response, no cache id %d", msgBody.id);
-					// make invalid
-					p.type = ZhttpResponsePacket::KeepAlive;
-					goto ZWS_CLIENT_IN_WRITE;
-				}
-*/
 				int cacheItemCount = gCacheItemList.count();
 				for (int i = 0; i < cacheItemCount; i++)
 				{
