@@ -1687,6 +1687,10 @@ public slots:
 				{
 					gMultiPartResponsePacket.body.append(p.body);
 				}
+
+				// make invalild
+				p.type = ZhttpResponsePacket::KeepAlive;
+				goto ZWS_CLIENT_IN_WRITE;
 			}
 			else if (!gMultiPartResponsePacket.body.isEmpty())
 			{
