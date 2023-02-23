@@ -1697,6 +1697,7 @@ public slots:
 			else if (!gMultiPartResponsePacket.body.isEmpty())
 			{
 				log_debug("[CACHEITEM] Ended multi-part response");
+				gMultiPartResponsePacket.body.append(p.body);
 				// if end of multi-parts
 				p = gMultiPartResponsePacket;
 				gMultiPartResponsePacket.body.clear();
