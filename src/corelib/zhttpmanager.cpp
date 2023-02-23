@@ -1679,16 +1679,16 @@ public slots:
 			if (p.more == true)
 			{
 				// start to store parts
-				if (gMultiPartResponsePacket.data.isEmpty())
+				if (gMultiPartResponsePacket.body.isEmpty())
 				{
 					gMultiPartResponsePacket = p;
 				}
 				else
 				{
-					gMultiPartResponsePacket.data.append(p.data);
+					gMultiPartResponsePacket.body.append(p.body);
 				}
 			}
-			else if (!gMultiPartResponsePacket.data.isEmpty())
+			else if (!gMultiPartResponsePacket.body.isEmpty())
 			{
 				// if end of multi-parts
 				p = gMultiPartResponsePacket;
