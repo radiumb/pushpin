@@ -8,7 +8,6 @@ import time
 import subprocess
 from signal import SIGKILL
 import psutil
-import console_ctrl
 
 def checkIfProcessRunning(processName):
 	'''
@@ -47,11 +46,18 @@ def handle_exception():
 	#wait 60s
 	time.sleep(30)
 	# stop pushpin
+	listOfProcessIds = findProcessIdByName('condure')
+	for elem in listOfProcessIds:
+		processID = elem['pid']
+		os.kill(processID, SIGKILL)
+	listOfProcessIds = findProcessIdByName('zurl')
+	for elem in listOfProcessIds:
+		processID = elem['pid']
+		os.kill(processID, SIGKILL)
 	listOfProcessIds = findProcessIdByName('pushpin')
 	for elem in listOfProcessIds:
 		processID = elem['pid']
-		console_ctrl.send_ctrl_c(processID)
-		#os.kill(processID, SIGKILL)
+		os.kill(processID, SIGKILL)
 	#os.system('systemctl start healthcheck')
 	os.system('rm -rf /home/secure/ttt')
 	# start pushpin
