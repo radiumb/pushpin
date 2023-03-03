@@ -41,7 +41,7 @@ def findProcessIdByName(processName):
 	return listOfProcessObjects;
 
 def handle_exception():
-	#os.system('systemctl stop healthcheck')
+	#os.system('sudo systemctl stop healthcheck')
 	os.system('mkdir /home/secure/ttt')
 	#wait 60s
 	time.sleep(30)
@@ -60,15 +60,15 @@ def handle_exception():
 	for pushpins in listOfPushpin:
 		pushpinID = pushpins['pid']
 		os.kill(pushpinID, SIGKILL)
-	#os.system('systemctl start healthcheck')
+	#os.system('sudo systemctl start healthcheck')
 	os.system('rm -rf /home/secure/ttt')
 	time.sleep(5)
 	# start pushpin
-	os.system('/usr/local/bin/pushpin')
+	os.system('sudo /usr/local/bin/pushpin')
 	time.sleep(15)
 
 # start cache client
-proc = subprocess.Popen(['/usr/bin/wscat', '-H Socket-Owner:Cache_Client -c ws://localhost:7999/ws'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+proc = subprocess.Popen(['sudo /usr/bin/wscat', '-H Socket-Owner:Cache_Client -c ws://localhost:7999/ws'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 print('wscat pid %d' % proc.pid)
 
 while True:
