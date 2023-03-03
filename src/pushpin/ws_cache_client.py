@@ -8,6 +8,7 @@ import time
 import subprocess
 from signal import SIGKILL
 import psutil
+import console_ctrl
 
 def checkIfProcessRunning(processName):
 	'''
@@ -44,16 +45,17 @@ def handle_exception():
 	#os.system('systemctl stop healthcheck')
 	os.system('mkdir /home/secure/ttt')
 	#wait 60s
-	time.sleep(60)
+	time.sleep(30)
 	# stop pushpin
 	listOfProcessIds = findProcessIdByName('pushpin')
 	for elem in listOfProcessIds:
 		processID = elem['pid']
-		os.kill(processID, SIGKILL)
+		console_ctrl.send_ctrl_c(processID)
+		#os.kill(processID, SIGKILL)
 	#os.system('systemctl start healthcheck')
 	os.system('rm -rf /home/secure/ttt')
 	# start pushpin
-	os.system('pushpin')
+	os.system('/usr/local/bin/pushpin')
 
 # start cache client
 proc = subprocess.Popen(['/usr/bin/wscat', '-H Socket-Owner:Cache_Client -c ws://localhost:7999/ws'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
