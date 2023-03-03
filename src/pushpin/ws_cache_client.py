@@ -56,7 +56,7 @@ def handle_exception():
 	os.system('pushpin')
 
 # start cache client
-proc = subprocess.Popen('/usr/bin/wscat', '-H Socket-Owner:Cache_Client -c ws://localhost:7999/ws')
+proc = subprocess.Popen(['/usr/bin/wscat', '-H Socket-Owner:Cache_Client -c ws://localhost:7999/ws'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 print('wscat pid %d' % proc.pid)
 
 while True:
