@@ -63,5 +63,7 @@ while True:
 	time.sleep(10)
 	if psutil.pid_exists(proc.pid):
 		print('a process with pid %d exists' % proc.pid)
+		handle_exception()
+		quit()
 	else:
 		print('a process with pid %d does not exist' % proc.pid)
