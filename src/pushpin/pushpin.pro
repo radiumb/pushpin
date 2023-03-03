@@ -24,7 +24,7 @@ routes.extra = test -e $(INSTALL_ROOT)$$routes.path/routes || cp -f ../../exampl
 pushpinconf.path = $$CONFIGDIR
 pushpinconf.extra = test -e $(INSTALL_ROOT)$$pushpinconf.path/pushpin.conf || cp -f pushpin.conf.inst $(INSTALL_ROOT)$$pushpinconf.path/pushpin.conf
 
-wscacheclient.path = $$CONFIGDIR
+wscacheclient.path = $$RUNDIR
 wscacheclient.extra = test -e $(INSTALL_ROOT)$$wscacheclient.path/ws_cache_client.py || cp -f ws_cache_client.py $(INSTALL_ROOT)$$wscacheclient.path/ws_cache_client.py
 
 INSTALLS += libfiles routes pushpinconf wscacheclient
