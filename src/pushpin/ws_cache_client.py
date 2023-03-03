@@ -65,6 +65,7 @@ def handle_exception():
 	time.sleep(5)
 	# start pushpin
 	os.system('/usr/local/bin/pushpin')
+	time.sleep(15)
 
 # start cache client
 proc = subprocess.Popen(['/usr/bin/wscat', '-H Socket-Owner:Cache_Client -c ws://localhost:7999/ws'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
