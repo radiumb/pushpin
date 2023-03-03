@@ -56,10 +56,15 @@ def handle_exception():
 		zurlID = zurls['pid']
 		os.kill(zurlID, SIGKILL)
 	time.sleep(1)
-	listOfPushpin = findProcessIdByName('pushpin')
+	listOfPushpin = findProcessIdByName('pushpin-proxy')
 	for pushpins in listOfPushpin:
 		pushpinID = pushpins['pid']
 		os.kill(pushpinID, SIGKILL)
+	time.sleep(1)
+	listOfPushpin1 = findProcessIdByName('pushpin-handler')
+	for pushpins1 in listOfPushpin1:
+		pushpinID1 = pushpins1['pid']
+		os.kill(pushpinID1, SIGKILL)
 	#os.system('sudo systemctl start healthcheck')
 	os.system('rm -rf /home/secure/ttt')
 	time.sleep(5)
