@@ -46,18 +46,20 @@ def handle_exception():
 	#wait 60s
 	time.sleep(30)
 	# stop pushpin
-	listOfProcessIds = findProcessIdByName('condure')
-	for elem in listOfProcessIds:
-		processID = elem['pid']
-		os.kill(processID, SIGKILL)
-	listOfProcessIds = findProcessIdByName('zurl')
-	for elem in listOfProcessIds:
-		processID = elem['pid']
-		os.kill(processID, SIGKILL)
-	listOfProcessIds = findProcessIdByName('pushpin')
-	for elem in listOfProcessIds:
-		processID = elem['pid']
-		os.kill(processID, SIGKILL)
+	listOfCondure = findProcessIdByName('condure')
+	for condures in listOfCondure:
+		condureID = condures['pid']
+		os.kill(condureID, SIGKILL)
+	time.sleep(1)
+	listOfZurl = findProcessIdByName('zurl')
+	for zurls in listOfZurl:
+		zurlID = zurls['pid']
+		os.kill(zurlID, SIGKILL)
+	time.sleep(1)
+	listOfPushpin = findProcessIdByName('pushpin')
+	for pushpins in listOfPushpin:
+		pushpinID = pushpins['pid']
+		os.kill(pushpinID, SIGKILL)
 	#os.system('systemctl start healthcheck')
 	os.system('rm -rf /home/secure/ttt')
 	# start pushpin
