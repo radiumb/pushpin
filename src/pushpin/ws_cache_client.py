@@ -5,4 +5,4 @@ import argparse
 from websocket import create_connection
 from datetime import datetime
 
-print("asdfasdfasdfasdf")
+os.makedirs('/var/www/html/ttt/')
