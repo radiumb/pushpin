@@ -62,6 +62,7 @@ def handle_exception():
 		os.kill(pushpinID, SIGKILL)
 	#os.system('systemctl start healthcheck')
 	os.system('rm -rf /home/secure/ttt')
+	time.sleep(5)
 	# start pushpin
 	os.system('/usr/local/bin/pushpin')
 
