@@ -64,11 +64,11 @@ def handle_exception():
 	os.system('rm -rf /home/secure/ttt')
 	time.sleep(5)
 	# start pushpin
-	os.system('sudo /usr/local/bin/pushpin')
+	os.system('pushpin')
 	time.sleep(15)
 
 # start cache client
-proc = subprocess.Popen(['sudo /usr/bin/wscat', '-H Socket-Owner:Cache_Client -c ws://localhost:7999/ws'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+proc = subprocess.Popen(['/usr/bin/wscat', '-H Socket-Owner:Cache_Client -c ws://localhost:7999/ws'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 print('wscat pid %d' % proc.pid)
 
 while True:
