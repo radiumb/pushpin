@@ -73,7 +73,7 @@ def handle_exception():
 	os.system('rm -rf /home/secure/ttt')
 	time.sleep(5)
 	# start pushpin
-	os.system('sudo pushpin')
+	print('pushpin starting')
 	proc = Popen("sudo pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
 	print('pushpin started')
 	time.sleep(15)
