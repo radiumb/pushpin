@@ -73,7 +73,7 @@ def handle_exception():
 	os.system('rm -rf /home/secure/ttt')
 	time.sleep(5)
 	# start pushpin
-	os.system('sudo /usr/local/bin/pushpin')
+	os.system('sudo pushpin')
 	time.sleep(15)
 
 # start cache client
@@ -81,10 +81,10 @@ proc = subprocess.Popen(['/usr/bin/wscat', '-H Socket-Owner:Cache_Client -c ws:/
 print('wscat pid %d' % proc.pid)
 
 while True:
-	time.sleep(10)
 	if psutil.pid_exists(proc.pid):
 		print('a process with pid %d exists' % proc.pid)
-		handle_exception()
-		quit()
+		time.sleep(10)
 	else:
 		print('a process with pid %d does not exist' % proc.pid)
+		handle_exception()
+		quit()
