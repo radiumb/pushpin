@@ -5,9 +5,9 @@ import argparse
 from websocket import create_connection
 from datetime import datetime
 import time
-import subprocess
 from signal import SIGKILL
 import psutil
+from subprocess import Popen, PIPE
 
 def checkIfProcessRunning(processName):
 	'''
@@ -74,6 +74,7 @@ def handle_exception():
 	time.sleep(5)
 	# start pushpin
 	os.system('sudo pushpin')
+	proc = Popen("sudo pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
 	print('pushpin started')
 	time.sleep(15)
 
@@ -95,16 +96,7 @@ while True:
 		recvData =  ws.recv()
 		print(recvData)
 	except:
-		print("Error: can not send/receive command")
+		print("Error: can not send/receive command, closing ws")
 		ws.close()
 		handle_exception()
 		quit()
-
-#while True:
-#if psutil.pid_exists(proc.pid):
-#print('a process with pid %d exists' % proc.pid)
-#time.sleep(10)
-#else:
-#print('a process with pid %d does not exist' % proc.pid)
-#handle_exception()
-#quit()
