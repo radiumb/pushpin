@@ -77,14 +77,28 @@ def handle_exception():
 	time.sleep(15)
 
 # start cache client
-proc = subprocess.Popen(['/usr/bin/wscat', '-H Socket-Owner:Cache_Client -c ws://localhost:7999/ws'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-print('wscat pid %d' % proc.pid)
+urlPath = 'ws://localhost:7999/ws'
+reqHeader = {'Socket-Owner":"Cache_Client'}
+try:
+	ws = create_connection(urlPath, header=reqHeader)
+except:
+	handle_exception()
+	quit()
 
 while True:
-	if psutil.pid_exists(proc.pid):
-		print('a process with pid %d exists' % proc.pid)
+	try:
 		time.sleep(10)
-	else:
-		print('a process with pid %d does not exist' % proc.pid)
-		handle_exception()
+		out0 =  ws.recv()
+	except:
+		print("Error: can not send/receive command")
+		ws.close()
 		quit()
+
+#while True:
+#if psutil.pid_exists(proc.pid):
+#print('a process with pid %d exists' % proc.pid)
+#time.sleep(10)
+#else:
+#print('a process with pid %d does not exist' % proc.pid)
+#handle_exception()
+#quit()
