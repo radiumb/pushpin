@@ -74,6 +74,7 @@ def handle_exception():
 	time.sleep(5)
 	# start pushpin
 	os.system('sudo pushpin')
+	print('pushpin started')
 	time.sleep(15)
 
 # start cache client
@@ -86,14 +87,17 @@ except:
 	quit()
 
 print('ws connected')
+
 while True:
 	try:
 		time.sleep(10)
 		print('ws receiving')
-		out0 =  ws.recv()
+		recvData =  ws.recv()
+		print(recvData)
 	except:
 		print("Error: can not send/receive command")
 		ws.close()
+		handle_exception()
 		quit()
 
 #while True:
