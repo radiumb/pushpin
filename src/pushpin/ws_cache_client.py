@@ -69,7 +69,7 @@ def handle_exception():
 	os.system('rm -rf /home/secure/ttt')
 	time.sleep(5)
 	# start pushpin
-	os.system('pushpin')
+	os.system('sudo /usr/local/bin/pushpin')
 	time.sleep(15)
 
 # start cache client
