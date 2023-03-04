@@ -78,7 +78,7 @@ def handle_exception():
 
 # start cache client
 urlPath = 'ws://localhost:7999/ws'
-reqHeader = {'Socket-Owner":"Cache_Client'}
+reqHeader = {'Socket-Owner':'Cache_Client'}
 try:
 	ws = create_connection(urlPath, header=reqHeader)
 except:
