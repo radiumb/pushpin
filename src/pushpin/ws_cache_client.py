@@ -85,9 +85,11 @@ except:
 	handle_exception()
 	quit()
 
+print('ws connected')
 while True:
 	try:
 		time.sleep(10)
+		print('ws receiving')
 		out0 =  ws.recv()
 	except:
 		print("Error: can not send/receive command")
