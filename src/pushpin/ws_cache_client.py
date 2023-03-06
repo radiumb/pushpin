@@ -76,6 +76,7 @@ def handle_exception():
 	print('pushpin starting')
 	proc = Popen("sudo pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
 	print('pushpin started')
+	time.sleep(1)
 
 # start cache client
 urlPath = 'ws://localhost:7999/ws'
