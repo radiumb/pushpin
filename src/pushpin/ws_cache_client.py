@@ -79,7 +79,6 @@ def handle_exception():
 	time.sleep(1)
 
 # start cache client
-time.sleep(2)
 urlPath = 'ws://localhost:7999/ws'
 reqHeader = {'Socket-Owner':'Cache_Client'}
 try:
