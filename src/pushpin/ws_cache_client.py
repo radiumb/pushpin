@@ -41,10 +41,9 @@ def findProcessIdByName(processName):
 	return listOfProcessObjects;
 
 def handle_exception():
-	#os.system('sudo systemctl stop healthcheck')
-	os.system('mkdir /home/secure/ttt')
-	#wait 60s
-	time.sleep(30)
+	#os.system('mkdir /home/secure/ttt')
+	#wait 1mins
+	time.sleep(60)
 	# stop pushpin
 	listOfCondure = findProcessIdByName('condure')
 	for condures in listOfCondure:
@@ -69,8 +68,7 @@ def handle_exception():
 	for pushpin in listOfPushpin:
 		pushpinID = pushpin['pid']
 		os.kill(pushpinID, SIGKILL)
-	#os.system('sudo systemctl start healthcheck')
-	os.system('rm -rf /home/secure/ttt')
+	#os.system('rm -rf /home/secure/ttt')
 	time.sleep(5)
 	# start pushpin
 	print('pushpin starting')
