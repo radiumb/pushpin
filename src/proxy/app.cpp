@@ -627,6 +627,8 @@ public:
 			char *option = new char[cacheClientOption.length() + 1];
 			strcpy(option, cacheClientOption.toStdString().c_str());
 
+			log_debug("cache client command line=%s %s", bin, option);
+
 			QStringList optionList = cacheClientOption.split(" ");
 			char ** argv_list1 = new char *[optionList.length()+2];
 			argv_list1[0] = bin;
