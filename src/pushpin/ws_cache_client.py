@@ -91,8 +91,6 @@ except:
 	handle_exception()
 	quit()
 
-time.sleep(10)
-handle_exception()
 print('ws connected')
 
 while True:
