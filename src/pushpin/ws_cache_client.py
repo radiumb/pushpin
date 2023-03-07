@@ -97,7 +97,7 @@ while True:
 	try:
 		time.sleep(10)
 		print('ws receiving')
-		recvData =  ws.recv()
+		recvData = ws.recv()
 		print(recvData)
 	except:
 		print("Error: can not send/receive command, closing ws")
