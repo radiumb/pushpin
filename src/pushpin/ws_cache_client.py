@@ -41,12 +41,13 @@ def findProcessIdByName(processName):
 	return listOfProcessObjects;
 
 def handle_exception():
-	#os.system('mkdir /home/secure/ttt')
+	os.system('mkdir /home/secure/ttt')
 	#wait 1min
 	time.sleep(60)
 	# stop pushpin
 	print('pushpin stopping')
-	procStopPushpin = Popen("sudo systemctl stop pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
+	#procStopPushpin = Popen("sudo systemctl stop pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
+	os.system('sudo systemctl stop pushpin')
 	print('pushpin stopped')
 	time.sleep(1)
 	listOfCondure = findProcessIdByName('condure')
@@ -72,11 +73,12 @@ def handle_exception():
 	for pushpin in listOfPushpin:
 		pushpinID = pushpin['pid']
 		os.kill(pushpinID, SIGKILL)
-	#os.system('rm -rf /home/secure/ttt')
+	os.system('rm -rf /home/secure/ttt')
 	time.sleep(5)
 	# start pushpin
 	print('pushpin starting')
-	procStartPushpin = Popen("sudo systemctl start pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
+	#procStartPushpin = Popen("sudo systemctl start pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
+	os.system('sudo systemctl start pushpin')
 	print('pushpin started')
 	time.sleep(1)
 
