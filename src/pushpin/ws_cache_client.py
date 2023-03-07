@@ -49,7 +49,6 @@ def handle_exception():
 	procStopPushpin = Popen("sudo systemctl stop pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
 	print('pushpin stopped')
 	time.sleep(1)
-	'''
 	listOfCondure = findProcessIdByName('condure')
 	for condures in listOfCondure:
 		condureID = condures['pid']
@@ -74,11 +73,10 @@ def handle_exception():
 		pushpinID = pushpin['pid']
 		os.kill(pushpinID, SIGKILL)
 	#os.system('rm -rf /home/secure/ttt')
-	'''
-	time.sleep(30)
+	time.sleep(5)
 	# start pushpin
 	print('pushpin starting')
-	procStartPushpin = Popen("sudo pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
+	procStartPushpin = Popen("sudo systemctl start pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
 	print('pushpin started')
 	time.sleep(1)
 
