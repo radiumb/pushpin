@@ -89,7 +89,6 @@ except:
 	handle_exception()
 	quit()
 
-handle_exception()
 print('ws connected')
 
 while True:
