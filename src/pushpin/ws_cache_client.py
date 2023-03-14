@@ -47,7 +47,7 @@ def handle_exception():
 	# stop pushpin
 	print('pushpin stopping')
 	#procStopPushpin = Popen("sudo systemctl stop pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
-	os.system('sudo systemctl stop pushpin')
+	#os.system('sudo systemctl stop pushpin')
 	print('pushpin stopped')
 	time.sleep(1)
 	listOfCondure = findProcessIdByName('condure')
