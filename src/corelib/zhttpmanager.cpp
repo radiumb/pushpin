@@ -465,7 +465,7 @@ public:
 			if (packet.headers.contains(headerKey))
 			{
 				QByteArray headerValue = packet.headers.get(headerKey);
-				if (headerValue == QByteArray("Health_Client"))
+				if (headerValue == QByteArray("Health_Client_NoCache"))
 				{
 					// add client to health client list
 					QByteArray clientId = packet.ids[0].id;
