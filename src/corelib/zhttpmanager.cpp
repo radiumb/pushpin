@@ -1626,6 +1626,16 @@ public slots:
 			return;
 		}
 
+		bool healthClientFlag = false;
+		// if health client, set flag
+		for (int i = 0; i < gHealthClientList.count(); i++)
+		{
+			if (p.ids[0].id == gHealthClientList[i].clientId)
+			{
+				healthClientFlag = true;
+			}
+		}
+
 		// Write to shared memory
 		key_t key = ftok("shmfile",65);
 		int shmid = shmget(key,0,0666|IPC_CREAT);
@@ -1634,7 +1644,7 @@ public slots:
 		if (p.type == ZhttpResponsePacket::Data)
 		{
 			// Count (ws messages sent)
-			numMessageSent++;
+			if (!healthClientFlag) numMessageSent++;
 			memcpy(&shm_str[8], (char *)&numMessageSent, 4);
 		}
 
@@ -1699,7 +1709,7 @@ public slots:
 					log_debug("[CACHEITEM] Detected multi-part response");
 
 					// add ws Cache multi-part response
-					numResponseMultiPart++;
+					if (!healthClientFlag) numResponseMultiPart++;
 					memcpy(&shm_str[136], (char *)&numResponseMultiPart, 4);
 
 					gMultiPartResponsePacket = p;
