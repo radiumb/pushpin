@@ -1176,7 +1176,7 @@ public:
 			{
 				if (packet.ids[0].id == gHealthClientList[i].clientId)
 				{
-					flagHealthClient = true;
+					healthClientFlag = true;
 					if (gHealthClientList[i].cacheEnableFlag == false)
 					{
 						log_debug("[HEALTH_CLIENT] detected health client no cache (health client num = %d)", gHealthClientList.count());
