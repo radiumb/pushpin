@@ -95,6 +95,7 @@ struct ClientItem {
 	int msgId;
 	QByteArray clientId;
 	QString resultStr;
+	bool cacheEnableFlag;
 };
 struct CacheItem {
 	int oldMsgId;
@@ -465,26 +466,30 @@ public:
 			if (packet.headers.contains(headerKey))
 			{
 				QByteArray headerValue = packet.headers.get(headerKey);
-				if (headerValue == QByteArray("Health_Client_NoCache"))
+				if ((headerValue == QByteArray("Health_Client_NoCache")) || (headerValue == QByteArray("Health_Client")))
 				{
 					// add client to health client list
 					QByteArray clientId = packet.ids[0].id;
-					int k;
-					for (k = 0; k < gHealthClientList.count(); k++)
+					for (int k = 0; k < gHealthClientList.count(); k++)
 					{
 						if (clientId == gHealthClientList[k].clientId)
-							break;
+						{
+							log_debug("[HEALTH_CLIENT] deleting an item");
+							gHealthClientList.removeAt(k);
+							k--;
+						}
 					}
-					if (k == gHealthClientList.count())
-					{
-						// Add to client list
-						struct ClientItem clientItem;
-						clientItem.clientId = clientId;
-						gHealthClientList.append(clientItem);
-					}
+
+					// Add to client list
+					struct ClientItem clientItem;
+					clientItem.clientId = clientId;
+					clientItem.cacheEnableFlag = (headerValue == QByteArray("Health_Client_NoCache")) ? false : true;
+					gHealthClientList.append(clientItem);
+					log_debug("[HEALTH_CLIENT] added new health client");
 				}
 			}
-			
+
+			// check health client			
 			if (gCacheClient.initialized == false)
 			{
 				if (packet.headers.contains(headerKey))
@@ -1165,20 +1170,30 @@ public:
 		}
 		else if (packet.type == ZhttpRequestPacket::Data)
 		{
+			bool healthClientFlag = false;
 			// if health client, skip
 			for (int i = 0; i < gHealthClientList.count(); i++)
 			{
 				if (packet.ids[0].id == gHealthClientList[i].clientId)
 				{
-					log_debug("[HEALTH_CLIENT] detected health client (health client num = %d)", gHealthClientList.count());
-					goto OUT_STREAM_SOCK_WRITE;
+					flagHealthClient = true;
+					if (gHealthClientList[i].cacheEnableFlag == false)
+					{
+						log_debug("[HEALTH_CLIENT] detected health client no cache (health client num = %d)", gHealthClientList.count());
+						goto OUT_STREAM_SOCK_WRITE;
+					}
+					else
+					{
+						log_debug("[HEALTH_CLIENT] detected health client cache (health client num = %d)", gHealthClientList.count());
+						break;
+					}
 				}
 			}
 			// if more flag is true, skip
 			if (packet.more == true)
 			{
 				// add ws Cache multi-part request
-				numRequestMultiPart++;
+				if (!healthClientFlag) numRequestMultiPart++;
 				memcpy(&shm_str[116], (char *)&numRequestMultiPart, 4);
 
 				log_debug("[CACHEITEM] Detected multi-parts request");
@@ -1223,12 +1238,12 @@ public:
 			pch = strstr(methodStr, "_subscribe");
 			if (pch == NULL)
 			{
-				numCacheLookup++;
+				if (!healthClientFlag) numCacheLookup++;
 				memcpy(&shm_str[108], (char *)&numCacheLookup, 4);
 			}
 			else
 			{
-				numSubscriptionLookup++;
+				if (!healthClientFlag) numSubscriptionLookup++;
 				memcpy(&shm_str[128], (char *)&numSubscriptionLookup, 4);
 			}
 			
@@ -1247,7 +1262,7 @@ public:
 						if (!memcmp(gCacheItemList[j].methodNameParamHashVal, paramsHash, 20))
 						{
 							// add ws Cache hit
-							numCacheHit++;
+							if (!healthClientFlag) numCacheHit++;
 							memcpy(&shm_str[104], (char *)&numCacheHit, 4);
 							gCacheItemList[j].accessCount = 2;
 
@@ -1333,7 +1348,7 @@ public:
 						if (!memcmp(gSubscriptionItemList[j].methodNameParamHashVal, paramsHash, 20))
 						{
 							// add ws Cache hit
-							numSubscriptionHit++;
+							if (!healthClientFlag) numSubscriptionHit++;
 							memcpy(&shm_str[124], (char *)&numSubscriptionHit, 4);
 							gSubscriptionItemList[j].accessCount = 2;
 
@@ -1379,7 +1394,7 @@ public:
 					log_debug("[CACHEITEM] Registered New Subscription Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 					// add ws Cache insert
-					numSubscriptionInsert++;
+					if (!healthClientFlag) numSubscriptionInsert++;
 					memcpy(&shm_str[120], (char *)&numSubscriptionInsert, 4);
 
 					// Send new client cache request packet
@@ -2155,6 +2170,16 @@ ZWS_CLIENT_IN_WRITE:
 			ZWebSocket *sock = serverSocksByRid.value(ZWebSocket::Rid(p.from, id.id));
 			if(sock)
 			{
+				// if health client, skip
+				for (int i = 0; i < gHealthClientList.count(); i++)
+				{
+					if (id.id == gHealthClientList[i].clientId)
+					{
+						goto SOCK_HANDLE;
+					}
+				}
+
+				// if data packet
 				if (p.type == ZhttpRequestPacket::Data)
 				{
 					// parse JSON-RPC 
