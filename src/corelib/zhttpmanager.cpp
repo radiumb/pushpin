@@ -125,7 +125,7 @@ QList<ClientItem> gHealthClientList;
 struct MultiPartRequestItem {
 	QByteArray clientId;
 	ZhttpRequestPacket requestPacket;
-}
+};
 QList<MultiPartRequestItem> gMultiPartRequestItemList;
 ZhttpResponsePacket gMultiPartResponsePacket;
 
