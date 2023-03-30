@@ -122,6 +122,11 @@ QList<CacheItem> gSubscriptionItemList;
 QList<ClientItem> gClientList;
 QList<ClientItem> gHealthClientList;
 
+struct MultiPartRequestItem {
+	QByteArray clientId;
+	ZhttpRequestPacket requestPacket;
+}
+QList<MultiPartRequestItem> gMultiPartRequestItemList;
 ZhttpResponsePacket gMultiPartResponsePacket;
 
 // closed client item
@@ -1004,8 +1009,12 @@ public:
 		char oldIdStr[64], newIdStr[64];
 		qsnprintf(oldIdStr, 64, "\"id\":%d", oldMsgId);
 		qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClient.msgIdCount);
-		gCacheClient.msgIdCount++;
 		tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+		// for special cases
+		qsnprintf(oldIdStr, 64, "\"id\": %d", oldMsgId);
+		qsnprintf(newIdStr, 64, "\"id\": %d", gCacheClient.msgIdCount);
+		tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+		gCacheClient.msgIdCount++;
 
 		QVariant vTempPacket = tempPacket.toVariant();
 		QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
@@ -1189,14 +1198,88 @@ public:
 					}
 				}
 			}
+
+			// Check if multi-parts request
+			int mpItemCount = gMultiPartRequestItemList.count();
+			bool mpItemFlag = false;
+			int mpItemNum = -1;
+			for (int i = 0; i < mpItemCount; i++)
+			{
+				if (packet.ids[0].id == gMultiPartRequestItemList[i].clientId)
+				{
+					mpItemFlag = true;
+					mpItemNum = i;
+					break;
+				}
+			}
+			if (mpItemFlag == true)
+			{
+				// this is middle packet of multi-request
+				if (packet.more == true)
+				{
+					log_debug("[CACHEITEM] Detected middle of multi-parts request");
+					gMultiPartRequestItemList[mpItemNum].requestPacket.body.append(packet.body);
+
+					// make original packet to keep-alive
+					ZhttpRequestPacket keepAlivePacket = packet;
+					keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+					keepAlivePacket.body.clear();
+					buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
+
+					goto OUT_STREAM_SOCK_WRITE;
+				}
+				else // this is end packet of multi-request
+				{
+					log_debug("[CACHEITEM] Detected end of multi-parts request");
+					gMultiPartRequestItemList[mpItemNum].requestPacket.body.append(packet.body);
+
+					p.body = gMultiPartRequestItemList[mpItemNum].requestPacket.body;
+					gMultiPartRequestItemList.removeAt(mpItemNum);
+				}
+			}
+			else
+			{
+				// this is first packet of multi-request
+				if (packet.more == true)
+				{
+					log_debug("[CACHEITEM] Detected start of multi-parts request");
+
+					// add ws Cache multi-part request
+					if (!healthClientFlag) numRequestMultiPart++;
+					memcpy(&shm_str[116], (char *)&numRequestMultiPart, 4);
+
+					// register new multi-request item
+					struct MultiPartRequestItem requestItem;
+					requestItem.clientId = packet.ids[0].id;
+					requestItem.requestPacket = packet;
+					gMultiPartRequestItemList.append(requestItem);
+					
+					// make original packet to keep-alive
+					ZhttpRequestPacket keepAlivePacket = packet;
+					keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+					keepAlivePacket.body.clear();
+					buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
+
+					goto OUT_STREAM_SOCK_WRITE;
+				}
+			}
+			
+
 			// if more flag is true, skip
 			if (packet.more == true)
 			{
+				log_debug("[CACHEITEM] Detected multi-parts request");
+
 				// add ws Cache multi-part request
 				if (!healthClientFlag) numRequestMultiPart++;
 				memcpy(&shm_str[116], (char *)&numRequestMultiPart, 4);
 
-				log_debug("[CACHEITEM] Detected multi-parts request");
+				for (int i = 0; i < count; i++)
+				{
+					/* code */
+				}
+				
+				
 				goto OUT_STREAM_SOCK_WRITE;
 			}
 			
@@ -1296,6 +1379,7 @@ public:
 							// make keep alive request
 							ZhttpRequestPacket keepAlivePacket = packet;
 							keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+							keepAlivePacket.body.clear();
 							buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 
 							goto OUT_STREAM_SOCK_WRITE;
@@ -1319,6 +1403,7 @@ public:
 						// make original packet to keep-alive
 						ZhttpRequestPacket keepAlivePacket = packet;
 						keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+						keepAlivePacket.body.clear();
 						buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 
 						goto OUT_STREAM_SOCK_WRITE;
@@ -1383,6 +1468,7 @@ public:
 							// make keep alive request
 							ZhttpRequestPacket keepAlivePacket = packet;
 							keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+							keepAlivePacket.body.clear();
 							buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 
 							goto OUT_STREAM_SOCK_WRITE;
@@ -1403,6 +1489,7 @@ public:
 					// make original packet to keep-alive
 					ZhttpRequestPacket keepAlivePacket = packet;
 					keepAlivePacket.type = ZhttpRequestPacket::KeepAlive;
+					keepAlivePacket.body.clear();
 					buf = QByteArray("T") + TnetString::fromVariant(keepAlivePacket.toVariant());
 
 					goto OUT_STREAM_SOCK_WRITE;
@@ -1706,7 +1793,7 @@ public slots:
 				// start to store parts
 				if (gMultiPartResponsePacket.body.isEmpty())
 				{
-					log_debug("[CACHEITEM] Detected multi-part response");
+					log_debug("[CACHEITEM] Detected multi-parts response");
 
 					// add ws Cache multi-part response
 					if (!healthClientFlag) numResponseMultiPart++;
