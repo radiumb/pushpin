@@ -1235,8 +1235,9 @@ public:
 
 					ZhttpRequestPacket newPacket = packet;
 					newPacket.body = gMultiPartRequestItemList[mpItemNum].requestPacket.body;
-					packet = newPacket;
 					gMultiPartRequestItemList.removeAt(mpItemNum);
+					write(type, newPacket, instanceAddress);
+					return;
 				}
 			}
 			else
