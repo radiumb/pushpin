@@ -1233,7 +1233,9 @@ public:
 					log_debug("[CACHEITEM] Detected end of multi-parts request");
 					gMultiPartRequestItemList[mpItemNum].requestPacket.body.append(packet.body);
 
-					packet.body = gMultiPartRequestItemList[mpItemNum].requestPacket.body;
+					ZhttpRequestPacket newPacket = packet;
+					newPacket.body = gMultiPartRequestItemList[mpItemNum].requestPacket.body;
+					p = newPacket;
 					gMultiPartRequestItemList.removeAt(mpItemNum);
 				}
 			}
