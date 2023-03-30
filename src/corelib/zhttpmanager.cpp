@@ -600,6 +600,8 @@ public:
 					// add ws Cache expiry
 					numCacheExpiry++;
 
+					log_debug("[CACHEITEM] deleting1 cache item cacheScanPtr=%d itemCount=%d", cacheScanPtr, itemCount);
+
 					// remove cache item
 					gCacheItemList.removeAt(i);
 					break;
@@ -632,6 +634,7 @@ public:
 					numCacheExpiry++;
 
 					// remove cache item
+					log_debug("[CACHEITEM] deleting2 cache item cacheScanPtr=%d itemCount=%d", cacheScanPtr, itemCount);
 					gCacheItemList.removeAt(i);
 					break;
 				}				
@@ -689,6 +692,7 @@ public:
 					sendUnsubscribeRequest(gSubscriptionItemList[i].unsubscribePacket, gSubscriptionItemList[i].unsubscribeMsgId, gSubscriptionItemList[i].requestInstanceAddress);
 
 					// remove subscription item
+					log_debug("[CACHEITEM] deleting1 subscription item cacheScanPtr=%d itemCount=%d", cacheScanPtr, itemCount);
 					gSubscriptionItemList.removeAt(i);
 					break;
 				}
@@ -696,6 +700,7 @@ public:
 
 			if ((refreshDiff > subscriptionInvalidTimeOut) && (gSubscriptionItemList[i].msgId == -1))
 			{
+				log_debug("[CACHEITEM] deleting2 subscription item cacheScanPtr=%d itemCount=%d", cacheScanPtr, itemCount);
 				gSubscriptionItemList.removeAt(i);
 				break;
 			}
