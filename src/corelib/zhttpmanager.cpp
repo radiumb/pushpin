@@ -1264,25 +1264,6 @@ public:
 				}
 			}
 			
-
-			// if more flag is true, skip
-			if (packet.more == true)
-			{
-				log_debug("[CACHEITEM] Detected multi-parts request");
-
-				// add ws Cache multi-part request
-				if (!healthClientFlag) numRequestMultiPart++;
-				memcpy(&shm_str[116], (char *)&numRequestMultiPart, 4);
-
-				for (int i = 0; i < count; i++)
-				{
-					/* code */
-				}
-				
-				
-				goto OUT_STREAM_SOCK_WRITE;
-			}
-			
 			// Parse json message
 			JsonMsgBody msgBody;
 			if (parseJsonMsg(vpacket, &msgBody) < 0)
