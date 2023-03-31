@@ -804,6 +804,7 @@ public:
 		char oldIdStr[64], newIdStr[64];
 		qsnprintf(oldIdStr, 64, "\"id\":%d", gCacheItemList[cacheItemId].msgId);
 		qsnprintf(newIdStr, 64, "\"id\":%d", newMsgId);
+		log_debug("[asdfasdfasdf] oldIdStr = %s, newIdStr = %s", oldIdStr, newIdStr);
 		responsePacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
 		responsePacket.ids[0].id = newPacketId.data();
 		responsePacket.ids[0].seq = -1;
