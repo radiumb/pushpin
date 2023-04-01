@@ -98,8 +98,8 @@ struct ClientItem {
 	bool cacheEnableFlag;
 };
 struct CacheItem {
-	int oldMsgId;
 	int msgId;
+	int newMsgId;
 	char methodNameParamHashVal[20];
 	bool areFlag;
 	time_t refreshTimeCount;
