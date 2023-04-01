@@ -1974,7 +1974,7 @@ public slots:
 						}
 
 						gSubscriptionItemList[i].responsePacket = p;
-						gSubscriptionItemList[i].msgId == msgBody.id;
+						gSubscriptionItemList[i].msgId = msgBody.id;
 						gSubscriptionItemList[i].subscriptionStr = msgBody.result;
 						log_debug("[CACHEITEM] Registered Subscription result for \"%s\"", qPrintable(msgBody.result));
 
