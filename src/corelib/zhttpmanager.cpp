@@ -620,10 +620,10 @@ public:
 					if ((gCacheItemList[i].areFlag == true) || (gCacheItemList[i].accessCount > 0))
 					{
 						log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
-						gCacheItemList[i].msgId = gCacheClient.msgIdCount;
+						gCacheItemList[i].newMsgId = gCacheClient.msgIdCount;
 						gCacheItemList[i].clientList.clear();
 						gCacheItemList[i].refreshTimeCount = time(NULL);
-						sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
+						sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].msgId, gCacheItemList[i].requestInstanceAddress);
 						cacheScanPtr++;
 						break;
 					}
@@ -716,7 +716,7 @@ public:
 	{
 		// create new cache item
 		struct CacheItem cacheItem;
-		cacheItem.msgId = gCacheClient.msgIdCount;
+		cacheItem.newMsgId = gCacheClient.msgIdCount;
 		memcpy(cacheItem.methodNameParamHashVal, methodNameParamsHashVal, 20);
 		cacheItem.refreshTimeCount = time(NULL);
 		cacheItem.accessTimeCount = time(NULL);
@@ -746,7 +746,7 @@ public:
 		shmdt(shm_str);
 
 		// save the request packet with new id
-		cacheItem.oldMsgId = msgId;
+		cacheItem.msgId = msgId;
 		cacheItem.requestPacket = clientPacket;
 		cacheItem.requestInstanceAddress = instanceAddress;
 		
@@ -762,7 +762,7 @@ public:
 	{
 		// create new cache item
 		struct CacheItem cacheItem;
-		cacheItem.msgId = gCacheClient.msgIdCount;
+		cacheItem.newMsgId = gCacheClient.msgIdCount;
 		memcpy(cacheItem.methodNameParamHashVal, methodNameParamsHashVal, 20);
 		cacheItem.refreshTimeCount = time(NULL);
 		cacheItem.accessTimeCount = time(NULL);
@@ -770,7 +770,7 @@ public:
 		cacheItem.cachedFlag = false;
 
 		// save the request packet with new id
-		cacheItem.oldMsgId = msgId;
+		cacheItem.msgId = msgId;
 		cacheItem.requestPacket = clientPacket;
 		cacheItem.requestInstanceAddress = instanceAddress;
 
@@ -1935,9 +1935,10 @@ public slots:
 				int cacheItemCount = gCacheItemList.count();
 				for (int i = 0; i < cacheItemCount; i++)
 				{
-					if (gCacheItemList[i].msgId == msgBody.id)
+					if (gCacheItemList[i].newMsgId == msgBody.id)
 					{
 						gCacheItemList[i].responsePacket = p;
+						gCacheItemList[i].msgId = msgBody.id;
 
 						gCacheItemList[i].cachedFlag = true;
 						log_debug("[CACHEITEM] Added Cache content for method id=%d", msgBody.id);
@@ -1960,7 +1961,7 @@ public slots:
 				int subscriptionItemCount = gSubscriptionItemList.count();
 				for (int i = 0; i < subscriptionItemCount; i++)
 				{
-					if (gSubscriptionItemList[i].msgId == msgBody.id)
+					if (gSubscriptionItemList[i].newMsgId == msgBody.id)
 					{
 						// id
 						if(!msgBody.flagResult)
@@ -1970,6 +1971,7 @@ public slots:
 						}
 
 						gSubscriptionItemList[i].responsePacket = p;
+						gSubscriptionItemList[i].msgId = msgBody.id;
 						gSubscriptionItemList[i].subscriptionStr = msgBody.result;
 						log_debug("[CACHEITEM] Registered Subscription result for \"%s\"", qPrintable(msgBody.result));
 
