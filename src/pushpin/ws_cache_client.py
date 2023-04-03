@@ -88,6 +88,7 @@ reqHeader = {'Socket-Owner':'Cache_Client'}
 try:
 	ws = create_connection(urlPath, header=reqHeader)
 except:
+	print('failed to connect ws')
 	handle_exception()
 	quit()
 
