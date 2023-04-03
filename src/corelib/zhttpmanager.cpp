@@ -137,6 +137,7 @@ struct CacheClientItem {
 	int seqCount;
 	int totalCredit;
 	int creditCount;
+	time_t lastDataReceivedTime;
 	QByteArray receiver;
 	QByteArray from;
 	QByteArray clientId;
@@ -693,7 +694,7 @@ public:
 					sendUnsubscribeRequest(gSubscriptionItemList[i].unsubscribePacket, gSubscriptionItemList[i].unsubscribeMsgId, gSubscriptionItemList[i].requestInstanceAddress);
 
 					// remove subscription item
-					log_debug("[CACHEITEM] deleting1 subscription item cacheScanPtr=%d itemCount=%d", cacheScanPtr, itemCount);
+					log_debug("[CACHEITEM] deleting1 subscription item subscriptionScanPtr=%d itemCount=%d", i, itemCount);
 					gSubscriptionItemList.removeAt(i);
 					break;
 				}
@@ -701,7 +702,7 @@ public:
 
 			if ((refreshDiff > subscriptionInvalidTimeOut) && (gSubscriptionItemList[i].msgId == -1))
 			{
-				log_debug("[CACHEITEM] deleting2 subscription item cacheScanPtr=%d itemCount=%d", cacheScanPtr, itemCount);
+				log_debug("[CACHEITEM] deleting2 subscription item subscriptionScanPtr=%d itemCount=%d", i, itemCount);
 				gSubscriptionItemList.removeAt(i);
 				break;
 			}
@@ -1087,6 +1088,23 @@ public:
 		if ((cfgCacheEnableFlag != 1) || (gCacheClient.initialized != true))
 		{
 			goto OUT_STREAM_SOCK_WRITE;
+		}
+
+		// if any data packets from backend for 30 seconds, restart pushpin
+		{
+			time_t currSeconds = time(NULL);
+			int diff = (int)(currSeconds - gCacheClient.lastDataReceivedTime);
+
+			if (diff > 30)
+			{
+				ZhttpResponsePacket out;
+				out.from = instanceId;
+				out.ids += ZhttpResponsePacket::Id(gCacheClient.clientId);
+				out.type = ZhttpResponsePacket::Data;
+				out.Body = QByteArray::fromRawData((const char*)"qwerqwer", 8);
+				write(type, out, gCacheClient.from);
+			}
+			
 		}
 
 		// delete old cache items
@@ -1750,6 +1768,8 @@ public slots:
 				struct ClientItem clientItem;
 				clientItem.clientId = clientId;
 				gClientList.append(clientItem);
+
+				log_debug("[CACHEITEM] Adding new client id=%s totalcount=%d", (const char *)clientId, k);
 			}
 		}
 		else if (p.ids[0].id == gCacheClient.clientId)
@@ -1762,6 +1782,7 @@ public slots:
 					gCacheClient.initialized = true;
 					gCacheClient.totalCredit = p.credits;
 					gCacheClient.creditCount = 0;
+					gCacheClient.lastDataReceivedTime = time(NULL);
 					gCacheClient.receiver = receiver;
 					gCacheClient.from = p.from;
 					log_debug("[CACHEITEM] Initialized Cache client receiver=%s", receiver.data());
@@ -1772,10 +1793,17 @@ public slots:
 			// set credit packet to backend
 			if (p.type == ZhttpResponsePacket::Data)
 			{
+				// record time to receive data
+				//gCacheClient.lastDataReceivedTime = time(NULL);
 				gCacheClient.creditCount += static_cast<int>(p.body.size());
 			}
 			else
 			{
+				if (p.type == ZhttpResponsePacket::Credit)
+				{
+					log_debug("[CACHEITEM] Cache client credits making to Zero");
+					p.credits = 0;
+				}
 				goto ZWS_CLIENT_IN_WRITE;
 			}
 
