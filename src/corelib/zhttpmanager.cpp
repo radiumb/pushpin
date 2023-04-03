@@ -1097,12 +1097,35 @@ public:
 
 			if (diff > 30)
 			{
+				log_debug("[CACHEITEM] Sending restart pushpin");
 				ZhttpResponsePacket out;
 				out.from = instanceId;
 				out.ids += ZhttpResponsePacket::Id(gCacheClient.clientId);
+				out.ids[0].seq = -1;
 				out.type = ZhttpResponsePacket::Data;
 				out.body = QByteArray::fromRawData((const char*)"qwerqwer", 8);
-				write(type, out, gCacheClient.from);
+
+				if(log_outputLevel() >= LOG_LEVEL_DEBUG)
+					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, out.toVariant(), "body", "%s CACHE: IN %s", "[CACHEITEM]", out.from.data());
+
+				foreach(const ZhttpResponsePacket::Id &id, out.ids)
+				{
+					// is this for a websocket?
+					ZWebSocket *sock = clientSocksByRid.value(ZWebSocket::Rid(instanceId, id.id));
+					if(sock)
+					{
+						sock->handle(id.id, id.seq, out);
+						continue;
+					}
+
+					// is this for an http request?
+					ZhttpRequest *req = clientReqsByRid.value(ZhttpRequest::Rid(instanceId, id.id));
+					if(req)
+					{
+						req->handle(id.id, id.seq, out);
+						continue;
+					}
+				}
 			}
 			
 		}
