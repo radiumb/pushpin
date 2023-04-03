@@ -1098,6 +1098,8 @@ public:
 			if (diff > 30)
 			{
 				log_debug("[CACHEITEM] Sending restart pushpin");
+				exit(0);
+/*
 				ZhttpResponsePacket out;
 				out.from = instanceId;
 				out.ids += ZhttpResponsePacket::Id(gCacheClient.clientId);
@@ -1126,6 +1128,7 @@ public:
 						continue;
 					}
 				}
+*/
 			}
 			
 		}
