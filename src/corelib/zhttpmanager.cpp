@@ -1820,7 +1820,7 @@ public slots:
 			if (p.type == ZhttpResponsePacket::Data)
 			{
 				// record time to receive data
-				//gCacheClient.lastDataReceivedTime = time(NULL);
+				gCacheClient.lastDataReceivedTime = time(NULL);
 				gCacheClient.creditCount += static_cast<int>(p.body.size());
 			}
 			else
