@@ -41,7 +41,6 @@ def findProcessIdByName(processName):
 	return listOfProcessObjects;
 
 def handle_exception():
-	os.system('mkdir /home/secure/ttt')
 	#wait 1min
 	time.sleep(60)
 	# stop pushpin
@@ -73,7 +72,6 @@ def handle_exception():
 	for pushpin in listOfPushpin:
 		pushpinID = pushpin['pid']
 		os.kill(pushpinID, SIGKILL)
-	os.system('rm -rf /home/secure/ttt')
 	time.sleep(5)
 	# start pushpin
 	print('pushpin starting')
