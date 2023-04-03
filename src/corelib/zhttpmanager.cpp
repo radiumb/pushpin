@@ -1101,7 +1101,7 @@ public:
 				out.from = instanceId;
 				out.ids += ZhttpResponsePacket::Id(gCacheClient.clientId);
 				out.type = ZhttpResponsePacket::Data;
-				out.Body = QByteArray::fromRawData((const char*)"qwerqwer", 8);
+				out.body = QByteArray::fromRawData((const char*)"qwerqwer", 8);
 				write(type, out, gCacheClient.from);
 			}
 			
