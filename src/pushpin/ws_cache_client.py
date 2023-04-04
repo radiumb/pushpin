@@ -107,5 +107,4 @@ while True:
 		print("Error: can not send/receive command, closing ws")
 		ws.close()
 		handle_exception()
-		ws = create_connection(urlPath, header=reqHeader)
-		print('ws connected')
+		quit()
