@@ -46,6 +46,10 @@ def handle_exception():
 	# stop pushpin
 	print('pushpin stopping')
 	#procStopPushpin = Popen("sudo systemctl stop pushpin".split(), stdin=PIPE, stdout=PIPE, stderr=PIPE)
+	now = datetime.now() # current date and time
+	dateTimeStr = now.strftime("%Y%m%d%H%M%S")
+	cmdStr = 'sudo mkdir ~/' + dateTimeStr
+	os.system(cmdStr)
 	#os.system('sudo systemctl stop pushpin')
 	print('pushpin stopped')
 	time.sleep(1)
