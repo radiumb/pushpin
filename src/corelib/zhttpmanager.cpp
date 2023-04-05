@@ -683,21 +683,17 @@ public:
 		for (int i = subscriptionScanPtr; i < itemCount; i++)
 		{
 			int refreshDiff = (int)(currSeconds - gSubscriptionItemList[i].refreshTimeCount);
-			if ((refreshDiff > subscriptionTimeOut) && (gSubscriptionItemList[i].clientList.count() == 0))
+			if ((refreshDiff > subscriptionTimeOut) && (gSubscriptionItemList[i].clientList.count() == 0) && (gSubscriptionItemList[i].cachedFlag == true))
 			{
-				// send unsubscribe request
-				if (gSubscriptionItemList[i].unsubscribeMsgId != -1)
-				{
-					// add ws Subscription expiry
-					numSubscriptionExpiry++;
+				// add ws Subscription expiry
+				numSubscriptionExpiry++;
 
-					sendUnsubscribeRequest(gSubscriptionItemList[i].unsubscribePacket, gSubscriptionItemList[i].unsubscribeMsgId, gSubscriptionItemList[i].requestInstanceAddress);
+				sendUnsubscribeRequest(gSubscriptionItemList[i].subscriptionStr, gSubscriptionItemList[i].requestInstanceAddress);
 
-					// remove subscription item
-					log_debug("[CACHEITEM] deleting1 subscription item subscriptionScanPtr=%d itemCount=%d", i, itemCount);
-					gSubscriptionItemList.removeAt(i);
-					break;
-				}
+				// remove subscription item
+				log_debug("[CACHEITEM] deleting1 subscription item subscriptionStr=\"%s\" subscriptionScanPtr=%d itemCount=%d", gSubscriptionItemList[i].subscriptionStr, i, itemCount);
+				gSubscriptionItemList.removeAt(i);
+				break;
 			}
 
 			if ((refreshDiff > subscriptionInvalidTimeOut) && (gSubscriptionItemList[i].msgId == -1))
@@ -1040,19 +1036,20 @@ public:
 
 	}
 
-	void sendUnsubscribeRequest(const ZhttpRequestPacket &packet, int oldMsgId, const QByteArray &instanceAddress)
+	void sendUnsubscribeRequest(const QString &subscriptionStr, const QByteArray &instanceAddress)
 	{
 		// Create new packet by cache client
-		ZhttpRequestPacket tempPacket = packet;
-		tempPacket.ids[0].id = gCacheClient.clientId; // id
-		tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
+		ZhttpRequestPacket::Id tempId;
+		tempId.id = gCacheClient.clientId; // id
+		tempId.seq = gCacheClient.seqCount; // seq
+		tempPacket.ids.append(tempId);
 		gCacheClient.seqCount++;
-		// message id
-		char oldIdStr[64], newIdStr[64];
-		qsnprintf(oldIdStr, 64, "\"id\":%d", oldMsgId);
-		qsnprintf(newIdStr, 64, "\"id\":%d", gCacheClient.msgIdCount);
+
+		tempPacket.type = ZhttpRequestPacket::Data;
+		char bodyStr[512];
+		qsnprintf(bodyStr, 512, "{\"id\":%d,\"jsonrpc\":\"2.0\",\"method\":\"state_unsubscribeStorage\",\"params\":[\"%s\"]}", gCacheClient.msgIdCount, qPrintable(subscriptionStr));
 		gCacheClient.msgIdCount++;
-		tempPacket.body.replace(QByteArray(oldIdStr), QByteArray(newIdStr));
+		tempPacket.body = QByteArray(bodyStr);
 
 		QVariant vTempPacket = tempPacket.toVariant();
 		QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
