@@ -1039,6 +1039,7 @@ public:
 	void sendUnsubscribeRequest(const QString &subscriptionStr, const QByteArray &instanceAddress)
 	{
 		// Create new packet by cache client
+		ZhttpRequestPacket tempPacket;
 		ZhttpRequestPacket::Id tempId;
 		tempId.id = gCacheClient.clientId; // id
 		tempId.seq = gCacheClient.seqCount; // seq
