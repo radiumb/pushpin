@@ -688,10 +688,10 @@ public:
 				// add ws Subscription expiry
 				numSubscriptionExpiry++;
 
-				sendUnsubscribeRequest(gSubscriptionItemList[i].subscriptionStr, gSubscriptionItemList[i].requestInstanceAddress);
+				sendUnsubscribeRequest(gSubscriptionItemList[i].requestPacket, gSubscriptionItemList[i].subscriptionStr, gSubscriptionItemList[i].requestInstanceAddress);
 
 				// remove subscription item
-				log_debug("[CACHEITEM] deleting1 subscription item subscriptionStr=\"%s\" subscriptionScanPtr=%d itemCount=%d", gSubscriptionItemList[i].subscriptionStr, i, itemCount);
+				log_debug("[CACHEITEM] deleting1 subscription item subscriptionStr=\"%s\" subscriptionScanPtr=%d itemCount=%d", qPrintable(gSubscriptionItemList[i].subscriptionStr), i, itemCount);
 				gSubscriptionItemList.removeAt(i);
 				break;
 			}
@@ -1036,17 +1036,14 @@ public:
 
 	}
 
-	void sendUnsubscribeRequest(const QString &subscriptionStr, const QByteArray &instanceAddress)
+	void sendUnsubscribeRequest(const ZhttpRequestPacket &packet, const QString &subscriptionStr, const QByteArray &instanceAddress)
 	{
 		// Create new packet by cache client
-		ZhttpRequestPacket tempPacket;
-		ZhttpRequestPacket::Id tempId;
-		tempId.id = gCacheClient.clientId; // id
-		tempId.seq = gCacheClient.seqCount; // seq
-		tempPacket.ids.append(tempId);
+		ZhttpRequestPacket tempPacket = packet;
+		tempPacket.ids[0].id = gCacheClient.clientId; // id
+		tempPacket.ids[0].seq = gCacheClient.seqCount; // seq
 		gCacheClient.seqCount++;
 
-		tempPacket.type = ZhttpRequestPacket::Data;
 		char bodyStr[512];
 		qsnprintf(bodyStr, 512, "{\"id\":%d,\"jsonrpc\":\"2.0\",\"method\":\"state_unsubscribeStorage\",\"params\":[\"%s\"]}", gCacheClient.msgIdCount, qPrintable(subscriptionStr));
 		gCacheClient.msgIdCount++;
@@ -1056,7 +1053,7 @@ public:
 		QByteArray tmpBuf = QByteArray("T") + TnetString::fromVariant(vTempPacket);
 
 		if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "%s client: OUT %s", "UnsubscribeRequest", instanceAddress.data(), tempPacket.type);
+			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vTempPacket, "body", "%s client: OUT %s", "[CACHEITEM] UnsubscribeRequest", instanceAddress.data(), tempPacket.type);
 
 		QList<QByteArray> tmpMsg;
 		tmpMsg += instanceAddress;
