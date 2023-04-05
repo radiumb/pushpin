@@ -112,8 +112,6 @@ struct CacheItem {
 	ZhttpResponsePacket responsePacket;
 	QString subscriptionStr;
 	ZhttpResponsePacket subscriptionPacket;
-	int unsubscribeMsgId;
-	ZhttpRequestPacket unsubscribePacket;
 	QList<ClientItem> clientList;
 };
 QList<CacheItem> gCacheItemList;
@@ -773,10 +771,6 @@ public:
 		cacheItem.oldMsgId = msgId;
 		cacheItem.requestPacket = clientPacket;
 		cacheItem.requestInstanceAddress = instanceAddress;
-
-		// unsubscribe request
-		cacheItem.unsubscribeMsgId = -1;
-
 
 		struct ClientItem clientItem;
 		clientItem.msgId = msgId;
@@ -1546,8 +1540,6 @@ public:
 								if (packet.ids[0].id == gSubscriptionItemList[i].clientList[j].clientId)
 								{
 									log_debug("[CACHEITEM] deleting client in subscription list %s", qPrintable(paramStr));
-									gSubscriptionItemList[i].unsubscribeMsgId = msgBody.id;
-									gSubscriptionItemList[i].unsubscribePacket = packet;
 									gSubscriptionItemList[i].refreshTimeCount = time(NULL);
 									gSubscriptionItemList[i].clientList.removeAt(j);
 									j--;
