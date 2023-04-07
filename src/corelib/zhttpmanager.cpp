@@ -116,7 +116,6 @@ struct CacheItem {
 	QList<ClientItem> clientList;
 };
 QList<CacheItem> gCacheItemList;
-QList<CacheItem> gExpiredItemList;
 QList<CacheItem> gSubscriptionItemList;
 
 QList<ClientItem> gClientList;
@@ -1528,7 +1527,6 @@ public:
 								clientItem.clientId = packet.ids[0].id;
 								gSubscriptionItemList[j].clientList.append(clientItem);
 								log_debug("[CACHEITEM] Adding new client id msgId=%d clientId=%s", clientItem.msgId, (const char *)clientItem.clientId);
-								gSubscriptionItemList[j].refreshTimeCount = time(NULL);
 							}
 
 							// make keep alive request
@@ -1988,6 +1986,9 @@ public slots:
 							}
 						}
 
+						// update refresh time
+						gSubscriptionItemList[i].refreshTimeCount = time(NULL);
+
 						// make invalild
 						p.type = ZhttpResponsePacket::KeepAlive;
 						goto ZWS_CLIENT_IN_WRITE;
@@ -2069,6 +2070,7 @@ public slots:
 							{
 								gSubscriptionItemList[i].subscriptionPacket = gSubscriptionItemList[j].subscriptionPacket;
 								gSubscriptionItemList[i].cachedFlag = true;
+								gSubscriptionItemList[i].refreshTimeCount = time(NULL);
 								willRemoveItemNum = j;
 								log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d result=%s", msgBody.id, qPrintable(msgBody.result));
 								break;
