@@ -96,6 +96,7 @@ struct ClientItem {
 	QByteArray clientId;
 	QString resultStr;
 	bool cacheEnableFlag;
+	time lastRequestTime;
 };
 struct CacheItem {
 	int oldMsgId;
@@ -464,7 +465,7 @@ public:
 		if(client_out_sock)
 		{
 			if(log_outputLevel() >= LOG_LEVEL_DEBUG)
-					LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
+				LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT", logprefix);
 			
 			// check health client
 			QByteArray headerKey = QByteArray("Socket-Owner");
@@ -489,6 +490,7 @@ public:
 					struct ClientItem clientItem;
 					clientItem.clientId = clientId;
 					clientItem.cacheEnableFlag = (headerValue == QByteArray("Health_Client_NoCache")) ? false : true;
+					clientItem.lastRequestTime = time(NULL);
 					gHealthClientList.append(clientItem);
 					log_debug("[HEALTH_CLIENT] added new health client");
 				}
@@ -573,6 +575,95 @@ public:
 				LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client req: OUT", logprefix);
 
 			client_req_sock->write(QList<QByteArray>() << QByteArray() << buf);
+		}
+	}
+
+	void deleteClientInList(QByteArray clientId)
+	{
+		int subscriptionItemCount = gSubscriptionItemList.count();
+		for (int i = 0; i < subscriptionItemCount; i++)
+		{
+			int subscriptionClientCount = gSubscriptionItemList[i].clientList.count();
+			for (int j = 0; j < subscriptionClientCount; j++)
+			{
+				if (gSubscriptionItemList[i].clientList[j].clientId == clientId)
+				{
+					gSubscriptionItemList[i].clientList.removeAt(j);
+					log_debug("[CACHEITEM] Deleted cached client clientId=%s, msgId=%d, subscriptionStr=%s", \
+						clientId, gSubscriptionItemList[i].msgId, qPrintable(gSubscriptionItemList[i].subscriptionStr));
+					j--; subscriptionClientCount--;
+				}
+			}
+		}
+
+		// delete client from gClientList
+		int clientCount = gClientList.count();
+		for (int i = 0; i < clientCount; i++)
+		{
+			if (gClientList[i].clientId == clientId)
+			{
+				gClientList.removeAt(i);
+				log_debug("[CACHEITEM] Deleted gClientList count=%d", clientCount);
+				i--; clientCount--;
+			}
+		}
+
+		// delete client from gHealthClientList
+		clientCount = gHealthClientList.count();
+		for (int i = 0; i < clientCount; i++)
+		{
+			if (gHealthClientList[i].clientId == clientId)
+			{
+				gHealthClientList.removeAt(i);
+				log_debug("[CACHEITEM] Deleted gHealthClientList count=%d", clientCount);
+				i--; clientCount--;
+			}
+		}
+	}
+
+	void clearClientList(QByteArray clientId)
+	{
+		time_t currTime = time(NULL);
+
+		// check gClientList
+		for (int i = 0; i < gClientList.Count(); i++)
+		{
+			if (gClientList[i].clientId == clientId)
+			{
+				// get diff time from the last packet
+				int diffSeconds = currTime - gClientList[i].lastRequestTime;
+				if (diffSeconds > 120)	// 2mins
+				{
+					// delete this client
+					log_debug("[CACHEITEM] Detected gHealthClientList count=%d", clientCount);
+					deleteClientInList(QByteArray clientId)
+				}
+				else
+				{
+					// update time
+					gClientList[i].lastRequestTime = currTime;
+				}
+			}
+		}
+
+		// check gHealthClientList
+		for (int i = 0; i < gHealthClientList.Count(); i++)
+		{
+			if (gHealthClientList[i].clientId == clientId)
+			{
+				// get diff time from the last packet
+				int diffSeconds = currTime - gHealthClientList[i].lastRequestTime;
+				if (diffSeconds > 120)	// 2mins
+				{
+					// delete this client
+					deleteClientInList(QByteArray clientId)
+				}
+				else
+				{
+					// update time
+					gHealthClientList[i].lastRequestTime = currTime;
+				}
+			}
 		}
 	}
 
@@ -1122,6 +1213,9 @@ public:
 			
 		}
 
+		// Clear up client list
+		clearClientList(packet.ids[0].id);
+
 		// delete old cache items
 		deleteOldCacheItem(cfgCacheTimeoutSeconds);
 		deleteOldSubscriptionItem(cfgSubscribeTimeoutSeconds, 20);
@@ -1152,45 +1246,7 @@ public:
 		// if cancel/close request, remove client from the subscription client list
 		if ((packet.type == ZhttpRequestPacket::Cancel) || (packet.type == ZhttpRequestPacket::Close))
 		{
-			int subscriptionItemCount = gSubscriptionItemList.count();
-			for (int i = 0; i < subscriptionItemCount; i++)
-			{
-				for (int j = 0; j < gSubscriptionItemList[i].clientList.count(); j++)
-				{
-					if (gSubscriptionItemList[i].clientList[j].clientId == packet.ids[0].id)
-					{
-						gSubscriptionItemList[i].clientList.removeAt(j);
-						log_debug("[CACHEITEM] Deleted cached client clientId=%s, msgId=%d, subscriptionStr=%s", \
-							packet.ids[0].id.data(), gSubscriptionItemList[i].msgId, \
-							gSubscriptionItemList[i].subscriptionStr);
-						j--;
-					}
-				}
-			}
-
-			// delete client from gClientList
-			int clientCount = gClientList.count();
-			for (int i = 0; i < clientCount; i++)
-			{
-				if (gClientList[i].clientId == packet.ids[0].id)
-				{
-					gClientList.removeAt(i);
-					i--;
-					clientCount--;
-				}
-			}
-
-			// delete client from gHealthClientList
-			clientCount = gHealthClientList.count();
-			for (int i = 0; i < clientCount; i++)
-			{
-				if (gHealthClientList[i].clientId == packet.ids[0].id)
-				{
-					gHealthClientList.removeAt(i);
-					i--;
-					clientCount--;
-				}
-			}
+			deleteClientInList(packet.ids[0].id);
 		}
 		else if ((packet.type == ZhttpRequestPacket::Credit) && (gCacheClient.creditCount > 0))
 		{
@@ -1780,6 +1836,7 @@ public slots:
 				// Add to client list
 				struct ClientItem clientItem;
 				clientItem.clientId = clientId;
+				clientItem.lastRequestTime = time(NULL);
 				gClientList.append(clientItem);
 
 				log_debug("[CACHEITEM] Adding new client id=%s totalcount=%d", (const char *)clientId, k);
