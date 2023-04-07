@@ -96,7 +96,7 @@ struct ClientItem {
 	QByteArray clientId;
 	QString resultStr;
 	bool cacheEnableFlag;
-	time lastRequestTime;
+	time_t lastRequestTime;
 };
 struct CacheItem {
 	int oldMsgId;
@@ -592,6 +592,7 @@ public:
 					log_debug("[CACHEITEM] Deleted cached client clientId=%s, msgId=%d, subscriptionStr=%s", \
 						clientId, gSubscriptionItemList[i].msgId, qPrintable(gSubscriptionItemList[i].subscriptionStr));
 					j--; subscriptionClientCount--;
+					break;
 				}
 			}
 		}
@@ -605,6 +606,7 @@ public:
 				gClientList.removeAt(i);
 				log_debug("[CACHEITEM] Deleted gClientList count=%d", clientCount);
 				i--; clientCount--;
+				break;
 			}
 		}
 
@@ -617,6 +619,7 @@ public:
 				gHealthClientList.removeAt(i);
 				log_debug("[CACHEITEM] Deleted gHealthClientList count=%d", clientCount);
 				i--; clientCount--;
+				break;
 			}
 		}
 	}
@@ -626,42 +629,47 @@ public:
 		time_t currTime = time(NULL);
 
 		// check gClientList
-		for (int i = 0; i < gClientList.Count(); i++)
+		int listCount = gClientList.count();
+		for (int i = 0; i < listCount; i++)
 		{
 			if (gClientList[i].clientId == clientId)
+			{
+				// update time
+				gClientList[i].lastRequestTime = currTime;
+			}
+			else
 			{
 				// get diff time from the last packet
 				int diffSeconds = currTime - gClientList[i].lastRequestTime;
 				if (diffSeconds > 120)	// 2mins
 				{
 					// delete this client
-					log_debug("[CACHEITEM] Detected gHealthClientList count=%d", clientCount);
-					deleteClientInList(QByteArray clientId)
-				}
-				else
-				{
-					// update time
-					gClientList[i].lastRequestTime = currTime;
+					log_debug("[CACHEITEM] Detected gClientList item timeout, count=%d", clientCount);
+					deleteClientInList(QByteArray clientId);
+					i--; listCount--;
 				}
 			}
 		}
 
 		// check gHealthClientList
-		for (int i = 0; i < gHealthClientList.Count(); i++)
+		listCount = gHealthClientList.count();
+		for (int i = 0; i < listCount; i++)
 		{
 			if (gHealthClientList[i].clientId == clientId)
+			{
+				// update time
+				gHealthClientList[i].lastRequestTime = currTime;
+			}
+			else
 			{
 				// get diff time from the last packet
 				int diffSeconds = currTime - gHealthClientList[i].lastRequestTime;
 				if (diffSeconds > 120)	// 2mins
 				{
 					// delete this client
-					deleteClientInList(QByteArray clientId)
-				}
-				else
-				{
-					// update time
-					gHealthClientList[i].lastRequestTime = currTime;
+					log_debug("[CACHEITEM] Detected gHealthClientList item timeout, count=%d", clientCount);
+					deleteClientInList(QByteArray clientId);
+					i--; listCount--;
 				}
 			}
 		}
