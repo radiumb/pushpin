@@ -629,8 +629,8 @@ public:
 		time_t currTime = time(NULL);
 
 		// check gClientList
-		int listCount = gClientList.count();
-		for (int i = 0; i < listCount; i++)
+		int clientCount = gClientList.count();
+		for (int i = 0; i < clientCount; i++)
 		{
 			if (gClientList[i].clientId == clientId)
 			{
@@ -645,31 +645,8 @@ public:
 				{
 					// delete this client
 					log_debug("[CACHEITEM] Detected gClientList item timeout, count=%d", clientCount);
-					deleteClientInList(QByteArray clientId);
-					i--; listCount--;
-				}
-			}
-		}
-
-		// check gHealthClientList
-		listCount = gHealthClientList.count();
-		for (int i = 0; i < listCount; i++)
-		{
-			if (gHealthClientList[i].clientId == clientId)
-			{
-				// update time
-				gHealthClientList[i].lastRequestTime = currTime;
-			}
-			else
-			{
-				// get diff time from the last packet
-				int diffSeconds = currTime - gHealthClientList[i].lastRequestTime;
-				if (diffSeconds > 120)	// 2mins
-				{
-					// delete this client
-					log_debug("[CACHEITEM] Detected gHealthClientList item timeout, count=%d", clientCount);
-					deleteClientInList(QByteArray clientId);
-					i--; listCount--;
+					deleteClientInList(clientId);
+					i--; clientCount--;
 				}
 			}
 		}
