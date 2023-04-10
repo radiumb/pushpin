@@ -745,7 +745,7 @@ public:
 		// cache lookup
 		int itemCount = gSubscriptionItemList.count();
 		// first, delete old cache items
-		time_t currSeconds = time(NULL);
+		time_t currTime = time(NULL);
 
 		// will check 50 per every time
 		if (subscriptionScanPtr >= itemCount)
@@ -755,25 +755,40 @@ public:
 
 		for (int i = subscriptionScanPtr; i < itemCount; i++)
 		{
-			int refreshDiff = (int)(currSeconds - gSubscriptionItemList[i].refreshTimeCount);
-			if ((refreshDiff > subscriptionTimeOut) && (gSubscriptionItemList[i].clientList.count() == 0) && (gSubscriptionItemList[i].cachedFlag == true))
+			if (gSubscriptionItemList[i].clientList.count() == 0)
 			{
-				// add ws Subscription expiry
-				numSubscriptionExpiry++;
+				// get diff time
+				int diffTime = (int)(currTime - gSubscriptionItemList[i].refreshTimeCount);
+				if (diffTime > subscriptionTimeOut)
+				{
+					// add ws Subscription expiry
+					numSubscriptionExpiry++;
 
-				sendUnsubscribeRequest(gSubscriptionItemList[i].requestPacket, gSubscriptionItemList[i].subscriptionStr, gSubscriptionItemList[i].requestInstanceAddress);
+					sendUnsubscribeRequest(gSubscriptionItemList[i].requestPacket, gSubscriptionItemList[i].subscriptionStr, gSubscriptionItemList[i].requestInstanceAddress);
 
-				// remove subscription item
-				log_debug("[CACHEITEM] deleting1 subscription item subscriptionStr=\"%s\" subscriptionScanPtr=%d itemCount=%d", qPrintable(gSubscriptionItemList[i].subscriptionStr), i, itemCount);
-				gSubscriptionItemList.removeAt(i);
-				break;
+					// remove subscription item
+					log_debug("[CACHEITEM] deleting1 subscription item subscriptionStr=\"%s\" subscriptionScanPtr=%d itemCount=%d", qPrintable(gSubscriptionItemList[i].subscriptionStr), i, itemCount);
+					gSubscriptionItemList.removeAt(i);
+					break;
+				}
 			}
-
-			if ((refreshDiff > subscriptionInvalidTimeOut) && (gSubscriptionItemList[i].msgId == -1))
+			else
 			{
-				log_debug("[CACHEITEM] deleting2 subscription item subscriptionScanPtr=%d itemCount=%d", i, itemCount);
-				gSubscriptionItemList.removeAt(i);
-				break;
+				if (gSubscriptionItemList[i].cachedFlag == true)
+				{
+					// set current time
+					gSubscriptionItemList[i].refreshTimeCount = currTime;
+				}
+				else
+				{
+					int diffTime = (int)(currTime - gSubscriptionItemList[i].refreshTimeCount);
+					if (refreshDiff > subscriptionInvalidTimeOut)
+					{
+						log_debug("[CACHEITEM] deleting2 subscription item subscriptionScanPtr=%d itemCount=%d", i, itemCount);
+						gSubscriptionItemList.removeAt(i);
+						break;		
+					}
+				}
 			}
 
 			subscriptionScanPtr++;
@@ -1579,7 +1594,6 @@ public:
 								if (packet.ids[0].id == gSubscriptionItemList[i].clientList[j].clientId)
 								{
 									log_debug("[CACHEITEM] deleting client in subscription list %s", qPrintable(paramStr));
-									gSubscriptionItemList[i].refreshTimeCount = time(NULL);
 									gSubscriptionItemList[i].clientList.removeAt(j);
 									j--;
 									clientCount--;
