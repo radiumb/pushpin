@@ -782,7 +782,7 @@ public:
 				else
 				{
 					int diffTime = (int)(currTime - gSubscriptionItemList[i].refreshTimeCount);
-					if (refreshDiff > subscriptionInvalidTimeOut)
+					if (diffTime > subscriptionInvalidTimeOut)
 					{
 						log_debug("[CACHEITEM] deleting2 subscription item subscriptionScanPtr=%d itemCount=%d", i, itemCount);
 						gSubscriptionItemList.removeAt(i);
