@@ -688,10 +688,13 @@ private slots:
 			log_info("started");
 
 		// restore prometheus stat
-		const QString prometheusBackupFile = QDir::cleanPath(gPrometheusBackupDir + "/prometheus_backup.bin");
+		QString prometheusBackupFile = QDir::cleanPath(gPrometheusBackupDir + "/prometheus_backup.bin");
+
+		if(prometheusBackupFile.isEmpty())
+			return;
 
 		// get last modified time
-		QFileInfo qInfo = QFileInfo(prometheusBackupFile);
+		QFileInfo qInfo(prometheusBackupFile);
 		int diffTime = 0xFFFFFF;
 		if (qInfo.exists())
 		{
