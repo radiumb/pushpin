@@ -29,8 +29,6 @@
 #include "zhttpmanager.h"
 
 #include <assert.h>
-#include <iostream>
-#include <fstream>
 #include <QCoreApplication>
 #include <QCommandLineParser>
 #include <QSet>
@@ -38,7 +36,6 @@
 #include <QJsonObject>
 #include <QFile>
 #include <QFileInfo>
-#include <QDir>
 #include <QStringList>
 #include <QHash>
 #include <QPointer>
@@ -55,8 +52,6 @@
 #include "log.h"
 #include "zutil.h"
 #include "logutil.h"
-
-using namespace std;
 
 #define OUT_HWM 100
 #define IN_HWM 100
@@ -1180,17 +1175,7 @@ public:
 			{
 				log_debug("[CACHEITEM] Sending restart pushpin");
 
-				// save log file
-				QString prometheusBackupFile = "/var/log/prometheus_backup.bin";
-				const char *fName = prometheusBackupFile.toStdString().c_str();
-				if (fName)
-				{
-					ofstream wf(fName, ios::out | ios::binary);
-					if(wf) {
-						wf.write(shm_str, 200);
-					}
-					wf.close();
-				}				
+				shmdt(shm_str);
 
 				exit(0);
 /*

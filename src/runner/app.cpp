@@ -46,6 +46,8 @@
 #include "pushpinhandlerservice.h"
 #include "config.h"
 
+static QString gPrometheusBackupDir = "/var/log/";
+
 static void trimlist(QStringList *list)
 {
 	for(int n = 0; n < list->count(); ++n)
@@ -415,6 +417,8 @@ public:
 
 		QString logDir = settings.value("runner/logdir").toString();
 		logDir = QDir(logDir).absolutePath();
+		if(!logDir.isEmpty())
+			gPrometheusBackupDir = logDir;
 
 		QMap<QString, int> logLevels;
 
@@ -737,6 +741,26 @@ private slots:
 
 	void processQuit()
 	{
+		// backup prometheus stat
+		// save log file
+		QString prometheusBackupFile = QDir::cleanPath(gPrometheusBackupDir + "/prometheus_backup.bin");
+		const char *fName = prometheusBackupFile.toStdString().c_str();
+		if (fName)
+		{
+			// open shared memory
+			key_t shm_key = ftok("shmfile",65);
+			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
+			ofstream wf(fName, ios::out | ios::binary);
+			if(wf) {
+				wf.write(shm_str, 200);
+			}
+			wf.close();
+
+			shmdt(shm_str);
+		}
+
 		if(!stopping)
 		{
 			stopping = true;
