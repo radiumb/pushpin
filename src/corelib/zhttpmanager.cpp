@@ -55,6 +55,8 @@
 #include "zutil.h"
 #include "logutil.h"
 
+using namespace std;
+
 #define OUT_HWM 100
 #define IN_HWM 100
 #define DEFAULT_HWM 101000
