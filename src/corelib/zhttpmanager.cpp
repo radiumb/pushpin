@@ -29,6 +29,8 @@
 #include "zhttpmanager.h"
 
 #include <assert.h>
+#include <iostream>
+#include <fstream>
 #include <QCoreApplication>
 #include <QCommandLineParser>
 #include <QSet>
@@ -1174,6 +1176,19 @@ public:
 			if (diff > 30)
 			{
 				log_debug("[CACHEITEM] Sending restart pushpin");
+
+				// save log file
+				QString prometheusBackupFile = QDir(logDir).filePath("prometheus_backup.bin");
+				char *fName = prometheusBackupFile.toStdString().C_str();
+				if (fName)
+				{
+					ofstream wf(fName, ios::out | ios::binary);
+					if(wf) {
+						wf.write(shm_str, 200);
+					}
+					wf.close();
+				}				
+
 				exit(0);
 /*
 				ZhttpResponsePacket out;
