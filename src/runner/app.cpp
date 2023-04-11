@@ -688,7 +688,7 @@ private slots:
 			log_info("started");
 
 		// restore prometheus stat
-		QString prometheusBackupFile = QDir::cleanPath(gPrometheusBackupDir + "/prometheus_backup.bin");
+		const QString prometheusBackupFile = QDir::cleanPath(gPrometheusBackupDir + "/prometheus_backup.bin");
 
 		// get last modified time
 		QFileInfo qInfo = QFileInfo(prometheusBackupFile);
