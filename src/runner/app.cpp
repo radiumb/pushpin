@@ -748,7 +748,9 @@ private slots:
 		// backup prometheus stat
 		// save log file
 		QString prometheusBackupFile = QDir::cleanPath(gPrometheusBackupDir + "/prometheus_backup.bin");
-		const char *fName = qPrintable(prometheusBackupFile);
+		const char fName[256];
+
+		sprintf(fName, "%s", qPrintable(prometheusBackupFile));
 
 		log_info(fName);
 		if (fName)
