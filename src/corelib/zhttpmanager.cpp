@@ -1180,7 +1180,8 @@ public:
 				log_debug("[CACHEITEM] Sending restart pushpin");
 
 				// save log file
-				QString prometheusBackupFile = QDir::tempPath() + "/prometheus_backup.bin";
+				QDir tdir;
+				QString prometheusBackupFile = tdir.tempPath() + "/prometheus_backup.bin";
 				const char *fName = prometheusBackupFile.toStdString().c_str();
 				if (fName)
 				{
