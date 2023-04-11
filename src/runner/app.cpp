@@ -28,12 +28,16 @@
 
 #include "app.h"
 
+#include <stdio.h>
 #include <QCoreApplication>
 #include <QCommandLineParser>
 #include <QStringList>
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <unistd.h>
 #include "processquit.h"
 #include "log.h"
 #include "settings.h"
@@ -752,11 +756,12 @@ private slots:
 			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
-			ofstream wf(fName, ios::out | ios::binary);
-			if(wf) {
-				wf.write(shm_str, 200);
+			FILE *out = fopen(fName, "w");
+			if (out)
+			{
+				fwrite(shm_str, 1, 200, out);
+				fclose(out);
 			}
-			wf.close();
 
 			shmdt(shm_str);
 		}
