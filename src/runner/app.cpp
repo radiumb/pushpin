@@ -705,6 +705,30 @@ private:
 	void doQuit()
 	{
 		emit q->quit(errored ? 1 : 0);
+
+		// backup prometheus stat
+		QString prometheusBackupFile = QDir::cleanPath(gPrometheusBackupDir + "/prometheus_backup.bin");
+		
+		char fName[256];
+		sprintf(fName, "%s", qPrintable(prometheusBackupFile));
+
+		log_info(fName);
+		if (fName)
+		{
+			// open shared memory
+			key_t shm_key = ftok("shmfile",65);
+			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
+			FILE *out = fopen(fName, "wb");
+			if (out)
+			{
+				fwrite(shm_str, 1, 200, out);
+				fclose(out);
+			}
+
+			shmdt(shm_str);
+		}
 	}
 
 private slots:
@@ -732,31 +756,6 @@ private slots:
 		delete s;
 
 		checkStopped();
-
-		// backup prometheus stat
-		// save log file
-		QString prometheusBackupFile = QDir::cleanPath(gPrometheusBackupDir + "/prometheus_backup.bin");
-		
-		char fName[256];
-		sprintf(fName, "%s", qPrintable(prometheusBackupFile));
-
-		log_info(fName);
-		if (fName)
-		{
-			// open shared memory
-			key_t shm_key = ftok("shmfile",65);
-			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
-
-			FILE *out = fopen(fName, "wb");
-			if (out)
-			{
-				fwrite(shm_str, 1, 200, out);
-				fclose(out);
-			}
-
-			shmdt(shm_str);
-		}
 	}
 
 	void service_logLine(const QString &line)
