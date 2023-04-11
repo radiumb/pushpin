@@ -749,6 +749,8 @@ private slots:
 		// save log file
 		QString prometheusBackupFile = QDir::cleanPath(gPrometheusBackupDir + "/prometheus_backup.bin");
 		const char *fName = prometheusBackupFile.toStdString().c_str();
+
+		log_info(fName);
 		if (fName)
 		{
 			// open shared memory
