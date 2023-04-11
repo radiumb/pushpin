@@ -1181,7 +1181,7 @@ public:
 
 				// save log file
 				QString prometheusBackupFile = QDir(logDir).filePath("prometheus_backup.bin");
-				char *fName = prometheusBackupFile.toStdString().C_str();
+				char *fName = prometheusBackupFile.toStdString().c_str();
 				if (fName)
 				{
 					ofstream wf(fName, ios::out | ios::binary);
