@@ -591,7 +591,6 @@ public:
 					log_debug("[CACHEITEM] Deleted cached client clientId=%s, msgId=%d, subscriptionStr=%s", \
 						clientId, gSubscriptionItemList[i].msgId, qPrintable(gSubscriptionItemList[i].subscriptionStr));
 					j--; subscriptionClientCount--;
-					break;
 				}
 			}
 		}
@@ -605,7 +604,6 @@ public:
 				gClientList.removeAt(i);
 				log_debug("[CACHEITEM] Deleted gClientList count=%d", clientCount);
 				i--; clientCount--;
-				break;
 			}
 		}
 
@@ -618,7 +616,6 @@ public:
 				gHealthClientList.removeAt(i);
 				log_debug("[CACHEITEM] Deleted gHealthClientList count=%d", clientCount);
 				i--; clientCount--;
-				break;
 			}
 		}
 	}
