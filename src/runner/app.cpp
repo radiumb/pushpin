@@ -423,6 +423,42 @@ public:
 		logDir = QDir(logDir).absolutePath();
 		if(!logDir.isEmpty())
 			gPrometheusBackupDir = logDir;
+		
+		// restore prometheus stat
+		QString prometheusBackupFile = QDir::cleanPath(gPrometheusBackupDir + "/prometheus_backup.bin");
+
+		if(prometheusBackupFile.isEmpty())
+			return;
+
+		// get last modified time
+		QFileInfo fileInfo(prometheusBackupFile);
+		int diffTime = 0xFFFFFF;
+		if (fileInfo.exists())
+		{
+			QDateTime lastModifiedTime = fileInfo.lastModified();
+			diffTime = (int)(lastModifiedTime.msecsTo(QDateTime::currentDateTime())/1000);
+		}
+
+		char fName[256];
+		sprintf(fName, "%s", qPrintable(prometheusBackupFile));
+
+		log_info("filename=%s, diffTime=%d", fName, diffTime);
+		if (fName && diffTime < 300)
+		{
+			// open shared memory
+			key_t shm_key = ftok("shmfile",65);
+			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
+			FILE *in = fopen(fName, "rb");
+			if (in)
+			{
+				fread(shm_str, 1, 200, in);
+				fclose(in);
+			}
+
+			shmdt(shm_str);
+		}
 
 		QMap<QString, int> logLevels;
 
@@ -686,42 +722,6 @@ private slots:
 
 		if(allStarted)
 			log_info("started");
-
-		// restore prometheus stat
-		QString prometheusBackupFile = QDir::cleanPath(gPrometheusBackupDir + "/prometheus_backup.bin");
-
-		if(prometheusBackupFile.isEmpty())
-			return;
-
-		// get last modified time
-		QFileInfo qInfo(prometheusBackupFile);
-		int diffTime = 0xFFFFFF;
-		if (qInfo.exists())
-		{
-			QDateTime lastModifiedTime = qInfo.lastModified();
-			diffTime = (int)(lastModifiedTime.msecsTo(QDateTime::currentDateTime())/1000);
-		}
-
-		char fName[256];
-		sprintf(fName, "%s", qPrintable(prometheusBackupFile));
-
-		log_info("filename=%s, diffTime=%d", fName, diffTime);
-		if (fName && diffTime < 300)
-		{
-			// open shared memory
-			key_t shm_key = ftok("shmfile",65);
-			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
-
-			FILE *in = fopen(fName, "rb");
-			if (in)
-			{
-				fread(shm_str, 1, 200, in);
-				fclose(in);
-			}
-
-			shmdt(shm_str);
-		}
 	}
 
 	void service_stopped()
