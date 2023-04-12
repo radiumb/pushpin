@@ -2396,10 +2396,6 @@ ZWS_CLIENT_IN_WRITE:
 					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 		
-					key_t shmkey = ftok("shm_pushpin_methods",65);
-					int shmid = shmget(shmkey,0,0666|IPC_CREAT);
-					char *shmstr = (char*) shmat(shmid,(void*)0,0);
-		
 					long requestReceived = *(long *)&shm_str[0];
 					log_debug("[tttttttt] requestReceived = %d,  numRequestReceived = %d", requestReceived, numRequestReceived);
 					if (requestReceived != numRequestReceived)
@@ -2544,12 +2540,17 @@ ZWS_CLIENT_IN_WRITE:
 						memcpy(&shm_str[96], (char *)&numRpcSubscribe, 4);
 
 						// Group
+						key_t shmkey = ftok("shm_pushpin_methods",65);
+						int shmid = shmget(shmkey,0,0666|IPC_CREAT);
+						char *shmstr = (char*) shmat(shmid,(void*)0,0);
+
 						QString methodName = QString(methodStr);
 						QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
 
 						char methodNameHash[20];
 						memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
 						
+						log_debug("[tttttttt] cfgGroupCount = %d", cfgGroupCount);
 						int shm_read_count = 0 + 8;
 						for (int i = 0; i < cfgGroupCount; i++)
 						{
@@ -2574,10 +2575,10 @@ ZWS_CLIENT_IN_WRITE:
 							}
 								
 						}
+						shmdt(shmstr);
 					}
 
 					shmdt(shm_str);
-					shmdt(shmstr);
 				}
 SOCK_HANDLE:		
 				sock->handle(id.id, id.seq, p);
