@@ -72,7 +72,7 @@
 #define ZHTTP_IDS_MAX 128
 
 // variable to count ws
-static long numRequestReceived = 0, numMessageSent = 0;
+static long numRequestReceived = 0, numWsConnect = 0, numMessageSent = 0;
 static long numRpcAuthor = 0, numRpcBabe = 0, numRpcBeefy = 0, numRpcChain = 0, numRpcChildState = 0;
 static long numRpcContracts = 0, numRpcDev = 0, numRpcEngine = 0, numRpcEth = 0, numRpcNet = 0;
 static long numRpcWeb3 = 0, numRpcGrandpa = 0, numRpcMmr = 0, numRpcOffchain = 0, numRpcPayment = 0;
@@ -1838,6 +1838,10 @@ public slots:
 
 				log_debug("[CACHEITEM] Adding new client id=%s totalcount=%d", (const char *)clientId, k);
 			}
+
+			// count connect
+			numWsConnect++;
+			memcpy(&shm_str[8], (char *)&numWsConnect, 4);
 		}
 		else if (p.ids[0].id == gCacheClient.clientId)
 		{
