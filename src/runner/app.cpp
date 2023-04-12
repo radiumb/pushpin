@@ -424,6 +424,12 @@ public:
 		if(!logDir.isEmpty())
 			gPrometheusBackupDir = logDir;
 		
+		int prometheusRestoreAllowSeconds = 300;
+		if(settings.contains("proxy/prometheus_restore_allow_seconds"))
+		{
+			prometheusRestoreAllowSeconds = settings.value("global/rundir").toInt();
+		}
+		
 		// restore prometheus stat
 		{
 			// Delete shared memory created in previous run
@@ -456,8 +462,8 @@ public:
 			char fName[256];
 			sprintf(fName, "%s", qPrintable(prometheusBackupFile));
 
-			log_info("filename=%s, diffTime=%d", fName, diffTime);
-			if (diffTime < 300)
+			log_info("filename=%s, diffTime=%d, confSeconds=%d", fName, diffTime, prometheusRestoreAllowSeconds);
+			if (diffTime < prometheusRestoreAllowSeconds)
 			{
 				FILE *in = fopen(fName, "rb");
 				if (in)
