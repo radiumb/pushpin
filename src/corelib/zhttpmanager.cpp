@@ -623,10 +623,13 @@ public:
 
 	void clearClientList(QByteArray clientId)
 	{
-		time_t currTime = time(NULL);
+		time_t currTime;
+		int clientCount;
 
 		// check gClientList
-		int clientCount = gClientList.count();
+CLEAR_CLIENT_LIST_LOOP:
+		currTime = time(NULL);
+		clientCount = gClientList.count();
 		for (int i = 0; i < clientCount; i++)
 		{
 			if (gClientList[i].clientId == clientId)
@@ -642,8 +645,8 @@ public:
 				{
 					// delete this client
 					log_debug("[CACHEITEM] Detected gClientList item timeout, count=%d", clientCount);
-					deleteClientInList(clientId);
-					i--; clientCount--;
+					deleteClientInList(gClientList[i].clientId);
+					goto CLEAR_CLIENT_LIST_LOOP;
 				}
 			}
 		}
