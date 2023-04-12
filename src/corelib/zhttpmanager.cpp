@@ -2555,6 +2555,7 @@ ZWS_CLIENT_IN_WRITE:
 						for (int i = 0; i < cfgGroupCount; i++)
 						{
 							long methodCount = *(long *)&shmstr[shm_read_count]; shm_read_count += 4;
+							log_debug("[tttttttt] methodCount = %d", methodCount);
 							int mCnt = (int)methodCount;
 							char groupName[256];
 							memcpy(groupName, &shmstr[shm_read_count], 256); shm_read_count += 256;	
