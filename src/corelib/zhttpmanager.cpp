@@ -2550,7 +2550,8 @@ ZWS_CLIENT_IN_WRITE:
 
 					log_debug("[tttt] methodCount = %d", tmethodCount);
 
-					QString methodName = QString(methodStr);
+					//QString methodName = QString(methodStr);
+					QString methodName = QString("methodStr");
 					QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
 
 					char methodNameHash[20];
