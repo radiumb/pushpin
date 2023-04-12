@@ -453,7 +453,7 @@ public:
 			FILE *in = fopen(fName, "rb");
 			if (in)
 			{
-				fread(shm_str, 1, 200, in);
+				size_t readBytes = fread(shm_str, 200, 1, in);
 				fclose(in);
 			}
 
@@ -723,7 +723,7 @@ private:
 			FILE *out = fopen(fName, "wb");
 			if (out)
 			{
-				fwrite(shm_str, 1, 200, out);
+				fwrite(shm_str, 200, 1, out);
 				fclose(out);
 			}
 
