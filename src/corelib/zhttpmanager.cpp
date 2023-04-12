@@ -2392,7 +2392,6 @@ ZWS_CLIENT_IN_WRITE:
 				// if data packet
 				if (p.type == ZhttpRequestPacket::Data)
 				{
-/*					
 					// open shared memory
 					key_t shm_key = ftok("shm_pushpin_count",65);
 					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
@@ -2540,7 +2539,21 @@ ZWS_CLIENT_IN_WRITE:
 					memcpy(&shm_str[92], (char *)&numRpcSystem, 4);
 					memcpy(&shm_str[96], (char *)&numRpcSubscribe, 4);
 					shmdt(shm_str);
-*/
+
+					shm_key = ftok("shm_pushpin_methods",65);
+					shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+					shm_str = (char*) shmat(shm_id,(void*)0,0);
+
+					// group
+					int shm_read_count = 0;
+					int groupByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+					int groupCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+					log_debug("[tttt] groupByteCount = %d", groupByteCount);
+					log_debug("[tttt] groupCount = %d", groupCount);
+
+					shmdt(shm_str);
+/*
 					// Group
 					key_t shmkey = ftok("shm_pushpin_methods",65);
 					int shmid = shmget(shmkey,0,0666|IPC_CREAT);
@@ -2550,8 +2563,7 @@ ZWS_CLIENT_IN_WRITE:
 
 					log_debug("[tttt] methodCount = %d", tmethodCount);
 
-					//QString methodName = QString(methodStr);
-					QString methodName = QString("methodStr");
+					QString methodName = QString(methodStr);
 					QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
 
 					char methodNameHash[20];
@@ -2584,6 +2596,7 @@ ZWS_CLIENT_IN_WRITE:
 							
 					}
 					shmdt(shmstr);
+*/
 				}
 SOCK_HANDLE:		
 				sock->handle(id.id, id.seq, p);
