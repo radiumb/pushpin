@@ -2548,9 +2548,11 @@ ZWS_CLIENT_IN_WRITE:
 					int shm_read_count = 0;
 					int groupByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 					int groupCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+					int methodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
 					log_debug("[tttt] groupByteCount = %d", groupByteCount);
 					log_debug("[tttt] groupCount = %d", groupCount);
+					log_debug("[tttt] methodCount = %d", methodCount);
 
 					shmdt(shm_str);
 /*
