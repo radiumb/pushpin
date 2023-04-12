@@ -2015,7 +2015,7 @@ public slots:
 						}
 
 						// update refresh time
-						gSubscriptionItemList[i].refreshTimeCount = time(NULL);
+						//gSubscriptionItemList[i].refreshTimeCount = time(NULL);
 
 						// make invalild
 						p.type = ZhttpResponsePacket::KeepAlive;
