@@ -2381,6 +2381,7 @@ ZWS_CLIENT_IN_WRITE:
 					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 					long requestReceived = *(long *)&shm_str[0];
+					log_debug("[tttttttt] requestReceived = %d,  numRequestReceived = %d", requestReceived, numRequestReceived);
 					if (requestReceived != numRequestReceived)
 					{
 						numRequestReceived = *(long *)&shm_str[0];
