@@ -433,7 +433,7 @@ public:
 
 			// open shared memory
 			shm_key = ftok("shmfile",65);
-			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+			shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
 			// init shared memory
