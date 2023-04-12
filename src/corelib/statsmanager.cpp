@@ -421,7 +421,7 @@ public:
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::numAutoRefreshItem, "number_of_cache_auto_refresh_item", "counter", "Number of ws Auto-Refresh items");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::numAREItemCount, "number_of_cache_auto_refresh_exception_item", "counter", "Number of ws Auto-Refresh Exception items");
 		// Group count add
-		key_t shm_key = ftok("shm_pushpin_methods",65);
+		key_t shm_key = ftok("/tmp",65);
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 		int shm_read_count = 0;
@@ -1253,7 +1253,7 @@ private slots:
 			long numCacheItem = 0, numSubscriptionItem = 0, numAutoRefreshItem = 0, numAREItemCount = 0;
 
 			// read shared memory
-			key_t key = ftok("shm_pushpin_count",65);
+			key_t key = ftok("/var",65);
 			int shmid = shmget(key,0,0666|IPC_CREAT);
 			char *str = (char*) shmat(shmid,(void*)0,0);
 			numRequestReceived = *(long *)&str[0];
@@ -1346,7 +1346,7 @@ private slots:
 
 				default: {
 					// Group count add
-					key_t shm_key = ftok("shm_pushpin_methods",65);
+					key_t shm_key = ftok("/tmp",65);
 					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 					int shm_read_count = 0;
