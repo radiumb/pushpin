@@ -425,9 +425,9 @@ public:
 			gPrometheusBackupDir = logDir;
 		
 		int prometheusRestoreAllowSeconds = 300;
-		if(settings.contains("proxy/prometheus_restore_allow_seconds"))
+		if(settings.contains("handler/prometheus_restore_allow_seconds"))
 		{
-			prometheusRestoreAllowSeconds = settings.value("proxy/prometheus_restore_allow_seconds").toInt();
+			prometheusRestoreAllowSeconds = settings.value("handler/prometheus_restore_allow_seconds").toInt();
 		}
 		
 		// restore prometheus stat
