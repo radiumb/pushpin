@@ -2436,150 +2436,147 @@ ZWS_CLIENT_IN_WRITE:
 					}					
 
 					// parse JSON-RPC 
-					{
-						// convert to string
-						QVariantHash hdata = data.toHash();
-						// parse body as JSON string
-						QJsonParseError error;
-						QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
-						if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
-							goto SOCK_HANDLE;
+					// convert to string
+					QVariantHash hdata = data.toHash();
+					// parse body as JSON string
+					QJsonParseError error;
+					QJsonDocument jsonDoc = QJsonDocument::fromJson(hdata.value("body").toByteArray(), &error);
+					if(error.error != QJsonParseError::NoError || !jsonDoc.isObject())
+						goto SOCK_HANDLE;
 
-						QVariantMap jsonData = jsonDoc.object().toVariantMap();
-						if(!jsonData.contains("method") || jsonData["method"].type() != QVariant::String)
-							goto SOCK_HANDLE;
+					QVariantMap jsonData = jsonDoc.object().toVariantMap();
+					if(!jsonData.contains("method") || jsonData["method"].type() != QVariant::String)
+						goto SOCK_HANDLE;
 
-						QString jMethod = jsonData["method"].toString();
-						char methodStr[256];
-						int methodLen = jMethod.length()>255?255:jMethod.length();
-						strncpy(methodStr, qPrintable(jMethod.toLower()), methodLen);
-						methodStr[methodLen] = 0;
+					QString jMethod = jsonData["method"].toString();
+					char methodStr[256];
+					int methodLen = jMethod.length()>255?255:jMethod.length();
+					strncpy(methodStr, qPrintable(jMethod.toLower()), methodLen);
+					methodStr[methodLen] = 0;
 
-						if (!memcmp(methodStr, "author_", 7)) {
-							numRpcAuthor++;
-							if (!memcmp(&methodStr[7], "submitandwatchextrinsic", 23)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "babe_", 5)) {
-							numRpcBabe++;
-							if (!memcmp(&methodStr[5], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "beefy_", 6)) {
-							numRpcBeefy++;
-							if (!memcmp(&methodStr[6], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "chain_", 6)) {
-							numRpcChain++;
-							if (!memcmp(&methodStr[6], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "childstate_", 11)) {
-							numRpcChildState++;
-							if (!memcmp(&methodStr[11], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "contracts_", 10)) {
-							numRpcContracts++;
-							if (!memcmp(&methodStr[10], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "dev_", 4)) {
-							numRpcDev++;
-							if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "engine_", 7)) {
-							numRpcEngine++;
-							if (!memcmp(&methodStr[7], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "eth_", 4)) {
-							numRpcEth++;
-							if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "net_", 4)) {
-							numRpcNet++;
-							if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "web3_", 5)) {
-							numRpcWeb3++;
-							if (!memcmp(&methodStr[5], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "grandpa_", 8)) {
-							numRpcGrandpa++;
-							if (!memcmp(&methodStr[8], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "mmr_", 4)) {
-							numRpcMmr++;
-							if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "offchain_", 9)) {
-							numRpcOffchain++;
-							if (!memcmp(&methodStr[9], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "payment_", 8)) {
-							numRpcPayment++;
-							if (!memcmp(&methodStr[8], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "rpc_", 4)) {
-							numRpcRpc++;
-							if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "state_", 6)) {
-							numRpcState++;
-							if (!memcmp(&methodStr[6], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "sync_state_", 11)) {
-							numRpcSyncstate++;
-							if (!memcmp(&methodStr[11], "subscribe", 9)) numRpcSubscribe++;
-						} else if (!memcmp(methodStr, "system_", 7)) {
-							numRpcSystem++;
-							if (!memcmp(&methodStr[7], "subscribe", 9)) numRpcSubscribe++;
-						}
-
-						// Count WS request
-						numRequestReceived++;
-						// Write to shared memory
-						memcpy(&shm_str[0], (char *)&numRequestReceived, 4);
-						memcpy(&shm_str[20], (char *)&numRpcAuthor, 4);
-						memcpy(&shm_str[24], (char *)&numRpcBabe, 4);
-						memcpy(&shm_str[28], (char *)&numRpcBeefy, 4);
-						memcpy(&shm_str[32], (char *)&numRpcChain, 4);
-						memcpy(&shm_str[36], (char *)&numRpcChildState, 4);
-						memcpy(&shm_str[40], (char *)&numRpcContracts, 4);
-						memcpy(&shm_str[44], (char *)&numRpcDev, 4);
-						memcpy(&shm_str[48], (char *)&numRpcEngine, 4);
-						memcpy(&shm_str[52], (char *)&numRpcEth, 4);
-						memcpy(&shm_str[56], (char *)&numRpcNet, 4);
-						memcpy(&shm_str[60], (char *)&numRpcWeb3, 4);
-						memcpy(&shm_str[64], (char *)&numRpcGrandpa, 4);
-						memcpy(&shm_str[68], (char *)&numRpcMmr, 4);
-						memcpy(&shm_str[72], (char *)&numRpcOffchain, 4);
-						memcpy(&shm_str[76], (char *)&numRpcPayment, 4);
-						memcpy(&shm_str[80], (char *)&numRpcRpc, 4);
-						memcpy(&shm_str[84], (char *)&numRpcState, 4);
-						memcpy(&shm_str[88], (char *)&numRpcSyncstate, 4);
-						memcpy(&shm_str[92], (char *)&numRpcSystem, 4);
-						memcpy(&shm_str[96], (char *)&numRpcSubscribe, 4);
-
-						// Group
-						key_t shmkey = ftok("shm_pushpin_methods",65);
-						int shmid = shmget(shmkey,0,0666|IPC_CREAT);
-						char *shmstr = (char*) shmat(shmid,(void*)0,0);
-
-						QString methodName = QString(methodStr);
-						QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
-
-						char methodNameHash[20];
-						memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
-						
-						log_debug("[tttttttt] cfgGroupCount = %d", cfgGroupCount);
-						int shm_read_count = 0 + 8;
-						for (int i = 0; i < cfgGroupCount; i++)
-						{
-							long methodCount = *(long *)&shmstr[shm_read_count]; shm_read_count += 4;
-							log_debug("[tttttttt] methodCount = %d", methodCount);
-							int mCnt = (int)methodCount;
-							char groupName[256];
-							memcpy(groupName, &shmstr[shm_read_count], 256); shm_read_count += 256;	
-							long eventCount = *(long *)&shmstr[shm_read_count]; shm_read_count += 4;
-
-							int shm_write_point = shm_read_count - 4;								
-							for (int j = 0; j < mCnt; j++)
-							{
-								char groupMethodNameHash[20];
-								memcpy(groupMethodNameHash, &shmstr[shm_read_count], 20); shm_read_count += 20;	
-								if (!memcmp(groupMethodNameHash, methodNameHash, 20))
-								{
-									eventCount++;
-									memcpy(&shmstr[shm_write_point], (char *)&eventCount, 4);
-									shm_read_count += 20*(mCnt-j-1);
-									break;
-								}
-							}
-								
-						}
-						shmdt(shmstr);
+					if (!memcmp(methodStr, "author_", 7)) {
+						numRpcAuthor++;
+						if (!memcmp(&methodStr[7], "submitandwatchextrinsic", 23)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "babe_", 5)) {
+						numRpcBabe++;
+						if (!memcmp(&methodStr[5], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "beefy_", 6)) {
+						numRpcBeefy++;
+						if (!memcmp(&methodStr[6], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "chain_", 6)) {
+						numRpcChain++;
+						if (!memcmp(&methodStr[6], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "childstate_", 11)) {
+						numRpcChildState++;
+						if (!memcmp(&methodStr[11], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "contracts_", 10)) {
+						numRpcContracts++;
+						if (!memcmp(&methodStr[10], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "dev_", 4)) {
+						numRpcDev++;
+						if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "engine_", 7)) {
+						numRpcEngine++;
+						if (!memcmp(&methodStr[7], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "eth_", 4)) {
+						numRpcEth++;
+						if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "net_", 4)) {
+						numRpcNet++;
+						if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "web3_", 5)) {
+						numRpcWeb3++;
+						if (!memcmp(&methodStr[5], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "grandpa_", 8)) {
+						numRpcGrandpa++;
+						if (!memcmp(&methodStr[8], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "mmr_", 4)) {
+						numRpcMmr++;
+						if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "offchain_", 9)) {
+						numRpcOffchain++;
+						if (!memcmp(&methodStr[9], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "payment_", 8)) {
+						numRpcPayment++;
+						if (!memcmp(&methodStr[8], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "rpc_", 4)) {
+						numRpcRpc++;
+						if (!memcmp(&methodStr[4], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "state_", 6)) {
+						numRpcState++;
+						if (!memcmp(&methodStr[6], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "sync_state_", 11)) {
+						numRpcSyncstate++;
+						if (!memcmp(&methodStr[11], "subscribe", 9)) numRpcSubscribe++;
+					} else if (!memcmp(methodStr, "system_", 7)) {
+						numRpcSystem++;
+						if (!memcmp(&methodStr[7], "subscribe", 9)) numRpcSubscribe++;
 					}
 
+					// Count WS request
+					numRequestReceived++;
+					// Write to shared memory
+					memcpy(&shm_str[0], (char *)&numRequestReceived, 4);
+					memcpy(&shm_str[20], (char *)&numRpcAuthor, 4);
+					memcpy(&shm_str[24], (char *)&numRpcBabe, 4);
+					memcpy(&shm_str[28], (char *)&numRpcBeefy, 4);
+					memcpy(&shm_str[32], (char *)&numRpcChain, 4);
+					memcpy(&shm_str[36], (char *)&numRpcChildState, 4);
+					memcpy(&shm_str[40], (char *)&numRpcContracts, 4);
+					memcpy(&shm_str[44], (char *)&numRpcDev, 4);
+					memcpy(&shm_str[48], (char *)&numRpcEngine, 4);
+					memcpy(&shm_str[52], (char *)&numRpcEth, 4);
+					memcpy(&shm_str[56], (char *)&numRpcNet, 4);
+					memcpy(&shm_str[60], (char *)&numRpcWeb3, 4);
+					memcpy(&shm_str[64], (char *)&numRpcGrandpa, 4);
+					memcpy(&shm_str[68], (char *)&numRpcMmr, 4);
+					memcpy(&shm_str[72], (char *)&numRpcOffchain, 4);
+					memcpy(&shm_str[76], (char *)&numRpcPayment, 4);
+					memcpy(&shm_str[80], (char *)&numRpcRpc, 4);
+					memcpy(&shm_str[84], (char *)&numRpcState, 4);
+					memcpy(&shm_str[88], (char *)&numRpcSyncstate, 4);
+					memcpy(&shm_str[92], (char *)&numRpcSystem, 4);
+					memcpy(&shm_str[96], (char *)&numRpcSubscribe, 4);
 					shmdt(shm_str);
+
+					// Group
+					key_t shmkey = ftok("shm_pushpin_methods",65);
+					int shmid = shmget(shmkey,0,0666|IPC_CREAT);
+					char *shmstr = (char*) shmat(shmid,(void*)0,0);
+
+					QString methodName = QString(methodStr);
+					QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
+
+					char methodNameHash[20];
+					memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
+					
+					log_debug("[tttttttt] cfgGroupCount = %d", cfgGroupCount);
+					int shm_read_count = 0 + 8;
+					for (int i = 0; i < cfgGroupCount; i++)
+					{
+						long methodCount = *(long *)&shmstr[shm_read_count]; shm_read_count += 4;
+						log_debug("[tttttttt] methodCount = %d", methodCount);
+						int mCnt = (int)methodCount;
+						char groupName[256];
+						memcpy(groupName, &shmstr[shm_read_count], 256); shm_read_count += 256;	
+						long eventCount = *(long *)&shmstr[shm_read_count]; shm_read_count += 4;
+
+						int shm_write_point = shm_read_count - 4;								
+						for (int j = 0; j < mCnt; j++)
+						{
+							char groupMethodNameHash[20];
+							memcpy(groupMethodNameHash, &shmstr[shm_read_count], 20); shm_read_count += 20;	
+							if (!memcmp(groupMethodNameHash, methodNameHash, 20))
+							{
+								eventCount++;
+								memcpy(&shmstr[shm_write_point], (char *)&eventCount, 4);
+								shm_read_count += 20*(mCnt-j-1);
+								break;
+							}
+						}
+							
+					}
+					shmdt(shmstr);
 				}
 SOCK_HANDLE:		
 				sock->handle(id.id, id.seq, p);
