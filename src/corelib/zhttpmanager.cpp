@@ -523,7 +523,7 @@ public:
 						int shm_read_count = 0;
 						cfgGroupByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgGroupCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-						long methodCount = *(long *)&shmstr[shm_read_count]; shm_read_count += 4;
+						long methodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
 						log_debug("[tttt] methodCount = %d", methodCount);
 
