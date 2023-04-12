@@ -532,6 +532,8 @@ public:
 						cfgCacheTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgCacheMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
+						log_debug("[tttt] cfgCacheMethodCount = %d", cfgCacheMethodCount);
+
 						if ((cfgCacheEnableFlag != 0) && (cfgCacheEnableFlag != 1))
 							cfgCacheEnableFlag = 1;
 				
@@ -546,6 +548,8 @@ public:
 						cfgSubscribeTimeoutSeconds = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgSubscribeMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
+						log_debug("[tttt] cfgSubscribeMethodCount = %d", cfgSubscribeMethodCount);
+
 						if (cfgSubscribeItemMaxSizeKbytes <= 0) cfgSubscribeItemMaxSizeKbytes = 1024;		// default
 						if (cfgCacheItemMaxCount <= 0) cfgCacheItemMaxCount = 512;		// default
 						if (cfgSubscribeTimeoutSeconds <= 0) cfgSubscribeTimeoutSeconds = 3600*4;	// default
@@ -557,6 +561,8 @@ public:
 						cfgAreItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgAccessTimeoutLimt = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgAreMethodCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+
+						log_debug("[tttt] cfgAreMethodCount = %d", cfgAreMethodCount);
 
 						if (cfgAreItemMaxSizeKbytes <= 0) cfgAreItemMaxSizeKbytes = 1024;		// default
 						if (cfgAreItemMaxCount <= 0) cfgAreItemMaxCount = 512;		// default
