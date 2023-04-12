@@ -725,6 +725,9 @@ private:
 			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
+			long requestReceived = *(long *)&shm_str[0];
+			log_info("requestReceived = %d", requestReceived);
+
 			FILE *out = fopen(fName, "wb");
 			if (out)
 			{

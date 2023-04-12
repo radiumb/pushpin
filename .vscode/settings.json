@@ -9,6 +9,8 @@
 		"xutility": "cpp",
 		"algorithm": "cpp",
 		"initializer_list": "cpp",
-		"routes": "cpp"
+		"routes": "cpp",
+		"xiosbase": "cpp",
+		"iosfwd": "cpp"
 	}
 }
