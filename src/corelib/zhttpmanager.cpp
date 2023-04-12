@@ -2427,10 +2427,6 @@ ZWS_CLIENT_IN_WRITE:
 						numSubscriptionLookup = *(long *)&shm_str[128];
 						numSubscriptionExpiry = *(long *)&shm_str[132];
 						numResponseMultiPart = *(long *)&shm_str[136];
-						numCacheItem = *(long *)&shm_str[140];
-						numSubscriptionItem = *(long *)&shm_str[144];
-						numAutoRefreshItem = *(long *)&shm_str[148];
-						numAREItemCount = *(long *)&shm_str[152];
 					}					
 
 					// parse JSON-RPC 
