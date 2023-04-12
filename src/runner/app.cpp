@@ -452,12 +452,16 @@ public:
 			sprintf(fName, "%s", qPrintable(prometheusBackupFile));
 
 			log_info("filename=%s, diffTime=%d", fName, diffTime);
-			if (fName && diffTime < 300)
+			if (diffTime < 300)
 			{
 				FILE *in = fopen(fName, "rb");
 				if (in)
 				{
 					size_t readBytes = fread(shm_str, 200, 1, in);
+
+					long requestReceived = *(long *)&shm_str[0];
+					log_info("requestReceived = %d", requestReceived);
+
 					fclose(in);
 				}
 			}
