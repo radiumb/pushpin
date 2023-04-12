@@ -257,6 +257,8 @@ public:
 			numRequestReceived,
 			numWsConnect,
 			numMessageSent,
+			numClientCount,
+			numHealthClientCount,
 			numRpcAuthor, 
 			numRpcBabe, 
 			numRpcBeefy, 
@@ -382,6 +384,8 @@ public:
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRequestReceived, "number_of_ws_request_received", "counter", "Number of ws requests received");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::numWsConnect, "number_of_ws_connection_received", "counter", "Number of ws sconcurrent connections");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::numMessageSent, "number_of_ws_message_sent", "counter", "Number of ws message sent");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numClientCount, "number_of_ws_client_count", "counter", "Number of connecting clients");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numHealthClientCount, "number_of_ws_health_client_count", "counter", "Number of connecting health clients");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcAuthor, "number_of_group_author", "counter", "Number of ws JSON-RPC author method group");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcBabe, "number_of_group_babe", "counter", "Number of ws JSON-RPC babe method group");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcBeefy, "number_of_group_beefy", "counter", "Number of ws JSON-RPC beefy method group");
@@ -1239,6 +1243,7 @@ private slots:
 		{
 			QVariant value;
 			long numRequestReceived=0, numWsConnect=0, numMessageSent=0;
+			long numClientCount = 0, numHealthClientCount = 0;
 			long numRpcAuthor = 0, numRpcBabe = 0, numRpcBeefy = 0, numRpcChain = 0, numRpcChildState = 0;
 			long numRpcContracts = 0, numRpcDev = 0, numRpcEngine = 0, numRpcEth = 0, numRpcNet = 0;
 			long numRpcWeb3 = 0, numRpcGrandpa = 0, numRpcMmr = 0, numRpcOffchain = 0, numRpcPayment = 0;
@@ -1254,6 +1259,8 @@ private slots:
 			numRequestReceived = *(long *)&str[0];
 			numWsConnect = *(long *)&str[4];
 			numMessageSent = *(long *)&str[8];
+			numClientCount = *(long *)&str[12];
+			numHealthClientCount = *(long *)&str[16];
 			numRpcAuthor = *(long *)&str[20];
 			numRpcBabe = *(long *)&str[24];
 			numRpcBeefy = *(long *)&str[28];
@@ -1301,6 +1308,8 @@ private slots:
 				case PrometheusMetric::numRequestReceived: value = QVariant((int)numRequestReceived); break;
 				case PrometheusMetric::numWsConnect: value = QVariant((int)numWsConnect); break;
 				case PrometheusMetric::numMessageSent: value = QVariant((int)numMessageSent); break;
+				case PrometheusMetric::numClientCount: value = QVariant((int)numClientCount); break;
+				case PrometheusMetric::numHealthClientCount: value = QVariant((int)numHealthClientCount); break;
 				case PrometheusMetric::numRpcAuthor: value = QVariant((int)numRpcAuthor); break;
 				case PrometheusMetric::numRpcBabe: value = QVariant((int)numRpcBabe); break;
 				case PrometheusMetric::numRpcBeefy: value = QVariant((int)numRpcBeefy); break;

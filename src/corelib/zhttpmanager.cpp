@@ -73,6 +73,7 @@
 
 // variable to count ws
 static long numRequestReceived = 0, numWsConnect = 0, numMessageSent = 0;
+static long numClientCount = 0, numHealthClientCount = 0;
 static long numRpcAuthor = 0, numRpcBabe = 0, numRpcBeefy = 0, numRpcChain = 0, numRpcChildState = 0;
 static long numRpcContracts = 0, numRpcDev = 0, numRpcEngine = 0, numRpcEth = 0, numRpcNet = 0;
 static long numRpcWeb3 = 0, numRpcGrandpa = 0, numRpcMmr = 0, numRpcOffchain = 0, numRpcPayment = 0;
@@ -1224,6 +1225,12 @@ public:
 		memcpy(&shm_str[144], (char *)&numSubscriptionItem, 4);
 		memcpy(&shm_str[148], (char *)&numAutoRefreshItem, 4);
 		memcpy(&shm_str[152], (char *)&numAREItemCount, 4);
+
+		// client count
+		numClientCount = gClientList.count();
+		memcpy(&shm_str[12], (char *)&numClientCount, 4);
+		numHealthClientCount = gHealthClientList.count();
+		memcpy(&shm_str[16], (char *)&numHealthClientCount, 4);
 
 		// Check packets for cache client, if so, update seq
 		if (packet.ids[0].id == gCacheClient.clientId)
