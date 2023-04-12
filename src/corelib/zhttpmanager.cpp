@@ -515,17 +515,17 @@ public:
 
 						//// read config values
 						// open shared memory
-						key_t shm_key = ftok("shmfile",65);
+						key_t shm_key = ftok("shm_pushpin_methods",65);
 						int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 						char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
 						// group
-						int shm_read_count = 200;
+						int shm_read_count = 0;
 						cfgGroupByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgGroupCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 
 						// cache
-						shm_read_count = 200 + cfgGroupByteCount;
+						shm_read_count = 0 + cfgGroupByteCount;
 						cfgCacheByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgCacheEnableFlag = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgCacheAutoRefreshFlag = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
@@ -539,7 +539,7 @@ public:
 						if (cfgCacheTimeoutSeconds <= 0) cfgCacheTimeoutSeconds = 5;	// default
 
 						// subscribe
-						shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount;
+						shm_read_count = 0 + cfgGroupByteCount + cfgCacheByteCount;
 						cfgSubscriptionByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgSubscribeItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgCacheItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
@@ -551,7 +551,7 @@ public:
 						if (cfgSubscribeTimeoutSeconds <= 0) cfgSubscribeTimeoutSeconds = 3600*4;	// default
 
 						// auto-refresh exception
-						shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount + cfgSubscriptionByteCount;
+						shm_read_count = 0 + cfgGroupByteCount + cfgCacheByteCount + cfgSubscriptionByteCount;
 						cfgAreByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgAreItemMaxSizeKbytes = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgAreItemMaxCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
@@ -813,12 +813,12 @@ CLEAR_CLIENT_LIST_LOOP:
 
 		//// search auto-refresh exception method list
 		// open shared memory
-		key_t shm_key = ftok("shmfile",65);
+		key_t shm_key = ftok("shm_pushpin_methods",65);
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
 		cacheItem.areFlag = false;
-		int shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount + cfgSubscriptionByteCount + 20;
+		int shm_read_count = 0 + cfgGroupByteCount + cfgCacheByteCount + cfgSubscriptionByteCount + 20;
 		for (int i = 0; i < cfgAreMethodCount; i++)
 		{
 			char areMethodNameHash[20];
@@ -1160,9 +1160,13 @@ CLEAR_CLIENT_LIST_LOOP:
 			LogUtil::logVariantWithContent(LOG_LEVEL_DEBUG, vpacket, "body", "%s client: OUT %s", logprefix, instanceAddress.data(), packet.type);
 
 		// open shared memory
-		key_t shm_key = ftok("shmfile",65);
+		key_t shm_key = ftok("shm_pushpin_count",65);
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
+		key_t shmkey = ftok("shm_pushpin_methods",65);
+		int shmid = shmget(shmkey,0,0666|IPC_CREAT);
+		char *shmstr = (char*) shmat(shmid,(void*)0,0);
 
 		// if cache client is not initialized
 		if ((cfgCacheEnableFlag != 1) || (gCacheClient.initialized != true))
@@ -1423,11 +1427,11 @@ CLEAR_CLIENT_LIST_LOOP:
 			
 			// Cache method Lookup
 			int cacheItemCount = gCacheItemList.count();
-			int shm_read_count = 200 + cfgGroupByteCount + 20;
+			int shm_read_count = 0 + cfgGroupByteCount + 20;
 			for (int i = 0; i < cfgCacheMethodCount; i++)
 			{
 				char cacheMethodNameHash[20];
-				memcpy(cacheMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
+				memcpy(cacheMethodNameHash, &shmstr[shm_read_count], 20); shm_read_count += 20;
 				if (!memcmp(cacheMethodNameHash, methodNameHash, 20))
 				{
 					for (int j = 0; j < cacheItemCount; j++)
@@ -1509,11 +1513,11 @@ CLEAR_CLIENT_LIST_LOOP:
 
 			// subscription request lookup
 			int subscriptionItemCount = gSubscriptionItemList.count();
-			shm_read_count = 200 + cfgGroupByteCount + cfgCacheByteCount + 20;
+			shm_read_count = 0 + cfgGroupByteCount + cfgCacheByteCount + 20;
 			for (int i = 0; i < cfgSubscribeMethodCount; i++)
 			{
 				char cacheSubscribeMethodNameHash[20];
-				memcpy(cacheSubscribeMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;
+				memcpy(cacheSubscribeMethodNameHash, &shmstr[shm_read_count], 20); shm_read_count += 20;
 					
 				if (!memcmp(cacheSubscribeMethodNameHash, methodNameHash, 20))
 				{
@@ -1621,6 +1625,7 @@ CLEAR_CLIENT_LIST_LOOP:
 	
 OUT_STREAM_SOCK_WRITE:
 		shmdt(shm_str);
+		shmdt(shmstr);
 		QList<QByteArray> msg;
 		msg += instanceAddress;
 		msg += QByteArray();
@@ -1810,9 +1815,9 @@ public slots:
 		}
 
 		// Write to shared memory
-		key_t key = ftok("shmfile",65);
-		int shmid = shmget(key,0,0666|IPC_CREAT);
-		char *shm_str = (char*) shmat(shmid,(void*)0,0);
+		key_t shm_key = ftok("shm_pushpin_count",65);
+		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
 		if (p.type == ZhttpResponsePacket::Data)
 		{
@@ -2387,9 +2392,14 @@ ZWS_CLIENT_IN_WRITE:
 				if (p.type == ZhttpRequestPacket::Data)
 				{
 					// open shared memory
-					key_t shm_key = ftok("shmfile",65);
+					key_t shm_key = ftok("shm_pushpin_count",65);
 					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+		
+					key_t shmkey = ftok("shm_pushpin_methods",65);
+					int shmid = shmget(shmkey,0,0666|IPC_CREAT);
+					char *shmstr = (char*) shmat(shmid,(void*)0,0);
+		
 					long requestReceived = *(long *)&shm_str[0];
 					log_debug("[tttttttt] requestReceived = %d,  numRequestReceived = %d", requestReceived, numRequestReceived);
 					if (requestReceived != numRequestReceived)
@@ -2540,24 +2550,24 @@ ZWS_CLIENT_IN_WRITE:
 						char methodNameHash[20];
 						memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
 						
-						int shm_read_count = 200 + 8;
+						int shm_read_count = 0 + 8;
 						for (int i = 0; i < cfgGroupCount; i++)
 						{
-							long methodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+							long methodCount = *(long *)&shmstr[shm_read_count]; shm_read_count += 4;
 							int mCnt = (int)methodCount;
 							char groupName[256];
-							memcpy(groupName, &shm_str[shm_read_count], 256); shm_read_count += 256;	
-							long eventCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
+							memcpy(groupName, &shmstr[shm_read_count], 256); shm_read_count += 256;	
+							long eventCount = *(long *)&shmstr[shm_read_count]; shm_read_count += 4;
 
 							int shm_write_point = shm_read_count - 4;								
 							for (int j = 0; j < mCnt; j++)
 							{
 								char groupMethodNameHash[20];
-								memcpy(groupMethodNameHash, &shm_str[shm_read_count], 20); shm_read_count += 20;	
+								memcpy(groupMethodNameHash, &shmstr[shm_read_count], 20); shm_read_count += 20;	
 								if (!memcmp(groupMethodNameHash, methodNameHash, 20))
 								{
 									eventCount++;
-									memcpy(&shm_str[shm_write_point], (char *)&eventCount, 4);
+									memcpy(&shmstr[shm_write_point], (char *)&eventCount, 4);
 									shm_read_count += 20*(mCnt-j-1);
 									break;
 								}
@@ -2567,6 +2577,7 @@ ZWS_CLIENT_IN_WRITE:
 					}
 
 					shmdt(shm_str);
+					shmdt(shmstr);
 				}
 SOCK_HANDLE:		
 				sock->handle(id.id, id.seq, p);

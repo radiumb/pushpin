@@ -259,6 +259,11 @@ public:
 		if(!args.ipcPrefix.isEmpty())
 			settings.setIpcPrefix(args.ipcPrefix);
 		
+		// open shared memory
+		key_t shmkey = ftok("shm_pushpin_methods",65);
+		int shmid = shmget(shmkey,0,0666|IPC_CREAT);
+		shmctl(shmid,IPC_RMID,NULL);
+		
 		// Parse websocket count group
 		//////////////////////////////////////////////////////////////
 		// group byte count (4byte)
@@ -268,7 +273,7 @@ public:
 		// ...
 		
 		// Calculate the total shared memory byte count
-		long total_shm_byte_count = 200; // for ws counters = 200
+		long total_shm_byte_count = 0; // for ws counters = 0
 
 		// Group
 		QStringList ws_groups = settings.value("websocket/ws_count_groups").toStringList();
@@ -321,10 +326,9 @@ public:
 		total_shm_byte_count += cache_ARE_byte_count;
 
 		// Write to shared memory
-		long shm_write_count = 200;
-		key_t shm_key = ftok("shmfile",65);
-		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-		//int shm_id = shmget(shm_key,total_shm_byte_count,0666|IPC_CREAT);
+		long shm_write_count = 0;
+		key_t shm_key = ftok("shm_pushpin_methods",65);
+		int shm_id = shmget(shm_key,total_shm_byte_count,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 		memcpy(&shm_str[shm_write_count], (char *)&group_byte_count, 4); shm_write_count += 4;
 		memcpy(&shm_str[shm_write_count], (char *)&group_count, 4); shm_write_count += 4;

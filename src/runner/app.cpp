@@ -427,13 +427,13 @@ public:
 		// restore prometheus stat
 		{
 			// Delete shared memory created in previous run
-			key_t shm_key = ftok("shmfile",65);
+			key_t shm_key = ftok("shm_pushpin_count",65);
 			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 			shmctl(shm_id,IPC_RMID,NULL);
 
 			// open shared memory
-			shm_key = ftok("shmfile",65);
-			shm_id = shmget(shm_key,512*1024,0666|IPC_CREAT);
+			shm_key = ftok("shm_pushpin_count",65);
+			shm_id = shmget(shm_key,200,0666|IPC_CREAT);
 			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
 			// init shared memory
@@ -730,7 +730,7 @@ private:
 		if (fName)
 		{
 			// open shared memory
-			key_t shm_key = ftok("shmfile",65);
+			key_t shm_key = ftok("shm_pushpin_count",65);
 			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
