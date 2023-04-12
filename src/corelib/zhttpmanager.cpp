@@ -2392,6 +2392,7 @@ ZWS_CLIENT_IN_WRITE:
 				// if data packet
 				if (p.type == ZhttpRequestPacket::Data)
 				{
+/*					
 					// open shared memory
 					key_t shm_key = ftok("shm_pushpin_count",65);
 					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
@@ -2539,7 +2540,7 @@ ZWS_CLIENT_IN_WRITE:
 					memcpy(&shm_str[92], (char *)&numRpcSystem, 4);
 					memcpy(&shm_str[96], (char *)&numRpcSubscribe, 4);
 					shmdt(shm_str);
-
+*/
 					// Group
 					key_t shmkey = ftok("shm_pushpin_methods",65);
 					int shmid = shmget(shmkey,0,0666|IPC_CREAT);
