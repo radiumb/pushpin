@@ -1296,7 +1296,6 @@ private slots:
 			numAutoRefreshItem = *(long *)&str[148];
 			numAREItemCount = *(long *)&str[152];
 			shmdt(str);
-			//shmctl(shmid,IPC_RMID,NULL);
 
 			switch(m.mtype)
 			{
