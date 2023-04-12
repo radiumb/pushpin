@@ -267,11 +267,6 @@ public:
 		// group2
 		// ...
 		
-		// Delete shared memory created in previous run
-		key_t shm_key = ftok("shmfile",65);
-		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-		shmctl(shm_id,IPC_RMID,NULL);
-
 		// Calculate the total shared memory byte count
 		long total_shm_byte_count = 200; // for ws counters = 200
 

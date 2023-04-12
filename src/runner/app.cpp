@@ -426,6 +426,11 @@ public:
 		
 		// restore prometheus stat
 		{
+			// Delete shared memory created in previous run
+			key_t shm_key = ftok("shmfile",65);
+			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+			shmctl(shm_id,IPC_RMID,NULL);
+			
 			// open shared memory
 			key_t shm_key = ftok("shmfile",65);
 			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
