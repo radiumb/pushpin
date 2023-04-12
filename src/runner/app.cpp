@@ -430,9 +430,9 @@ public:
 			key_t shm_key = ftok("shmfile",65);
 			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 			shmctl(shm_id,IPC_RMID,NULL);
-			
+
 			// open shared memory
-			key_t shm_key = ftok("shmfile",65);
+			shm_key = ftok("shmfile",65);
 			int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 			char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
