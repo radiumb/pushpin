@@ -523,9 +523,6 @@ public:
 						int shm_read_count = 0;
 						cfgGroupByteCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
 						cfgGroupCount = (int)*(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-						long methodCount = *(long *)&shm_str[shm_read_count]; shm_read_count += 4;
-
-						log_debug("[tttt] methodCount = %d", methodCount);
 
 						// cache
 						shm_read_count = 0 + cfgGroupByteCount;
@@ -2547,6 +2544,10 @@ ZWS_CLIENT_IN_WRITE:
 					key_t shmkey = ftok("shm_pushpin_methods",65);
 					int shmid = shmget(shmkey,0,0666|IPC_CREAT);
 					char *shmstr = (char*) shmat(shmid,(void*)0,0);
+
+					long tmethodCount = *(long *)&shmstr[8];
+
+					log_debug("[tttt] methodCount = %d", tmethodCount);
 
 					QString methodName = QString(methodStr);
 					QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
