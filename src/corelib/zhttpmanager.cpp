@@ -2372,6 +2372,17 @@ ZWS_CLIENT_IN_WRITE:
 				// if data packet
 				if (p.type == ZhttpRequestPacket::Data)
 				{
+					// open shared memory
+					key_t shm_key = ftok("shmfile",65);
+					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+					long requestReceived = *(long *)&str[0];
+					if (requestReceived == numRequestReceived)
+					{
+						/* code */
+					}
+					
+
 					// parse JSON-RPC 
 					{
 						// convert to string
@@ -2451,13 +2462,9 @@ ZWS_CLIENT_IN_WRITE:
 							if (!memcmp(&methodStr[7], "subscribe", 9)) numRpcSubscribe++;
 						}
 
-						// read shared memory
 						// Count WS request
 						numRequestReceived++;
 						// Write to shared memory
-						key_t shm_key = ftok("shmfile",65);
-						int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
-						char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 						memcpy(&shm_str[0], (char *)&numRequestReceived, 4);
 						memcpy(&shm_str[20], (char *)&numRpcAuthor, 4);
 						memcpy(&shm_str[24], (char *)&numRpcBabe, 4);
@@ -2511,8 +2518,9 @@ ZWS_CLIENT_IN_WRITE:
 							}
 								
 						}
-						shmdt(shm_str);
 					}
+
+					shmdt(shm_str);
 				}
 SOCK_HANDLE:		
 				sock->handle(id.id, id.seq, p);
