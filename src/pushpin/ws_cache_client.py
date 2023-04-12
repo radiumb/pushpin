@@ -92,7 +92,7 @@ try:
 	ws = create_connection(urlPath, header=reqHeader)
 except:
 	print('failed to connect ws')
-	#handle_exception()
+	handle_exception()
 	quit()
 
 print('ws connected')
@@ -106,5 +106,5 @@ while True:
 	except:
 		print("Error: can not send/receive command, closing ws")
 		ws.close()
-		#handle_exception()
+		handle_exception()
 		quit()

@@ -2547,15 +2547,12 @@ ZWS_CLIENT_IN_WRITE:
 
 					long tmethodCount = *(long *)&shmstr[8];
 
-					log_debug("[tttt] methodCount = %d", tmethodCount);
-
 					QString methodName = QString(methodStr);
 					QByteArray methodNameHashByteArray = QCryptographicHash::hash(methodName.toLower().toUtf8(),QCryptographicHash::Sha1);
 
 					char methodNameHash[20];
 					memcpy(methodNameHash, methodNameHashByteArray.data(), 20);
 					
-					log_debug("[tttttttt] cfgGroupCount = %d", cfgGroupCount);
 					int shm_read_count = 0 + 8;
 					for (int i = 0; i < cfgGroupCount; i++)
 					{
@@ -2563,7 +2560,6 @@ ZWS_CLIENT_IN_WRITE:
 						int mCnt = (int)methodCount;
 						char groupName[256];
 						memcpy(groupName, &shmstr[shm_read_count], 256); shm_read_count += 256;	
-						log_debug("[tttttttt] mCnt = %d groupName=%s", mCnt, groupName);
 						long eventCount = *(long *)&shmstr[shm_read_count]; shm_read_count += 4;
 
 						int shm_write_point = shm_read_count - 4;								
