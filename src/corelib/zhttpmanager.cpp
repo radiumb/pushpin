@@ -548,7 +548,7 @@ public:
 
 						if (cfgSubscribeItemMaxSizeKbytes <= 0) cfgSubscribeItemMaxSizeKbytes = 1024;		// default
 						if (cfgCacheItemMaxCount <= 0) cfgCacheItemMaxCount = 512;		// default
-						if (cfgSubscribeTimeoutSeconds <= 0) cfgSubscribeTimeoutSeconds = 3600*4;	// default
+						if (cfgSubscribeTimeoutSeconds <= 0) cfgSubscribeTimeoutSeconds = 200;	// default
 
 						// auto-refresh exception
 						shm_read_count = 0 + cfgGroupByteCount + cfgCacheByteCount + cfgSubscriptionByteCount;
