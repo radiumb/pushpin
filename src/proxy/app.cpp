@@ -260,7 +260,7 @@ public:
 			settings.setIpcPrefix(args.ipcPrefix);
 		
 		// open shared memory
-		key_t shmkey = ftok("/tmp",65);
+		key_t shmkey = ftok("/tmp",67);
 		int shmid = shmget(shmkey,0,0666|IPC_CREAT);
 		shmctl(shmid,IPC_RMID,NULL);
 		
@@ -327,7 +327,7 @@ public:
 
 		// Write to shared memory
 		long shm_write_count = 0;
-		key_t shm_key = ftok("/tmp",65);
+		key_t shm_key = ftok("/tmp",67);
 		int shm_id = shmget(shm_key,total_shm_byte_count,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 		memcpy(&shm_str[shm_write_count], (char *)&group_byte_count, 4); shm_write_count += 4;

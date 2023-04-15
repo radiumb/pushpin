@@ -515,7 +515,7 @@ public:
 
 						//// read config values
 						// open shared memory
-						key_t shm_key = ftok("/tmp",65);
+						key_t shm_key = ftok("/tmp",67);
 						int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 						char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
@@ -813,7 +813,7 @@ CLEAR_CLIENT_LIST_LOOP:
 
 		//// search auto-refresh exception method list
 		// open shared memory
-		key_t shm_key = ftok("/tmp",65);
+		key_t shm_key = ftok("/tmp",67);
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
@@ -1164,7 +1164,7 @@ CLEAR_CLIENT_LIST_LOOP:
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 
-		key_t shmkey = ftok("/tmp",65);
+		key_t shmkey = ftok("/tmp",67);
 		int shmid = shmget(shmkey,0,0666|IPC_CREAT);
 		char *shmstr = (char*) shmat(shmid,(void*)0,0);
 
@@ -2542,7 +2542,7 @@ ZWS_CLIENT_IN_WRITE:
 					shmdt(shm_str);
 
 					// Group
-					key_t shmkey = ftok("/tmp",65);
+					key_t shmkey = ftok("/tmp",67);
 					log_debug("[tttt] tmpkey=%x", shmkey);
 					int shmid = shmget(shmkey,0,0666|IPC_CREAT);
 					char *shmstr = (char*) shmat(shmid,(void*)0,0);

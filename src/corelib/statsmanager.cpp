@@ -421,7 +421,7 @@ public:
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::numAutoRefreshItem, "number_of_cache_auto_refresh_item", "counter", "Number of ws Auto-Refresh items");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::numAREItemCount, "number_of_cache_auto_refresh_exception_item", "counter", "Number of ws Auto-Refresh Exception items");
 		// Group count add
-		key_t shm_key = ftok("/tmp",65);
+		key_t shm_key = ftok("/tmp",67);
 		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 		int shm_read_count = 0;
@@ -1346,7 +1346,7 @@ private slots:
 
 				default: {
 					// Group count add
-					key_t shm_key = ftok("/tmp",65);
+					key_t shm_key = ftok("/tmp",67);
 					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 					int shm_read_count = 0;
