@@ -71,6 +71,8 @@
 // needs to match the peer
 #define ZHTTP_IDS_MAX 128
 
+#define CACHE_ITEM_MAX_LIVE_SECONDS 600
+
 // variable to count ws
 static long numRequestReceived = 0, numWsConnect = 0, numMessageSent = 0;
 static long numClientCount = 0, numHealthClientCount = 0;
@@ -107,6 +109,7 @@ struct CacheItem {
 	bool areFlag;
 	time_t refreshTimeCount;
 	time_t accessTimeCount;
+	time_t createdTime;
 	int accessCount;
 	bool cachedFlag;
 	ZhttpRequestPacket requestPacket;
@@ -663,7 +666,6 @@ CLEAR_CLIENT_LIST_LOOP:
 		{
 			cacheScanPtr = 0;
 		}
-		
 
 		for (int i=cacheScanPtr; i < itemCount; i++)
 		{
@@ -688,32 +690,47 @@ CLEAR_CLIENT_LIST_LOOP:
 				}
 			}
 			
-			int refreshDiff = (int)(currSeconds - gCacheItemList[i].refreshTimeCount);
-			if (refreshDiff > cacheTimeOut)
+			if (gCacheItemList[i].cachedFlag == true)
 			{
-				if (cfgCacheAutoRefreshFlag != 0)
-				{
-					if ((gCacheItemList[i].areFlag == true) || (gCacheItemList[i].accessCount > 0))
-					{
-						log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
-						gCacheItemList[i].newMsgId = gCacheClient.msgIdCount;
-						gCacheItemList[i].clientList.clear();
-						gCacheItemList[i].refreshTimeCount = time(NULL);
-						sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
-						cacheScanPtr++;
-						break;
-					}
-				}
-				else
+				int liveTimeDiff = (int)(currSeconds - gCacheItemList[i].createdTime);
+				if (liveTimeDiff > CACHE_ITEM_MAX_LIVE_SECONDS)
 				{
 					// add ws Cache expiry
 					numCacheExpiry++;
 
 					// remove cache item
-					log_debug("[CACHEITEM] deleting2 cache item cacheScanPtr=%d itemCount=%d", cacheScanPtr, itemCount);
+					log_debug("[CACHEITEM] deleting (live timeout) cache item cacheScanPtr=%d itemCount=%d", cacheScanPtr, itemCount);
 					gCacheItemList.removeAt(i);
 					break;
-				}				
+				}
+
+				int refreshDiff = (int)(currSeconds - gCacheItemList[i].refreshTimeCount);
+				if (refreshDiff > cacheTimeOut)
+				{
+					if (cfgCacheAutoRefreshFlag != 0)
+					{
+						if ((gCacheItemList[i].areFlag == true) || (gCacheItemList[i].accessCount > 0))
+						{
+							log_debug("[CACHEITEM] auto-refresh request oldMsgId=%d newMsgId=%d", gCacheItemList[i].msgId, gCacheClient.msgIdCount);
+							gCacheItemList[i].newMsgId = gCacheClient.msgIdCount;
+							gCacheItemList[i].clientList.clear();
+							gCacheItemList[i].refreshTimeCount = time(NULL);
+							sendNewCacheClientRequest(gCacheItemList[i].requestPacket, gCacheItemList[i].oldMsgId, gCacheItemList[i].requestInstanceAddress);
+							cacheScanPtr++;
+							break;
+						}
+					}
+					else
+					{
+						// add ws Cache expiry
+						numCacheExpiry++;
+
+						// remove cache item
+						log_debug("[CACHEITEM] deleting2 cache item cacheScanPtr=%d itemCount=%d", cacheScanPtr, itemCount);
+						gCacheItemList.removeAt(i);
+						break;
+					}				
+				}
 			}
 
 			cacheScanPtr++;
@@ -2062,6 +2079,7 @@ public slots:
 						gCacheItemList[i].msgId = msgBody.id;
 
 						gCacheItemList[i].cachedFlag = true;
+						gCacheItemList[i].createdTime = time(NULL);
 						log_debug("[CACHEITEM] Added Cache content for method id=%d", msgBody.id);
 
 						// send response to all clients
