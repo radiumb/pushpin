@@ -1840,8 +1840,11 @@ public slots:
 		if (p.type == ZhttpResponsePacket::Data)
 		{
 			// Count (ws messages sent)
-			if (!healthClientFlag) numMessageSent++;
-			memcpy(&shm_str[8], (char *)&numMessageSent, 4);
+			if (!healthClientFlag) 
+			{
+				numMessageSent++;
+				memcpy(&shm_str[8], (char *)&numMessageSent, 4);
+			}
 		}
 
 		// if cache is not enabled
@@ -2193,6 +2196,50 @@ ZWS_CLIENT_IN_WRITE:
 
 	void server_in_readyRead(const QList<QByteArray> &msg)
 	{
+		// restore prometheus stat
+		key_t shm_key = ftok("/var",65);
+		int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
+		char *shm_str = (char*) shmat(shm_id,(void*)0,0);
+
+		long requestReceived = *(long *)&shm_str[0];
+		if (requestReceived != numRequestReceived)
+		{
+			numRequestReceived = *(long *)&shm_str[0];
+			numWsConnect = *(long *)&shm_str[4];
+			numMessageSent = *(long *)&shm_str[8];
+			numRpcAuthor = *(long *)&shm_str[20];
+			numRpcBabe = *(long *)&shm_str[24];
+			numRpcBeefy = *(long *)&shm_str[28];
+			numRpcChain = *(long *)&shm_str[32];
+			numRpcChildState = *(long *)&shm_str[36];
+			numRpcContracts = *(long *)&shm_str[40];
+			numRpcDev = *(long *)&shm_str[44];
+			numRpcEngine = *(long *)&shm_str[48];
+			numRpcEth = *(long *)&shm_str[52];
+			numRpcNet = *(long *)&shm_str[56];
+			numRpcWeb3 = *(long *)&shm_str[60];
+			numRpcGrandpa = *(long *)&shm_str[64];
+			numRpcMmr = *(long *)&shm_str[68];
+			numRpcOffchain = *(long *)&shm_str[72];
+			numRpcPayment = *(long *)&shm_str[76];
+			numRpcRpc = *(long *)&shm_str[80];
+			numRpcState = *(long *)&shm_str[84];
+			numRpcSyncstate = *(long *)&shm_str[88];
+			numRpcSystem = *(long *)&shm_str[92];
+			numRpcSubscribe = *(long *)&shm_str[96];
+			numCacheInsert = *(long *)&shm_str[100];
+			numCacheHit = *(long *)&shm_str[104];
+			numCacheLookup = *(long *)&shm_str[108];
+			numCacheExpiry = *(long *)&shm_str[112];
+			numRequestMultiPart = *(long *)&shm_str[116];
+			numSubscriptionInsert = *(long *)&shm_str[120];
+			numSubscriptionHit = *(long *)&shm_str[124];
+			numSubscriptionLookup = *(long *)&shm_str[128];
+			numSubscriptionExpiry = *(long *)&shm_str[132];
+			numResponseMultiPart = *(long *)&shm_str[136];
+		}
+		shmdt(shm_str);
+		
 		if(msg.count() != 1)
 		{
 			log_warning("zhttp/zws server: received message with parts != 1, skipping");
@@ -2414,44 +2461,6 @@ ZWS_CLIENT_IN_WRITE:
 					key_t shm_key = ftok("/var",65);
 					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
-		
-					long requestReceived = *(long *)&shm_str[0];
-					if (requestReceived != numRequestReceived)
-					{
-						numRequestReceived = *(long *)&shm_str[0];
-						numWsConnect = *(long *)&shm_str[4];
-						numMessageSent = *(long *)&shm_str[8];
-						numRpcAuthor = *(long *)&shm_str[20];
-						numRpcBabe = *(long *)&shm_str[24];
-						numRpcBeefy = *(long *)&shm_str[28];
-						numRpcChain = *(long *)&shm_str[32];
-						numRpcChildState = *(long *)&shm_str[36];
-						numRpcContracts = *(long *)&shm_str[40];
-						numRpcDev = *(long *)&shm_str[44];
-						numRpcEngine = *(long *)&shm_str[48];
-						numRpcEth = *(long *)&shm_str[52];
-						numRpcNet = *(long *)&shm_str[56];
-						numRpcWeb3 = *(long *)&shm_str[60];
-						numRpcGrandpa = *(long *)&shm_str[64];
-						numRpcMmr = *(long *)&shm_str[68];
-						numRpcOffchain = *(long *)&shm_str[72];
-						numRpcPayment = *(long *)&shm_str[76];
-						numRpcRpc = *(long *)&shm_str[80];
-						numRpcState = *(long *)&shm_str[84];
-						numRpcSyncstate = *(long *)&shm_str[88];
-						numRpcSystem = *(long *)&shm_str[92];
-						numRpcSubscribe = *(long *)&shm_str[96];
-						numCacheInsert = *(long *)&shm_str[100];
-						numCacheHit = *(long *)&shm_str[104];
-						numCacheLookup = *(long *)&shm_str[108];
-						numCacheExpiry = *(long *)&shm_str[112];
-						numRequestMultiPart = *(long *)&shm_str[116];
-						numSubscriptionInsert = *(long *)&shm_str[120];
-						numSubscriptionHit = *(long *)&shm_str[124];
-						numSubscriptionLookup = *(long *)&shm_str[128];
-						numSubscriptionExpiry = *(long *)&shm_str[132];
-						numResponseMultiPart = *(long *)&shm_str[136];
-					}					
 
 					// parse JSON-RPC 
 					// convert to string
