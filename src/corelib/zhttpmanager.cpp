@@ -1874,7 +1874,7 @@ public slots:
 
 			// count connect
 			numWsConnect++;
-			memcpy(&shm_str[8], (char *)&numWsConnect, 4);
+			memcpy(&shm_str[4], (char *)&numWsConnect, 4);
 		}
 		else if (p.ids[0].id == gCacheClient.clientId)
 		{
@@ -2412,12 +2412,10 @@ ZWS_CLIENT_IN_WRITE:
 				{
 					// open shared memory
 					key_t shm_key = ftok("/var",65);
-					log_debug("[tttt] varkey=%x", shm_key);
 					int shm_id = shmget(shm_key,0,0666|IPC_CREAT);
 					char *shm_str = (char*) shmat(shm_id,(void*)0,0);
 		
 					long requestReceived = *(long *)&shm_str[0];
-					log_debug("[tttttttt] requestReceived = %d,  numRequestReceived = %d", requestReceived, numRequestReceived);
 					if (requestReceived != numRequestReceived)
 					{
 						numRequestReceived = *(long *)&shm_str[0];
@@ -2561,7 +2559,6 @@ ZWS_CLIENT_IN_WRITE:
 
 					// Group
 					key_t shmkey = ftok("/tmp",67);
-					log_debug("[tttt] tmpkey=%x", shmkey);
 					int shmid = shmget(shmkey,0,0666|IPC_CREAT);
 					char *shmstr = (char*) shmat(shmid,(void*)0,0);
 
