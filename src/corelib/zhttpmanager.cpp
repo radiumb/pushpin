@@ -773,7 +773,7 @@ CLEAR_CLIENT_LIST_LOOP:
 
 		for (int i = subscriptionScanPtr; i < itemCount; i++)
 		{
-			if (gSubscriptionItemList[i].clientList.count() == 0)
+			if ((gSubscriptionItemList[i].clientList.count() == 0) && (gSubscriptionItemList[i].cachedFlag == true))
 			{
 				// get diff time
 				int diffTime = (int)(currTime - gSubscriptionItemList[i].refreshTimeCount);
@@ -1330,18 +1330,16 @@ CLEAR_CLIENT_LIST_LOOP:
 
 			// Check if multi-parts request
 			int mpItemCount = gMultiPartRequestItemList.count();
-			bool mpItemFlag = false;
 			int mpItemNum = -1;
 			for (int i = 0; i < mpItemCount; i++)
 			{
 				if (packet.ids[0].id == gMultiPartRequestItemList[i].clientId)
 				{
-					mpItemFlag = true;
 					mpItemNum = i;
 					break;
 				}
 			}
-			if (mpItemFlag == true)
+			if (mpItemNum >= 0)
 			{
 				// this is middle packet of multi-request
 				if (packet.more == true)
@@ -1970,20 +1968,23 @@ public slots:
 							// update subscription packet
 							gSubscriptionItemList[i].subscriptionPacket = p;
 
-							gSubscriptionItemList[i].cachedFlag = true;
-							log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d subscription=%s", gSubscriptionItemList[i].msgId, qPrintable(msgBody.subscription));
-							// send update subscribe to all clients
-							for (int j = 0; j < gSubscriptionItemList[i].clientList.count(); j++)
+							if (gSubscriptionItemList[i].msgId != -1)
 							{
-								log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gSubscriptionItemList[i].clientList[j].clientId);
-								send_response_to_client(gSubscriptionItemList[i].responsePacket, \
-									gSubscriptionItemList[i].clientList[j].clientId, \
-									gSubscriptionItemList[i].msgId, \
-									gSubscriptionItemList[i].clientList[j].msgId);
-								send_response_to_client(gSubscriptionItemList[i].subscriptionPacket, \
-									gSubscriptionItemList[i].clientList[j].clientId, \
-									gSubscriptionItemList[i].msgId, \
-									gSubscriptionItemList[i].clientList[j].msgId);
+								gSubscriptionItemList[i].cachedFlag = true;
+								log_debug("[CACHEITEM] Added Subscription content for subscription method id=%d subscription=%s", gSubscriptionItemList[i].msgId, qPrintable(msgBody.subscription));
+								// send update subscribe to all clients
+								for (int j = 0; j < gSubscriptionItemList[i].clientList.count(); j++)
+								{
+									log_debug("[CACHEITEM] Sending Subscription content to client id=%s", (const char *)gSubscriptionItemList[i].clientList[j].clientId);
+									send_response_to_client(gSubscriptionItemList[i].responsePacket, \
+										gSubscriptionItemList[i].clientList[j].clientId, \
+										gSubscriptionItemList[i].msgId, \
+										gSubscriptionItemList[i].clientList[j].msgId);
+									send_response_to_client(gSubscriptionItemList[i].subscriptionPacket, \
+										gSubscriptionItemList[i].clientList[j].clientId, \
+										gSubscriptionItemList[i].msgId, \
+										gSubscriptionItemList[i].clientList[j].msgId);
+								}
 							}
 						}
 						else
