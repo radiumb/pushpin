@@ -1504,7 +1504,7 @@ CLEAR_CLIENT_LIST_LOOP:
 						log_debug("[CACHEITEM] Registered New Cache Item for id=%d method=\"%s\"", msgBody.id, methodStr);
 
 						// add ws Cache insert
-						numCacheInsert++;
+						if (!healthClientFlag) numCacheInsert++;
 						memcpy(&shm_str[100], (char *)&numCacheInsert, 4);
 
 						// Send new client cache request packet
@@ -1827,6 +1827,7 @@ public slots:
 			if (p.ids[0].id == gHealthClientList[i].clientId)
 			{
 				healthClientFlag = true;
+				break;
 			}
 		}
 
