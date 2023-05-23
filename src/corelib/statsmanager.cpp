@@ -45,7 +45,7 @@
 #include "zutil.h"
 
 // make this somewhat big since PUB is lossy
-#define OUT_HWM 800000
+#define OUT_HWM 1600000
 
 #define ACTIVITY_TIMEOUT 100
 #define REFRESH_INTERVAL 1000

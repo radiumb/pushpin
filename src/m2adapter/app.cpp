@@ -606,7 +606,7 @@ public:
 		ignorePolicies = settings.value("ignore_policies").toBool();
 		m2_client_buffer = settings.value("m2_client_buffer").toInt();
 		if(m2_client_buffer <= 0)
-			m2_client_buffer = 800000;
+			m2_client_buffer = 1600000;
 
 		maxSessions = settings.value("max_open_requests", -1).toInt();
 
@@ -1126,7 +1126,7 @@ public:
 				}
 				else
 				{
-					maxSize = 800000; // some reasonable max
+					maxSize = 1600000; // some reasonable max
 				}
 
 				if(maxSize <= 0)

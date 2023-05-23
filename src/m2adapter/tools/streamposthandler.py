@@ -120,7 +120,7 @@ while True:
 			s.out_seq += 1
 			resp['type'] = 'credit'
 			if not s.sent_credits:
-				resp['credits'] = 800000
+				resp['credits'] = 1600000
 				s.sent_credits = True
 			else:
 				resp['credits'] = len(body)

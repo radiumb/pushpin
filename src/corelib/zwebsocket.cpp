@@ -37,7 +37,7 @@
 #include "zhttpmanager.h"
 #include "uuidutil.h"
 
-#define IDEAL_CREDITS 800000
+#define IDEAL_CREDITS 1600000
 #define SESSION_EXPIRE 60000
 #define KEEPALIVE_INTERVAL 45000
 
