@@ -42,7 +42,7 @@
 #include "zwebsocket.h"
 #include "sockjsmanager.h"
 
-#define BUFFER_SIZE 1600000
+#define BUFFER_SIZE 3200000
 #define KEEPALIVE_TIMEOUT 25
 #define UNCONNECTED_TIMEOUT 5
 

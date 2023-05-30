@@ -208,7 +208,7 @@ private slots:
 				zresp.from = "test-server";
 				zresp.ids += ZhttpResponsePacket::Id(zreq.ids.first().id, serverOutSeq++);
 				zresp.type = ZhttpResponsePacket::Credit;
-				zresp.credits = 1600000;
+				zresp.credits = 3200000;
 				QByteArray buf = zreq.from + " T" + TnetString::fromVariant(zresp.toVariant());
 				zhttpServerOutSock->write(QList<QByteArray>() << buf);
 			}
