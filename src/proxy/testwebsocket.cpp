@@ -36,7 +36,7 @@
 #include "packet/httpresponsedata.h"
 #include "statusreasons.h"
 
-#define BUFFER_SIZE 10000000
+#define BUFFER_SIZE 50000000
 
 class TestWebSocket::Private : public QObject
 {
