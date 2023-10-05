@@ -1,27 +1,22 @@
 /*
  * Copyright (C) 2012-2023 Fanout, Inc.
+ * Copyright (C) 2023 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
- * $FANOUT_BEGIN_LICENSE:AGPL$
+ * $FANOUT_BEGIN_LICENSE:APACHE2$
  *
- * Pushpin is free software: you can redistribute it and/or modify it under
- * the terms of the GNU Affero General Public License as published by the Free
- * Software Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Pushpin is distributed in the hope that it will be useful, but WITHOUT ANY
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
- * more details.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * Alternatively, Pushpin may be used under the terms of a commercial license,
- * where the commercial license agreement is provided with the software or
- * contained in a written agreement between you and Fanout. For further
- * information use the contact form at <https://fanout.io/enterprise/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * $FANOUT_END_LICENSE$
  */
@@ -33,6 +28,7 @@
 #include <QPointer>
 #include <QUrl>
 #include <QHostAddress>
+#include "packet/statspacket.h"
 #include "packet/httprequestdata.h"
 #include "packet/httpresponsedata.h"
 #include "bufferlist.h"
@@ -132,7 +128,6 @@ public:
 	BufferList responseBody;
 	QHash<RequestSession*, SessionItem*> sessionItemsBySession;
 	QByteArray initialRequestBody;
-	int requestBytesToWrite;
 	bool requestBodySent;
 	int total;
 	bool buffering;
@@ -168,7 +163,6 @@ public:
 		addAllowed(true),
 		haveInspectData(false),
 		shared(false),
-		requestBytesToWrite(0),
 		requestBodySent(false),
 		total(0),
 		trustedClient(false),
@@ -276,18 +270,14 @@ public:
 
 			requestData.uri.setPath(QString::fromUtf8(path), QUrl::StrictMode);
 
-			QByteArray sigIss;
-			Jwt::EncodingKey sigKey;
-			if(!route.sigIss.isEmpty() && !route.sigKey.isNull())
-			{
+			QByteArray sigIss = defaultSigIss;
+			Jwt::EncodingKey sigKey = defaultSigKey;
+
+			if(!route.sigIss.isEmpty())
 				sigIss = route.sigIss;
+
+			if(!route.sigKey.isNull())
 				sigKey = route.sigKey;
-			}
-			else
-			{
-				sigIss = defaultSigIss;
-				sigKey = defaultSigKey;
-			}
 
 			targets = route.targets;
 
@@ -447,7 +437,7 @@ public:
 		}
 
 		connect(zhttpRequest, &ZhttpRequest::readyRead, this, &Private::zhttpRequest_readyRead);
-		connect(zhttpRequest, &ZhttpRequest::bytesWritten, this, &Private::zhttpRequest_bytesWritten);
+		connect(zhttpRequest, &ZhttpRequest::writeBytesChanged, this, &Private::zhttpRequest_writeBytesChanged);
 		connect(zhttpRequest, &ZhttpRequest::error, this, &Private::zhttpRequest_error);
 
 		if(target.trusted)
@@ -477,7 +467,6 @@ public:
 		{
 			incCounter(Stats::ServerContentBytesSent, initialRequestBody.size());
 
-			requestBytesToWrite += initialRequestBody.size();
 			zhttpRequest->writeBody(initialRequestBody);
 		}
 
@@ -502,11 +491,13 @@ public:
 		if(state != Requesting)
 			return;
 
+		int maxBytes = buffering ? MAX_STREAM_BUFFER : zhttpRequest->writeBytesAvailable();
+
 		// if we're not buffering, then sync to speed of server
-		if(!buffering && requestBytesToWrite > 0)
+		if(maxBytes == 0)
 			return;
 
-		QByteArray buf = inRequest->request()->readBody(MAX_STREAM_BUFFER);
+		QByteArray buf = inRequest->request()->readBody(maxBytes);
 		if(!buf.isEmpty())
 		{
 			log_debug("proxysession: %p input chunk: %d", q, buf.size());
@@ -530,7 +521,6 @@ public:
 
 			incCounter(Stats::ServerContentBytesSent, buf.size());
 
-			requestBytesToWrite += buf.size();
 			zhttpRequest->writeBody(buf);
 		}
 
@@ -1123,12 +1113,9 @@ public slots:
 		tryResponseRead();
 	}
 
-	void zhttpRequest_bytesWritten(int count)
+	void zhttpRequest_writeBytesChanged()
 	{
-		requestBytesToWrite -= count;
-		assert(requestBytesToWrite >= 0);
-
-		if(inRequest && requestBytesToWrite == 0)
+		if(inRequest)
 			tryRequestRead();
 	}
 
@@ -1260,18 +1247,14 @@ public slots:
 		{
 			assert(!acceptRequest);
 
-			QByteArray sigIss;
-			Jwt::EncodingKey sigKey;
-			if(!route.sigIss.isEmpty() && !route.sigKey.isNull())
-			{
+			QByteArray sigIss = defaultSigIss;
+			Jwt::EncodingKey sigKey = defaultSigKey;
+
+			if(!route.sigIss.isEmpty())
 				sigIss = route.sigIss;
+
+			if(!route.sigKey.isNull())
 				sigKey = route.sigKey;
-			}
-			else
-			{
-				sigIss = defaultSigIss;
-				sigKey = defaultSigKey;
-			}
 
 			acceptResponseData.body = responseBody.take();
 
@@ -1320,12 +1303,22 @@ public slots:
 			}
 
 			adata.route = route.id;
+			adata.separateStats = route.separateStats;
 			adata.channelPrefix = route.prefix;
 			foreach(const QString &s, target.subscriptions)
 				adata.channels += s.toUtf8();
 			adata.trusted = target.trusted;
 			adata.useSession = route.session;
 			adata.responseSent = acceptAfterResponding;
+
+			if(!statsManager->connectionSendEnabled())
+			{
+				// flush max. the count will include the connections we just unregistered
+				adata.connMaxPackets += statsManager->getConnMaxPacket(route.id).toVariant();
+
+				// flush max again to get the count without the connections
+				adata.connMaxPackets += statsManager->getConnMaxPacket(route.id).toVariant();
+			}
 
 			acceptRequest = new AcceptRequest(acceptManager, this);
 			connect(acceptRequest, &AcceptRequest::finished, this, &Private::acceptRequest_finished);

@@ -3,25 +3,19 @@
  *
  * This file is part of Pushpin.
  *
- * $FANOUT_BEGIN_LICENSE:AGPL$
+ * $FANOUT_BEGIN_LICENSE:APACHE2$
  *
- * Pushpin is free software: you can redistribute it and/or modify it under
- * the terms of the GNU Affero General Public License as published by the Free
- * Software Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Pushpin is distributed in the hope that it will be useful, but WITHOUT ANY
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
- * more details.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * Alternatively, Pushpin may be used under the terms of a commercial license,
- * where the commercial license agreement is provided with the software or
- * contained in a written agreement between you and Fanout. For further
- * information use the contact form at <https://fanout.io/enterprise/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * $FANOUT_END_LICENSE$
  */
@@ -55,7 +49,6 @@
 
 #define ACTIVITY_TIMEOUT 60000
 #define KEEPALIVE_RAND_MAX 1000
-#define PENDING_MAX 16384
 
 class HttpExtension
 {
@@ -268,9 +261,7 @@ public:
 	Jwt::EncodingKey sigKey;
 	WebSocket *inSock;
 	WebSocket *outSock;
-	int inPendingBytes;
 	QList<bool> inPendingFrames; // true means we should ack a send event
-	int outPendingBytes;
 	int outReadInProgress; // frame type or -1
 	QByteArray pathBeg;
 	QByteArray channelPrefix;
@@ -308,8 +299,6 @@ public:
 		trustedClient(false),
 		inSock(0),
 		outSock(0),
-		inPendingBytes(0),
-		outPendingBytes(0),
 		outReadInProgress(-1),
 		acceptGripMessages(false),
 		detached(false),
@@ -380,6 +369,7 @@ public:
 		inSock->setParent(this);
 		connect(inSock, &WebSocket::readyRead, this, &Private::in_readyRead);
 		connect(inSock, &WebSocket::framesWritten, this, &Private::in_framesWritten);
+		connect(inSock, &WebSocket::writeBytesChanged, this, &Private::in_writeBytesChanged);
 		connect(inSock, &WebSocket::peerClosed, this, &Private::in_peerClosed);
 		connect(inSock, &WebSocket::closed, this, &Private::in_closed);
 		connect(inSock, &WebSocket::error, this, &Private::in_error);
@@ -395,9 +385,10 @@ public:
 
 		route = entry;
 
+		log_debug("wsproxysession: %p %s has %d routes", q, qPrintable(host), route.targets.count());
+
 		if(route.isNull())
 		{
-			log_warning("wsproxysession: %p %s has 0 routes", q, qPrintable(host));
 			reject(false, 502, "Bad Gateway", QString("No route for host: %1").arg(host));
 			return;
 		}
@@ -417,22 +408,18 @@ public:
 
 		requestData.uri.setPath(QString::fromUtf8(path), QUrl::StrictMode);
 
-		if(!route.sigIss.isEmpty() && !route.sigKey.isNull())
-		{
+		sigIss = defaultSigIss;
+		sigKey = defaultSigKey;
+
+		if(!route.sigIss.isEmpty())
 			sigIss = route.sigIss;
+
+		if(!route.sigKey.isNull())
 			sigKey = route.sigKey;
-		}
-		else
-		{
-			sigIss = defaultSigIss;
-			sigKey = defaultSigKey;
-		}
 
 		pathBeg = route.pathBeg;
 		channelPrefix = route.prefix;
 		targets = route.targets;
-
-		log_debug("wsproxysession: %p %s has %d routes", q, qPrintable(host), targets.count());
 
 		foreach(const HttpHeader &h, route.headers)
 		{
@@ -462,7 +449,6 @@ public:
 
 	void writeInFrame(const WebSocket::Frame &frame, bool fromSendEvent = false)
 	{
-		inPendingBytes += frame.data.size();
 		inPendingFrames += fromSendEvent;
 
 		inSock->writeFrame(frame);
@@ -562,7 +548,7 @@ public:
 
 		connect(outSock, &WebSocket::connected, this, &Private::out_connected);
 		connect(outSock, &WebSocket::readyRead, this, &Private::out_readyRead);
-		connect(outSock, &WebSocket::framesWritten, this, &Private::out_framesWritten);
+		connect(outSock, &WebSocket::writeBytesChanged, this, &Private::out_writeBytesChanged);
 		connect(outSock, &WebSocket::peerClosed, this, &Private::out_peerClosed);
 		connect(outSock, &WebSocket::closed, this, &Private::out_closed);
 		connect(outSock, &WebSocket::error, this, &Private::out_error);
@@ -615,7 +601,7 @@ public:
 
 	void tryReadIn()
 	{
-		while(inSock->framesAvailable() > 0 && ((outSock && outPendingBytes < PENDING_MAX) || detached))
+		while(inSock->framesAvailable() > 0 && ((outSock && outSock->writeBytesAvailable() > 0) || detached))
 		{
 			WebSocket::Frame f = inSock->readFrame();
 
@@ -629,7 +615,6 @@ public:
 				continue;
 
 			outSock->writeFrame(f);
-			outPendingBytes += f.data.size();
 
 			incCounter(Stats::ServerContentBytesSent, f.data.size());
 			if(!f.more)
@@ -639,7 +624,7 @@ public:
 
 	void tryReadOut()
 	{
-		while(outSock->framesAvailable() > 0 && ((inSock && inPendingBytes < PENDING_MAX) || detached))
+		while(outSock->framesAvailable() > 0 && ((inSock && inSock->writeBytesAvailable() > 0) || detached))
 		{
 			WebSocket::Frame f = outSock->readFrame();
 
@@ -809,9 +794,7 @@ private slots:
 
 	void in_framesWritten(int count, int contentBytes)
 	{
-		Q_UNUSED(count);
-
-		inPendingBytes -= contentBytes;
+		Q_UNUSED(contentBytes);
 
 		for(int n = 0; n < count; ++n)
 		{
@@ -819,7 +802,10 @@ private slots:
 			if(fromSendEvent)
 				wsControl->sendEventWritten();
 		}
+	}
 
+	void in_writeBytesChanged()
+	{
 		if(!detached && outSock)
 			tryReadOut();
 	}
@@ -944,12 +930,8 @@ private slots:
 		tryReadOut();
 	}
 
-	void out_framesWritten(int count, int contentBytes)
+	void out_writeBytesChanged()
 	{
-		Q_UNUSED(count);
-
-		outPendingBytes -= contentBytes;
-
 		if(!detached && inSock)
 			tryReadIn();
 	}
@@ -1048,7 +1030,7 @@ private slots:
 		}
 
 		// if queue == false, drop if we can't send right now
-		if(!queue && (inPendingBytes >= PENDING_MAX || outReadInProgress != -1))
+		if(!queue && (inSock->writeBytesAvailable() == 0 || outReadInProgress != -1))
 		{
 			// if drop is allowed, drop is success :)
 			wsControl->sendEventWritten();

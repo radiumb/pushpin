@@ -41,4 +41,4 @@ zws_out_stream_specs=
 #ignore_policies=true
 
 # don't send more than this to mongrel2
-m2_client_buffer=50000000
+m2_client_buffer=10000000

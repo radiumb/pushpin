@@ -1,27 +1,22 @@
 /*
  * Copyright (C) 2014-2022 Fanout, Inc.
+ * Copyright (C) 2023 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
- * $FANOUT_BEGIN_LICENSE:AGPL$
+ * $FANOUT_BEGIN_LICENSE:APACHE2$
  *
- * Pushpin is free software: you can redistribute it and/or modify it under
- * the terms of the GNU Affero General Public License as published by the Free
- * Software Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Pushpin is distributed in the hope that it will be useful, but WITHOUT ANY
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
- * more details.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * Alternatively, Pushpin may be used under the terms of a commercial license,
- * where the commercial license agreement is provided with the software or
- * contained in a written agreement between you and Fanout. For further
- * information use the contact form at <https://fanout.io/enterprise/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * $FANOUT_END_LICENSE$
  */
@@ -41,7 +36,7 @@
 #include "zhttpmanager.h"
 #include "uuidutil.h"
 
-#define BUFFER_SIZE 50000000
+#define BUFFER_SIZE 10000000
 #define FRAME_SIZE_MAX 16384
 #define RESPONSE_BODY_MAX 1000000
 #define REJECT_BODY_MAX 100000
@@ -856,6 +851,18 @@ private slots:
 				return;
 		}
 
+		bool hadContent = reqContentSize > 0;
+
+		reqFrames = 0;
+		reqContentSize = 0;
+
+		if(hadContent)
+		{
+			emit q->writeBytesChanged();
+			if(!self)
+				return;
+		}
+
 		if(reqClose)
 			closeSent = true;
 
@@ -1148,6 +1155,11 @@ QByteArray WebSocketOverHttp::responseBody() const
 int WebSocketOverHttp::framesAvailable() const
 {
 	return d->inFrames.count();
+}
+
+int WebSocketOverHttp::writeBytesAvailable() const
+{
+	return d->writeBytesAvailable();
 }
 
 int WebSocketOverHttp::peerCloseCode() const

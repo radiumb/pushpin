@@ -1,27 +1,22 @@
 /*
  * Copyright (C) 2012-2022 Fanout, Inc.
+ * Copyright (C) 2023 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
- * $FANOUT_BEGIN_LICENSE:AGPL$
+ * $FANOUT_BEGIN_LICENSE:APACHE2$
  *
- * Pushpin is free software: you can redistribute it and/or modify it under
- * the terms of the GNU Affero General Public License as published by the Free
- * Software Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Pushpin is distributed in the hope that it will be useful, but WITHOUT ANY
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
- * more details.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * Alternatively, Pushpin may be used under the terms of a commercial license,
- * where the commercial license agreement is provided with the software or
- * contained in a written agreement between you and Fanout. For further
- * information use the contact form at <https://fanout.io/enterprise/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * $FANOUT_END_LICENSE$
  */
@@ -67,7 +62,7 @@ EncodingKey EncodingKey::fromPem(const QByteArray &key)
 	return k;
 }
 
-EncodingKey EncodingKey::fromPemFile(const QString &fileName)
+EncodingKey EncodingKey::fromFile(const QString &fileName)
 {
 	QFile f(fileName);
 	if(!f.open(QFile::ReadOnly))
@@ -75,7 +70,12 @@ EncodingKey EncodingKey::fromPemFile(const QString &fileName)
 		return EncodingKey();
 	}
 
-	return fromPem(f.readAll());
+	QByteArray data = f.readAll();
+
+	if(data.startsWith("-----BEGIN"))
+		return fromPem(data);
+	else
+		return fromSecret(QByteArray::fromHex(data.trimmed()));
 }
 
 EncodingKey EncodingKey::fromConfigString(const QString &s, const QDir &baseDir)
@@ -87,7 +87,7 @@ EncodingKey EncodingKey::fromConfigString(const QString &s, const QDir &baseDir)
 		if(fi.isRelative())
 			keyFile = QFileInfo(baseDir, keyFile).filePath();
 
-		return EncodingKey::fromPemFile(keyFile);
+		return fromFile(keyFile);
 	}
 	else
 	{
@@ -98,7 +98,7 @@ EncodingKey EncodingKey::fromConfigString(const QString &s, const QDir &baseDir)
 		else
 			secret = s.toUtf8();
 
-		return EncodingKey::fromSecret(secret);
+		return fromSecret(secret);
 	}
 }
 
@@ -133,7 +133,7 @@ DecodingKey DecodingKey::fromPem(const QByteArray &key)
 	return k;
 }
 
-DecodingKey DecodingKey::fromPemFile(const QString &fileName)
+DecodingKey DecodingKey::fromFile(const QString &fileName)
 {
 	QFile f(fileName);
 	if(!f.open(QFile::ReadOnly))
@@ -141,7 +141,12 @@ DecodingKey DecodingKey::fromPemFile(const QString &fileName)
 		return DecodingKey();
 	}
 
-	return fromPem(f.readAll());
+	QByteArray data = f.readAll();
+
+	if(data.startsWith("-----BEGIN"))
+		return fromPem(data);
+	else
+		return fromSecret(QByteArray::fromHex(data.trimmed()));
 }
 
 DecodingKey DecodingKey::fromConfigString(const QString &s, const QDir &baseDir)
@@ -153,7 +158,7 @@ DecodingKey DecodingKey::fromConfigString(const QString &s, const QDir &baseDir)
 		if(fi.isRelative())
 			keyFile = QFileInfo(baseDir, keyFile).filePath();
 
-		return DecodingKey::fromPemFile(keyFile);
+		return fromFile(keyFile);
 	}
 	else
 	{
@@ -164,7 +169,7 @@ DecodingKey DecodingKey::fromConfigString(const QString &s, const QDir &baseDir)
 		else
 			secret = s.toUtf8();
 
-		return DecodingKey::fromSecret(secret);
+		return fromSecret(secret);
 	}
 }
 

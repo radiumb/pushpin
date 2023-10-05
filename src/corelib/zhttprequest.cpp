@@ -1,27 +1,22 @@
 /*
  * Copyright (C) 2012-2021 Fanout, Inc.
+ * Copyright (C) 2023 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
- * $FANOUT_BEGIN_LICENSE:AGPL$
+ * $FANOUT_BEGIN_LICENSE:APACHE2$
  *
- * Pushpin is free software: you can redistribute it and/or modify it under
- * the terms of the GNU Affero General Public License as published by the Free
- * Software Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Pushpin is distributed in the hope that it will be useful, but WITHOUT ANY
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
- * more details.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * Alternatively, Pushpin may be used under the terms of a commercial license,
- * where the commercial license agreement is provided with the software or
- * contained in a written agreement between you and Fanout. For further
- * information use the contact form at <https://fanout.io/enterprise/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * $FANOUT_END_LICENSE$
  */
@@ -38,7 +33,7 @@
 #include "zhttpmanager.h"
 #include "uuidutil.h"
 
-#define IDEAL_CREDITS 50000000
+#define IDEAL_CREDITS 10000000
 #define SESSION_EXPIRE 60000
 #define KEEPALIVE_INTERVAL 45000
 #define REQ_BUF_MAX 1000000
@@ -100,6 +95,8 @@ public:
 	bool paused;
 	bool pendingUpdate;
 	bool needPause;
+	bool readableChanged;
+	bool writableChanged;
 	bool errored;
 	ErrorCondition errorCondition;
 	RTimer *expireTimer;
@@ -130,6 +127,8 @@ public:
 		paused(false),
 		pendingUpdate(false),
 		needPause(false),
+		readableChanged(false),
+		writableChanged(false),
 		errored(false),
 		expireTimer(0),
 		keepAliveTimer(0),
@@ -155,6 +154,8 @@ public:
 	void cleanup()
 	{
 		needPause = false;
+		readableChanged = false;
+		writableChanged = false;
 
 		if(expireTimer)
 		{
@@ -427,7 +428,9 @@ public:
 				// also send credits if we need to.
 
 				QByteArray buf = requestBodyBuf.take(outCredits);
+
 				outCredits -= buf.size();
+				writableChanged = true;
 
 				ZhttpRequestPacket p;
 				p.type = ZhttpRequestPacket::Data;
@@ -468,7 +471,11 @@ public:
 				ZhttpResponsePacket packet;
 				packet.type = ZhttpResponsePacket::Data;
 				packet.body = responseBodyBuf.take(outCredits);
+
 				outCredits -= packet.body.size();
+				if(!packet.body.isEmpty())
+					writableChanged = true;
+
 				packet.more = (!responseBodyBuf.isEmpty() || !bodyFinished);
 
 				writePacket(packet);
@@ -534,7 +541,7 @@ public:
 		{
 			if(seq != inSeq)
 			{
-				log_warning("zhttp server: error id=%s received message out of sequence, canceling", id.data());
+				log_warning("zhttp server: error id=%s received message out of sequence (expected %d, got %d), canceling", id.data(), inSeq, seq);
 
 				// if this was not an error packet, send cancel
 				if(packet.type != ZhttpRequestPacket::Error && packet.type != ZhttpRequestPacket::Cancel)
@@ -582,17 +589,24 @@ public:
 			}
 
 			if(packet.credits > 0)
+			{
 				outCredits += packet.credits;
+				writableChanged = true;
+			}
 
 			if(!packet.body.isEmpty() || (!done && haveRequestBody))
-				emit q->readyRead();
+				readableChanged = true;
+
+			if(readableChanged || writableChanged)
+				update();
 		}
 		else if(packet.type == ZhttpRequestPacket::Credit)
 		{
 			if(packet.credits > 0)
 			{
 				outCredits += packet.credits;
-				tryWrite();
+				writableChanged = true;
+				update();
 			}
 		}
 		else if(packet.type == ZhttpRequestPacket::KeepAlive)
@@ -672,7 +686,7 @@ public:
 		// if non-req mode, check sequencing
 		if(!doReq && seq != inSeq)
 		{
-			log_warning("zhttp client: error id=%s received message out of sequence, canceling", id.data());
+			log_warning("zhttp client: error id=%s received message out of sequence (expected %d, got %d), canceling", id.data(), inSeq, seq);
 
 			// if this was not an error packet, send cancel
 			if(packet.type != ZhttpResponsePacket::Error && packet.type != ZhttpResponsePacket::Cancel)
@@ -741,23 +755,19 @@ public:
 
 			responseBodyBuf += packet.body;
 
-			if(!doReq && packet.credits > 0)
-			{
-				outCredits += packet.credits;
-				if(outCredits > 0)
-				{
-					// try to write anything that was waiting on credits
-					QPointer<QObject> self = this;
-					tryWrite();
-					if(!self)
-						return;
-				}
-			}
-
 			if(packet.more)
 			{
+				if(!doReq && packet.credits > 0)
+				{
+					outCredits += packet.credits;
+					writableChanged = true;
+				}
+
 				if(needToSendHeaders || !packet.body.isEmpty())
-					emit q->readyRead();
+					readableChanged = true;
+
+				if(readableChanged || writableChanged)
+					update();
 			}
 			else
 			{
@@ -772,8 +782,8 @@ public:
 			if(packet.credits > 0)
 			{
 				outCredits += packet.credits;
-				if(outCredits > 0)
-					tryWrite();
+				writableChanged = true;
+				update();
 			}
 		}
 		else if(packet.type == ZhttpResponsePacket::KeepAlive)
@@ -1031,7 +1041,24 @@ public slots:
 		}
 		else if(state == ClientRequesting)
 		{
+			QPointer<QObject> self = this;
 			tryWrite();
+			if(!self)
+				return;
+
+			if(writableChanged)
+			{
+				writableChanged = false;
+				emit q->writeBytesChanged();
+			}
+		}
+		else if(state == ClientReceiving)
+		{
+			if(readableChanged)
+			{
+				readableChanged = false;
+				emit q->readyRead();
+			}
 		}
 		else if(state == ServerStarting)
 		{
@@ -1061,9 +1088,23 @@ public slots:
 
 			emit q->readyRead();
 		}
+		else if(state == ServerReceiving)
+		{
+			if(readableChanged)
+			{
+				readableChanged = false;
+				emit q->readyRead();
+			}
+		}
 		else if(state == ServerResponseWait)
 		{
 			trySendPause();
+
+			if(readableChanged)
+			{
+				readableChanged = false;
+				emit q->readyRead();
+			}
 		}
 		else if(state == ServerResponseStarting)
 		{
@@ -1100,7 +1141,16 @@ public slots:
 		}
 		else if(state == ServerResponding)
 		{
+			QPointer<QObject> self = this;
 			tryWrite();
+			if(!self)
+				return;
+
+			if(writableChanged)
+			{
+				writableChanged = false;
+				emit q->writeBytesChanged();
+			}
 		}
 	}
 
@@ -1270,8 +1320,10 @@ int ZhttpRequest::bytesAvailable() const
 
 int ZhttpRequest::writeBytesAvailable() const
 {
-	if(d->responseBodyBuf.size() <= IDEAL_CREDITS)
-		return (IDEAL_CREDITS - d->responseBodyBuf.size());
+	if(d->server && d->responseBodyBuf.size() < d->outCredits)
+		return d->outCredits - d->responseBodyBuf.size();
+	else if(!d->server && d->requestBodyBuf.size() < d->outCredits)
+		return d->outCredits - d->requestBodyBuf.size();
 	else
 		return 0;
 }

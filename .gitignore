@@ -10,8 +10,10 @@ moc_*
 .qmake.stash
 target_wrapper.sh
 /target
+**/*.rs.bk
 .cargo
 vendor
+.vscode
 
 /pushpin
 /bin/*

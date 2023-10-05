@@ -1,27 +1,22 @@
 /*
  * Copyright (C) 2015-2021 Fanout, Inc.
+ * Copyright (C) 2023 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
- * $FANOUT_BEGIN_LICENSE:AGPL$
+ * $FANOUT_BEGIN_LICENSE:APACHE2$
  *
- * Pushpin is free software: you can redistribute it and/or modify it under
- * the terms of the GNU Affero General Public License as published by the Free
- * Software Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Pushpin is distributed in the hope that it will be useful, but WITHOUT ANY
- * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
- * more details.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * Alternatively, Pushpin may be used under the terms of a commercial license,
- * where the commercial license agreement is provided with the software or
- * contained in a written agreement between you and Fanout. For further
- * information use the contact form at <https://fanout.io/enterprise/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * $FANOUT_END_LICENSE$
  */
@@ -42,7 +37,7 @@
 #include "zwebsocket.h"
 #include "sockjsmanager.h"
 
-#define BUFFER_SIZE 50000000
+#define BUFFER_SIZE 10000000
 #define KEEPALIVE_TIMEOUT 25
 #define UNCONNECTED_TIMEOUT 5
 
@@ -266,6 +261,7 @@ public:
 		{
 			connect(sock, &ZWebSocket::readyRead, this, &Private::sock_readyRead);
 			connect(sock, &ZWebSocket::framesWritten, this, &Private::sock_framesWritten);
+			connect(sock, &ZWebSocket::writeBytesChanged, this, &Private::sock_writeBytesChanged);
 			connect(sock, &ZWebSocket::closed, this, &Private::sock_closed);
 			connect(sock, &ZWebSocket::peerClosed, this, &Private::sock_peerClosed);
 			connect(sock, &ZWebSocket::error, this, &Private::sock_error);
@@ -502,7 +498,20 @@ public:
 
 			if(mode == Http)
 			{
+				int outSize = 0;
+				foreach(const Frame &f, outFrames)
+					outSize += f.data.size();
+
+				if(outSize + frame.data.size() > BUFFER_SIZE)
+				{
+					errored = true;
+					errorCondition = ErrorGeneric;
+					update();
+					return;
+				}
+
 				outFrames += frame;
+
 				tryWrite();
 			}
 			else // WebSocketFramed
@@ -606,6 +615,14 @@ public:
 
 			pendingWrites += WriteItem(WriteItem::User, data.size());
 			messages += QString::fromUtf8(data);
+		}
+
+		if(bytes > 0)
+		{
+			QPointer<QObject> self = this;
+			emit q->writeBytesChanged();
+			if(!self)
+				return;
 		}
 
 		ri->receiveFrames = frames;
@@ -970,6 +987,11 @@ private slots:
 		handleWritten(count, contentBytes);
 	}
 
+	void sock_writeBytesChanged()
+	{
+		emit q->writeBytesChanged();
+	}
+
 	void sock_peerClosed()
 	{
 		peerCloseCode = sock->peerCloseCode();
@@ -997,6 +1019,14 @@ private slots:
 	void doUpdate()
 	{
 		updating = false;
+
+		if(errored)
+		{
+			state = Idle;
+			cleanup();
+			emit q->error();
+			return;
+		}
 
 		if(mode == Http || mode == WebSocketFramed)
 		{
@@ -1185,6 +1215,25 @@ int SockJsSession::framesAvailable() const
 	else
 	{
 		return d->sock->framesAvailable();
+	}
+}
+
+int SockJsSession::writeBytesAvailable() const
+{
+	if(d->mode == Private::WebSocketFramed || d->mode == Private::WebSocketPassthrough)
+	{
+		return d->sock->writeBytesAvailable();
+	}
+	else
+	{
+		int outSize = 0;
+		foreach(const Frame &f, d->outFrames)
+			outSize += f.data.size();
+
+		if(outSize < BUFFER_SIZE)
+			return BUFFER_SIZE - outSize;
+		else
+			return 0;
 	}
 }
 
