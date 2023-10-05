@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2022 Fanout, Inc.
+ * Copyright (C) 2016-2023 Fanout, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -32,6 +32,7 @@
 #include <QObject>
 #include "packet/httprequestdata.h"
 #include "packet/httpresponsedata.h"
+#include "callback.h"
 #include "inspectdata.h"
 #include "zhttprequest.h"
 #include "instruct.h"
@@ -47,10 +48,6 @@ class RetryRequestPacket;
 
 class HttpSession;
 
-typedef void (*SubscribeFunc)(void *data, HttpSession *hs, const QString &channel);
-typedef void (*UnsubscribeFunc)(void *data, HttpSession *hs, const QString &channel);
-typedef void (*FinishedFunc)(void *data, HttpSession *hs);
-
 class HttpSession : public QObject
 {
 	Q_OBJECT
@@ -65,13 +62,12 @@ public:
 		bool autoCrossOrigin;
 		QByteArray jsonpCallback;
 		bool jsonpExtendedResponse;
+		int unreportedTime;
 		HttpRequestData requestData;
 		QString route;
 		QString statsRoute;
 		QString channelPrefix;
 		QSet<QString> implicitChannels;
-		QByteArray sigIss;
-		QByteArray sigKey;
 		bool trusted;
 		bool responseSent;
 		QString sid;
@@ -83,6 +79,7 @@ public:
 			isRetry(false),
 			autoCrossOrigin(false),
 			jsonpExtendedResponse(false),
+			unreportedTime(-1),
 			trusted(false),
 			responseSent(false),
 			haveInspectInfo(false)
@@ -108,9 +105,9 @@ public:
 	void publish(const PublishItem &item, const QList<QByteArray> &exposeHeaders = QList<QByteArray>());
 
 	// NOTE: for performance reasons we use callbacks instead of signals/slots
-	void setSubscribeCallback(SubscribeFunc cb, void *data);
-	void setUnsubscribeCallback(UnsubscribeFunc cb, void *data);
-	void setFinishedCallback(FinishedFunc cb, void *data);
+	Callback<std::tuple<HttpSession *, const QString &>> & subscribeCallback();
+	Callback<std::tuple<HttpSession *, const QString &>> & unsubscribeCallback();
+	Callback<std::tuple<HttpSession *>> & finishedCallback();
 
 private:
 	class Private;

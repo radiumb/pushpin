@@ -42,7 +42,7 @@
 #include "zwebsocket.h"
 #include "sockjsmanager.h"
 
-#define BUFFER_SIZE 200000
+#define BUFFER_SIZE 50000000
 #define KEEPALIVE_TIMEOUT 25
 #define UNCONNECTED_TIMEOUT 5
 
@@ -1185,33 +1185,6 @@ int SockJsSession::framesAvailable() const
 	else
 	{
 		return d->sock->framesAvailable();
-	}
-}
-
-bool SockJsSession::canWrite() const
-{
-	return (writeBytesAvailable() > 0);
-}
-
-int SockJsSession::writeBytesAvailable() const
-{
-	if(d->mode == Private::Http)
-	{
-		int avail = BUFFER_SIZE;
-		foreach(const Frame &f, d->outFrames)
-		{
-			if(f.data.size() >= avail)
-				return 0;
-
-			avail -= f.data.size();
-		}
-
-		return avail;
-	}
-	else
-	{
-		assert(d->sock);
-		return d->sock->writeBytesAvailable();
 	}
 }
 

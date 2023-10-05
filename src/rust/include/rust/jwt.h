@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Fanout, Inc.
+ * Copyright (C) 2022 Fanout, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -26,16 +26,51 @@
  * $FANOUT_END_LICENSE$
  */
 
-#ifndef JWT_H
-#define JWT_H
+#ifndef RUST_JWT_H
+#define RUST_JWT_H
 
-#include <QVariant>
+#include <QtGlobal>
 
-namespace Jwt {
+// NOTE: must match values on the rust side
+#define JWT_KEYTYPE_SECRET 0
+#define JWT_KEYTYPE_EC 1
+#define JWT_KEYTYPE_RSA 2
+#define JWT_ALGORITHM_HS256 0
+#define JWT_ALGORITHM_ES256 1
+#define JWT_ALGORITHM_RS256 2
 
-QByteArray encode(const QVariant &claim, const QByteArray &key);
-QVariant decode(const QByteArray &token, const QByteArray &key);
+extern "C"
+{
+	struct JwtEncodingKey
+	{
+		int type;
+		void *key;
+	};
 
+	struct JwtDecodingKey
+	{
+		int type;
+		void *key;
+	};
+
+	struct JwtBuffer
+	{
+		quint8 *data;
+		size_t len;
+	};
+
+	JwtEncodingKey jwt_encoding_key_from_secret(const quint8 *data, size_t len);
+	JwtEncodingKey jwt_encoding_key_from_pem(const quint8 *data, size_t len);
+	void jwt_encoding_key_destroy(void *key);
+
+	JwtDecodingKey jwt_decoding_key_from_secret(const quint8 *data, size_t len);
+	JwtDecodingKey jwt_decoding_key_from_pem(const quint8 *data, size_t len);
+	void jwt_decoding_key_destroy(void *key);
+
+	void jwt_str_destroy(char *s);
+
+	int jwt_encode(int alg, const char *claim, const void *key, char **out_token);
+	int jwt_decode(int alg, const char *token, const void *key, char **out_claim);
 }
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2022 Fanout, Inc.
+ * Copyright (C) 2012-2023 Fanout, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -37,6 +37,7 @@
 #include "packet/httpresponsedata.h"
 #include "bufferlist.h"
 #include "log.h"
+#include "jwt.h"
 #include "inspectdata.h"
 #include "acceptdata.h"
 #include "zhttpmanager.h"
@@ -136,7 +137,7 @@ public:
 	int total;
 	bool buffering;
 	QByteArray defaultSigIss;
-	QByteArray defaultSigKey;
+	Jwt::EncodingKey defaultSigKey;
 	bool trustedClient;
 	bool intReq;
 	bool passthrough;
@@ -147,6 +148,7 @@ public:
 	XffRule xffTrustedRule;
 	QList<QByteArray> origHeadersNeedMark;
 	bool acceptPushpinRoute;
+	QByteArray cdnLoop;
 	bool proxyInitialResponse;
 	bool acceptAfterResponding;
 	AcceptRequest *acceptRequest;
@@ -275,8 +277,8 @@ public:
 			requestData.uri.setPath(QString::fromUtf8(path), QUrl::StrictMode);
 
 			QByteArray sigIss;
-			QByteArray sigKey;
-			if(!route.sigIss.isEmpty() && !route.sigKey.isEmpty())
+			Jwt::EncodingKey sigKey;
+			if(!route.sigIss.isEmpty() && !route.sigKey.isNull())
 			{
 				sigIss = route.sigIss;
 				sigKey = route.sigKey;
@@ -313,7 +315,7 @@ public:
 			trustedClient = rs->trusted();
 			QHostAddress clientAddress = rs->request()->peerAddress();
 
-			ProxyUtil::manipulateRequestHeaders("proxysession", q, &requestData, trustedClient, route, sigIss, sigKey, acceptXForwardedProtocol, useXForwardedProto, useXForwardedProtocol, xffTrustedRule, xffRule, origHeadersNeedMark, acceptPushpinRoute, clientAddress, idata, route.grip, intReq);
+			ProxyUtil::manipulateRequestHeaders("proxysession", q, &requestData, trustedClient, route, sigIss, sigKey, acceptXForwardedProtocol, useXForwardedProto, useXForwardedProtocol, xffTrustedRule, xffRule, origHeadersNeedMark, acceptPushpinRoute, cdnLoop, clientAddress, idata, route.grip, intReq);
 
 			state = Requesting;
 			buffering = true;
@@ -1259,8 +1261,8 @@ public slots:
 			assert(!acceptRequest);
 
 			QByteArray sigIss;
-			QByteArray sigKey;
-			if(!route.sigIss.isEmpty() && !route.sigKey.isEmpty())
+			Jwt::EncodingKey sigKey;
+			if(!route.sigIss.isEmpty() && !route.sigKey.isNull())
 			{
 				sigIss = route.sigIss;
 				sigKey = route.sigKey;
@@ -1277,6 +1279,11 @@ public slots:
 
 			foreach(SessionItem *si, sessionItems)
 			{
+				int unreportedTime = -1;
+
+				if(!statsManager->connectionSendEnabled())
+					unreportedTime = si->rs->unregisterConnection();
+
 				ZhttpRequest::ServerState ss = si->rs->request()->serverState();
 
 				AcceptData::Request areq;
@@ -1289,6 +1296,7 @@ public slots:
 				areq.autoCrossOrigin = si->rs->autoCrossOrigin();
 				areq.jsonpCallback = si->rs->jsonpCallback();
 				areq.jsonpExtendedResponse = si->rs->jsonpExtendedResponse();
+				areq.unreportedTime = unreportedTime;
 				areq.responseCode = ss.responseCode;
 				areq.inSeq = ss.inSeq;
 				areq.outSeq = ss.outSeq;
@@ -1315,8 +1323,6 @@ public slots:
 			adata.channelPrefix = route.prefix;
 			foreach(const QString &s, target.subscriptions)
 				adata.channels += s.toUtf8();
-			adata.sigIss = sigIss;
-			adata.sigKey = sigKey;
 			adata.trusted = target.trusted;
 			adata.useSession = route.session;
 			adata.responseSent = acceptAfterResponding;
@@ -1482,7 +1488,7 @@ void ProxySession::setRoute(const DomainMap::Entry &route)
 	d->route = route;
 }
 
-void ProxySession::setDefaultSigKey(const QByteArray &iss, const QByteArray &key)
+void ProxySession::setDefaultSigKey(const QByteArray &iss, const Jwt::EncodingKey &key)
 {
 	d->defaultSigIss = iss;
 	d->defaultSigKey = key;
@@ -1513,6 +1519,11 @@ void ProxySession::setOrigHeadersNeedMark(const QList<QByteArray> &names)
 void ProxySession::setAcceptPushpinRoute(bool enabled)
 {
 	d->acceptPushpinRoute = enabled;
+}
+
+void ProxySession::setCdnLoop(const QByteArray &value)
+{
+	d->cdnLoop = value;
 }
 
 void ProxySession::setProxyInitialResponseEnabled(bool enabled)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2022 Fanout, Inc.
+ * Copyright (C) 2012-2023 Fanout, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -32,6 +32,7 @@
 #include <QObject>
 #include <QStringList>
 #include <QHostAddress>
+#include "jwt.h"
 #include "xffrule.h"
 
 class StatsManager;
@@ -77,16 +78,18 @@ public:
 		XffRule xffTrustedRule;
 		QList<QByteArray> origHeadersNeedMark;
 		bool acceptPushpinRoute;
+		QByteArray cdnLoop;
 		bool logFrom;
 		bool logUserAgent;
 		QByteArray sigIss;
-		QByteArray sigKey;
-		QByteArray upstreamKey;
+		Jwt::EncodingKey sigKey;
+		Jwt::DecodingKey upstreamKey;
 		QString sockJsUrl;
 		QString updatesCheck;
 		QString organizationName;
 		bool quietCheck;
 		int connectionsMax;
+		bool statsConnectionSend;
 		int statsConnectionTtl;
 		int statsReportInterval;
 		QString prometheusPort;
@@ -108,6 +111,7 @@ public:
 			updatesCheck("check"),
 			quietCheck(false),
 			connectionsMax(-1),
+			statsConnectionSend(false),
 			statsConnectionTtl(-1),
 			statsReportInterval(-1)
 		{

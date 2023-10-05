@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2022 Fanout, Inc.
+ * Copyright (C) 2014-2023 Fanout, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -29,7 +29,6 @@
 #include "wsproxysession.h"
 
 #include <assert.h>
-#include <QTimer>
 #include <QDateTime>
 #include <QUrl>
 #include <QJsonDocument>
@@ -38,6 +37,8 @@
 #include <QRandomGenerator>
 #include "packet/httprequestdata.h"
 #include "log.h"
+#include "rtimer.h"
+#include "jwt.h"
 #include "zhttpmanager.h"
 #include "zwebsocket.h"
 #include "websocketoverhttp.h"
@@ -54,6 +55,7 @@
 
 #define ACTIVITY_TIMEOUT 60000
 #define KEEPALIVE_RAND_MAX 1000
+#define PENDING_MAX 16384
 
 class HttpExtension
 {
@@ -248,8 +250,8 @@ public:
 	DomainMap::Entry route;
 	bool debug;
 	QByteArray defaultSigIss;
-	QByteArray defaultSigKey;
-	QByteArray defaultUpstreamKey;
+	Jwt::EncodingKey defaultSigKey;
+	Jwt::DecodingKey defaultUpstreamKey;
 	bool passToUpstream;
 	bool acceptXForwardedProtocol;
 	bool useXForwardedProto;
@@ -258,11 +260,12 @@ public:
 	XffRule xffTrustedRule;
 	QList<QByteArray> origHeadersNeedMark;
 	bool acceptPushpinRoute;
+	QByteArray cdnLoop;
 	HttpRequestData requestData;
 	bool trustedClient;
 	QHostAddress logicalClientAddress;
 	QByteArray sigIss;
-	QByteArray sigKey;
+	Jwt::EncodingKey sigKey;
 	WebSocket *inSock;
 	WebSocket *outSock;
 	int inPendingBytes;
@@ -279,11 +282,12 @@ public:
 	bool detached;
 	QDateTime activityTime;
 	QByteArray publicCid;
-	QTimer *keepAliveTimer;
+	RTimer *keepAliveTimer;
 	WsControl::KeepAliveMode keepAliveMode;
 	int keepAliveTimeout;
 	QList<QueuedFrame> queuedInFrames; // frames to deliver after out read finishes
 	LogUtil::Config logConfig;
+	Callback<std::tuple<WsProxySession *>> finishedByPassthroughCallback;
 
 	Private(WsProxySession *_q, ZRoutes *_zroutes, ConnectionManager *_connectionManager, const LogUtil::Config &_logConfig, StatsManager *_statsManager, WsControlManager *_wsControlManager) :
 		QObject(_q),
@@ -413,7 +417,7 @@ public:
 
 		requestData.uri.setPath(QString::fromUtf8(path), QUrl::StrictMode);
 
-		if(!route.sigIss.isEmpty() && !route.sigKey.isEmpty())
+		if(!route.sigIss.isEmpty() && !route.sigKey.isNull())
 		{
 			sigIss = route.sigIss;
 			sigKey = route.sigKey;
@@ -439,7 +443,7 @@ public:
 
 		clientAddress = inSock->peerAddress();
 
-		ProxyUtil::manipulateRequestHeaders("wsproxysession", q, &requestData, trustedClient, route, sigIss, sigKey, acceptXForwardedProtocol, useXForwardedProto, useXForwardedProtocol, xffTrustedRule, xffRule, origHeadersNeedMark, acceptPushpinRoute, clientAddress, InspectData(), route.grip, false);
+		ProxyUtil::manipulateRequestHeaders("wsproxysession", q, &requestData, trustedClient, route, sigIss, sigKey, acceptXForwardedProtocol, useXForwardedProto, useXForwardedProtocol, xffTrustedRule, xffRule, origHeadersNeedMark, acceptPushpinRoute, cdnLoop, clientAddress, InspectData(), route.grip, false);
 
 		// don't proxy extensions, as we may not know how to handle them
 		requestData.headers.removeAll("Sec-WebSocket-Extensions");
@@ -611,7 +615,7 @@ public:
 
 	void tryReadIn()
 	{
-		while(inSock->framesAvailable() > 0 && ((outSock && outSock->canWrite()) || detached))
+		while(inSock->framesAvailable() > 0 && ((outSock && outPendingBytes < PENDING_MAX) || detached))
 		{
 			WebSocket::Frame f = inSock->readFrame();
 
@@ -635,7 +639,7 @@ public:
 
 	void tryReadOut()
 	{
-		while(outSock->framesAvailable() > 0 && ((inSock && inSock->canWrite()) || detached))
+		while(outSock->framesAvailable() > 0 && ((inSock && inPendingBytes < PENDING_MAX) || detached))
 		{
 			WebSocket::Frame f = outSock->readFrame();
 
@@ -721,7 +725,7 @@ public:
 		if(!inSock && !outSock)
 		{
 			cleanup();
-			emit q->finishedByPassthrough();
+			finishedByPassthroughCallback.call({q});
 		}
 	}
 
@@ -1023,7 +1027,7 @@ private slots:
 	{
 		WebSocketOverHttp *woh = (WebSocketOverHttp *)sender();
 
-		ProxyUtil::manipulateRequestHeaders("wsproxysession", q, &requestData, trustedClient, route, sigIss, sigKey, acceptXForwardedProtocol, useXForwardedProto, useXForwardedProtocol, xffTrustedRule, xffRule, origHeadersNeedMark, acceptPushpinRoute, clientAddress, InspectData(), route.grip, false);
+		ProxyUtil::applyGripSig("wsproxysession", q, &requestData.headers, sigIss, sigKey);
 
 		woh->setHeaders(requestData.headers);
 	}
@@ -1044,7 +1048,7 @@ private slots:
 		}
 
 		// if queue == false, drop if we can't send right now
-		if(!queue && (!inSock->canWrite() || outReadInProgress != -1))
+		if(!queue && (inPendingBytes >= PENDING_MAX || outReadInProgress != -1))
 		{
 			// if drop is allowed, drop is success :)
 			wsControl->sendEventWritten();
@@ -1075,8 +1079,8 @@ private slots:
 
 			if(!keepAliveTimer)
 			{
-				keepAliveTimer = new QTimer(this);
-				connect(keepAliveTimer, &QTimer::timeout, this, &Private::keepAliveTimer_timeout);
+				keepAliveTimer = new RTimer(this);
+				connect(keepAliveTimer, &RTimer::timeout, this, &Private::keepAliveTimer_timeout);
 				keepAliveTimer->setSingleShot(true);
 			}
 
@@ -1178,13 +1182,13 @@ void WsProxySession::setDebugEnabled(bool enabled)
 	d->debug = enabled;
 }
 
-void WsProxySession::setDefaultSigKey(const QByteArray &iss, const QByteArray &key)
+void WsProxySession::setDefaultSigKey(const QByteArray &iss, const Jwt::EncodingKey &key)
 {
 	d->defaultSigIss = iss;
 	d->defaultSigKey = key;
 }
 
-void WsProxySession::setDefaultUpstreamKey(const QByteArray &key)
+void WsProxySession::setDefaultUpstreamKey(const Jwt::DecodingKey &key)
 {
 	d->defaultUpstreamKey = key;
 }
@@ -1216,9 +1220,19 @@ void WsProxySession::setAcceptPushpinRoute(bool enabled)
 	d->acceptPushpinRoute = enabled;
 }
 
+void WsProxySession::setCdnLoop(const QByteArray &value)
+{
+	d->cdnLoop = value;
+}
+
 void WsProxySession::start(WebSocket *sock, const QByteArray &publicCid, const DomainMap::Entry &route)
 {
 	d->start(sock, publicCid, route);
+}
+
+Callback<std::tuple<WsProxySession *>> & WsProxySession::finishedByPassthroughCallback()
+{
+	return d->finishedByPassthroughCallback;
 }
 
 #include "wsproxysession.moc"

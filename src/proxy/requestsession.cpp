@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2022 Fanout, Inc.
+ * Copyright (C) 2012-2023 Fanout, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -162,7 +162,7 @@ public:
 	StatsManager *stats;
 	ZhttpRequest *zhttpRequest;
 	HttpRequestData requestData;
-	QByteArray defaultUpstreamKey;
+	Jwt::DecodingKey defaultUpstreamKey;
 	bool trusted;
 	QHostAddress peerAddress;
 	QHostAddress logicalPeerAddress;
@@ -248,6 +248,8 @@ public:
 
 		if(stats && connectionRegistered)
 		{
+			connectionRegistered = false;
+
 			QByteArray cid = ridToString(rid);
 
 			// refresh before remove, to ensure transition
@@ -255,7 +257,8 @@ public:
 				stats->refreshConnection(cid);
 
 			// linger if accepted
-			stats->removeConnection(cid, accepted);
+			bool linger = accepted && stats->connectionSendEnabled();
+			stats->removeConnection(cid, linger);
 		}
 
 		state = Stopped;
@@ -382,7 +385,7 @@ public:
 		processIncomingRequest();
 	}
 
-	void startRetry()
+	void startRetry(int unreportedTime)
 	{
 		trusted = ProxyUtil::checkTrustedClient("requestsession", q, requestData, defaultUpstreamKey);
 
@@ -420,7 +423,9 @@ public:
 		{
 			connectionRegistered = true;
 
-			stats->addConnection(ridToString(rid), route.statsRoute(), StatsManager::Http, logicalPeerAddress, isHttps, false);
+			int reportOffset = stats->connectionSendEnabled() ? -1 : qMax(unreportedTime, 0);
+
+			stats->addConnection(ridToString(rid), route.statsRoute(), StatsManager::Http, logicalPeerAddress, isHttps, false, reportOffset);
 			stats->addActivity(route.statsRoute());
 
 			// note: we don't call addRequestsReceived here, because we're acting for an existing request
@@ -1305,7 +1310,7 @@ void RequestSession::setAccepted(bool enabled)
 	d->accepted = enabled;
 }
 
-void RequestSession::setDefaultUpstreamKey(const QByteArray &key)
+void RequestSession::setDefaultUpstreamKey(const Jwt::DecodingKey &key)
 {
 	d->defaultUpstreamKey = key;
 }
@@ -1321,7 +1326,7 @@ void RequestSession::start(ZhttpRequest *req)
 	d->start(req);
 }
 
-void RequestSession::startRetry(ZhttpRequest *req, bool debug, bool autoCrossOrigin, const QByteArray &jsonpCallback, bool jsonpExtendedResponse)
+void RequestSession::startRetry(ZhttpRequest *req, bool debug, bool autoCrossOrigin, const QByteArray &jsonpCallback, bool jsonpExtendedResponse, int unreportedTime)
 {
 	d->isRetry = true;
 	d->zhttpRequest = req;
@@ -1335,7 +1340,7 @@ void RequestSession::startRetry(ZhttpRequest *req, bool debug, bool autoCrossOri
 	d->requestData.headers = req->requestHeaders();
 	d->requestData.body = req->readBody();
 
-	d->startRetry();
+	d->startRetry(unreportedTime);
 }
 
 void RequestSession::pause()
@@ -1398,6 +1403,17 @@ void RequestSession::respondError(int code, const QString &reason, const QString
 void RequestSession::respondCannotAccept()
 {
 	d->respondCannotAccept();
+}
+
+int RequestSession::unregisterConnection()
+{
+	if(!d->connectionRegistered)
+		return 0;
+
+	d->connectionRegistered = false;
+
+	QByteArray cid = ridToString(d->rid);
+	return d->stats->removeConnection(cid, false);
 }
 
 #include "requestsession.moc"

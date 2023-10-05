@@ -36,7 +36,7 @@
 #include "packet/httpresponsedata.h"
 #include "statusreasons.h"
 
-#define BUFFER_SIZE 200000
+#define BUFFER_SIZE 50000000
 
 class TestWebSocket::Private : public QObject
 {
@@ -261,25 +261,6 @@ QByteArray TestWebSocket::responseBody() const
 int TestWebSocket::framesAvailable() const
 {
 	return d->inFrames.count();
-}
-
-bool TestWebSocket::canWrite() const
-{
-	return (writeBytesAvailable() > 0);
-}
-
-int TestWebSocket::writeBytesAvailable() const
-{
-	int avail = BUFFER_SIZE;
-	foreach(const Frame &f, d->inFrames)
-	{
-		if(f.data.size() >= avail)
-			return 0;
-
-		avail -= f.data.size();
-	}
-
-	return avail;
 }
 
 int TestWebSocket::peerCloseCode() const

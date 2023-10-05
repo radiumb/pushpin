@@ -29,11 +29,13 @@
 #include "proxyutil.h"
 
 #include <QDateTime>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include "log.h"
 #include "jwt.h"
 #include "inspectdata.h"
 
-static QByteArray make_token(const QByteArray &iss, const QByteArray &key)
+static QByteArray make_token(const QByteArray &iss, const Jwt::EncodingKey &key)
 {
 	QVariantMap claim;
 	claim["iss"] = QString::fromUtf8(iss);
@@ -41,7 +43,7 @@ static QByteArray make_token(const QByteArray &iss, const QByteArray &key)
 	return Jwt::encode(claim, key);
 }
 
-static bool validate_token(const QByteArray &token, const QByteArray &key)
+static bool validate_token(const QByteArray &token, const Jwt::DecodingKey &key)
 {
 	QVariant claimObj = Jwt::decode(token, key);
 	if(!claimObj.isValid() || claimObj.type() != QVariant::Map)
@@ -59,9 +61,9 @@ static bool validate_token(const QByteArray &token, const QByteArray &key)
 namespace ProxyUtil {
 
 // check if the request is coming from a grip proxy already
-bool checkTrustedClient(const char *logprefix, void *object, const HttpRequestData &requestData, const QByteArray &defaultUpstreamKey)
+bool checkTrustedClient(const char *logprefix, void *object, const HttpRequestData &requestData, const Jwt::DecodingKey &defaultUpstreamKey)
 {
-	if(!defaultUpstreamKey.isEmpty())
+	if(!defaultUpstreamKey.isNull())
 	{
 		QByteArray token = requestData.headers.get("Grip-Sig");
 		if(!token.isEmpty())
@@ -76,7 +78,7 @@ bool checkTrustedClient(const char *logprefix, void *object, const HttpRequestDa
 	return false;
 }
 
-void manipulateRequestHeaders(const char *logprefix, void *object, HttpRequestData *requestData, bool trustedClient, const DomainMap::Entry &entry, const QByteArray &sigIss, const QByteArray &sigKey, bool acceptXForwardedProtocol, bool useXForwardedProto, bool useXForwardedProtocol, const XffRule &xffTrustedRule, const XffRule &xffRule, const QList<QByteArray> &origHeadersNeedMark, bool acceptPushpinRoute, const QHostAddress &peerAddress, const InspectData &idata, bool gripEnabled, bool intReq)
+void manipulateRequestHeaders(const char *logprefix, void *object, HttpRequestData *requestData, bool trustedClient, const DomainMap::Entry &entry, const QByteArray &sigIss, const Jwt::EncodingKey &sigKey, bool acceptXForwardedProtocol, bool useXForwardedProto, bool useXForwardedProtocol, const XffRule &xffTrustedRule, const XffRule &xffRule, const QList<QByteArray> &origHeadersNeedMark, bool acceptPushpinRoute, const QByteArray &cdnLoop, const QHostAddress &peerAddress, const InspectData &idata, bool gripEnabled, bool intReq)
 {
 	if(trustedClient)
 		log_debug("%s: %p passing to upstream", logprefix, object);
@@ -152,6 +154,14 @@ void manipulateRequestHeaders(const char *logprefix, void *object, HttpRequestDa
 	if(acceptPushpinRoute)
 		requestData->headers.removeAll("Pushpin-Route");
 
+	if(!cdnLoop.isEmpty())
+	{
+		QList<QByteArray> values = requestData->headers.takeAll("CDN-Loop", true);
+		values += cdnLoop;
+
+		requestData->headers += HttpHeader("CDN-Loop", values.join(", "));
+	}
+
 	if(!trustedClient && !intReq)
 	{
 		// remove all Grip- headers
@@ -167,18 +177,7 @@ void manipulateRequestHeaders(const char *logprefix, void *object, HttpRequestDa
 
 	if(!trustedClient && gripEnabled)
 	{
-		// set Grip-Sig
-		if(!sigIss.isEmpty() && !sigKey.isEmpty())
-		{
-			QByteArray token = make_token(sigIss, sigKey);
-			if(!token.isEmpty())
-			{
-				requestData->headers.removeAll("Grip-Sig");
-				requestData->headers += HttpHeader("Grip-Sig", token);
-			}
-			else
-				log_error("%s: %p failed to sign request", logprefix, object);
-		}
+		applyGripSig(logprefix, object, &requestData->headers, sigIss, sigKey);
 
 		requestData->headers.removeAll("Grip-Feature");
 		requestData->headers += HttpHeader("Grip-Feature",
@@ -265,6 +264,21 @@ void applyHostHeader(HttpHeaders *headers, const QUrl &uri)
 	{
 		headers->removeAll("Host");
 		headers->append(HttpHeader("Host", hostHeader));
+	}
+}
+
+void applyGripSig(const char *logprefix, void *object, HttpHeaders *headers, const QByteArray &sigIss, const Jwt::EncodingKey &sigKey)
+{
+	if(!sigIss.isEmpty() && !sigKey.isNull())
+	{
+		QByteArray token = make_token(sigIss, sigKey);
+		if(!token.isEmpty())
+		{
+			headers->removeAll("Grip-Sig");
+			headers->append(HttpHeader("Grip-Sig", token));
+		}
+		else
+			log_error("%s: %p failed to sign request", logprefix, object);
 	}
 }
 

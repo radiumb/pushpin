@@ -41,7 +41,7 @@
 #include "zhttpmanager.h"
 #include "uuidutil.h"
 
-#define BUFFER_SIZE 200000
+#define BUFFER_SIZE 50000000
 #define FRAME_SIZE_MAX 16384
 #define RESPONSE_BODY_MAX 1000000
 #define REJECT_BODY_MAX 100000
@@ -1148,16 +1148,6 @@ QByteArray WebSocketOverHttp::responseBody() const
 int WebSocketOverHttp::framesAvailable() const
 {
 	return d->inFrames.count();
-}
-
-bool WebSocketOverHttp::canWrite() const
-{
-	return (d->state == Connected && writeBytesAvailable() > 0);
-}
-
-int WebSocketOverHttp::writeBytesAvailable() const
-{
-	return d->writeBytesAvailable();
 }
 
 int WebSocketOverHttp::peerCloseCode() const

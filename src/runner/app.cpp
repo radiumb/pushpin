@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2022 Fanout, Inc.
+ * Copyright (C) 2016-2023 Fanout, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -451,6 +451,8 @@ public:
 		int clientBufferSize = settings.value("runner/client_buffer_size", 8192).toInt();
 		int clientMaxConnections = settings.value("runner/client_maxconn", 50000).toInt();
 
+		bool allowCompression = settings.value("runner/allow_compression").toBool();
+
 		QString m2aBin = "m2adapter";
 		QFileInfo fi(QDir(exeDir).filePath("bin/m2adapter"));
 		if(fi.isFile())
@@ -520,7 +522,34 @@ public:
 
 			foreach(const QString &localPortStr, localPortStrs)
 			{
-				ports += ListenPort(QHostAddress(), 0, true, localPortStr);
+				QUrl path = QUrl::fromEncoded(localPortStr.toUtf8());
+				if(!path.isValid())
+				{
+					log_error("invalid local port: %s", qPrintable(localPortStr));
+					emit q->quit(1);
+					return;
+				}
+
+				QUrlQuery query(path.query());
+
+				int mode = -1;
+				if(query.hasQueryItem("mode"))
+				{
+					QString modeStr = query.queryItemValue("mode");
+					bool ok = false;
+					mode = modeStr.toInt(&ok, 8);
+					if(!ok)
+					{
+						log_error("invalid mode: %s", qPrintable(modeStr));
+						emit q->quit(1);
+						return;
+					}
+				}
+
+				QString user = query.queryItemValue("user");
+				QString group = query.queryItemValue("group");
+
+				ports += ListenPort(QHostAddress(), 0, true, path.path(), mode, user, group);
 			}
 		}
 
@@ -553,7 +582,7 @@ public:
 
 			QString certsDir = QDir(configDir).filePath("certs");
 
-			services += new CondureService(condureBin, runDir, !args.mergeOutput ? logDir : QString(), ipcPrefix, filePrefix, logLevels.value("condure", defaultLevel), certsDir, clientBufferSize, clientMaxConnections, ports, this);
+			services += new CondureService(condureBin, runDir, !args.mergeOutput ? logDir : QString(), ipcPrefix, filePrefix, logLevels.value("condure", defaultLevel), certsDir, clientBufferSize, clientMaxConnections, allowCompression, ports, this);
 		}
 
 		if(serviceNames.contains("mongrel2"))

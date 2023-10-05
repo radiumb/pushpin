@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2021 Fanout, Inc.
+ * Copyright (C) 2014-2023 Fanout, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -29,15 +29,15 @@
 #include "zwebsocket.h"
 
 #include <assert.h>
-#include <QTimer>
 #include <QPointer>
 #include "zhttprequestpacket.h"
 #include "zhttpresponsepacket.h"
 #include "log.h"
+#include "rtimer.h"
 #include "zhttpmanager.h"
 #include "uuidutil.h"
 
-#define IDEAL_CREDITS 200000
+#define IDEAL_CREDITS 50000000
 #define SESSION_EXPIRE 60000
 #define KEEPALIVE_INTERVAL 45000
 
@@ -87,8 +87,8 @@ public:
 	QVariant userData;
 	bool pendingUpdate;
 	ErrorCondition errorCondition;
-	QTimer *expireTimer;
-	QTimer *keepAliveTimer;
+	RTimer *expireTimer;
+	RTimer *keepAliveTimer;
 	QList<Frame> inFrames;
 	QList<Frame> outFrames;
 	int inSize;
@@ -123,12 +123,12 @@ public:
 		outContentType((int)Frame::Text),
 		multi(false)
 	{
-		expireTimer = new QTimer(this);
-		connect(expireTimer, &QTimer::timeout, this, &Private::expire_timeout);
+		expireTimer = new RTimer(this);
+		connect(expireTimer, &RTimer::timeout, this, &Private::expire_timeout);
 		expireTimer->setSingleShot(true);
 
-		keepAliveTimer = new QTimer(this);
-		connect(keepAliveTimer, &QTimer::timeout, this, &Private::keepAlive_timeout);
+		keepAliveTimer = new RTimer(this);
+		connect(keepAliveTimer, &RTimer::timeout, this, &Private::keepAlive_timeout);
 	}
 
 	~Private()
@@ -305,10 +305,9 @@ public:
 
 	void writeFrame(const Frame &frame)
 	{
-		// FIXME: consider removing this assert. due to async signals,
-		//   the only way for the user to fully avoid it is by checking
-		//   canWrite() beforehand which is burdensome
-		assert(state == Connected || state == ConnectedPeerClosed);
+		if(state != Connected && state != ConnectedPeerClosed)
+			return;
+
 		outFrames += frame;
 		update();
 	}
@@ -405,7 +404,7 @@ public:
 				contentBytesWritten += f.data.size();
 			}
 
-			if(written > 0)
+			if(written > 0 || contentBytesWritten > 0)
 			{
 				emit q->framesWritten(written, contentBytesWritten);
 				if(!self)
@@ -1216,25 +1215,6 @@ QByteArray ZWebSocket::responseBody() const
 int ZWebSocket::framesAvailable() const
 {
 	return d->inFrames.count();
-}
-
-bool ZWebSocket::canWrite() const
-{
-	return ((d->state == Private::Connected || d->state == Private::ConnectedPeerClosed) && writeBytesAvailable() > 0);
-}
-
-int ZWebSocket::writeBytesAvailable() const
-{
-	int avail = d->outCredits;
-	foreach(const Frame &f, d->outFrames)
-	{
-		if(f.data.size() >= avail)
-			return 0;
-
-		avail -= f.data.size();
-	}
-
-	return avail;
 }
 
 int ZWebSocket::peerCloseCode() const

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2022 Fanout, Inc.
+ * Copyright (C) 2016-2023 Fanout, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -177,12 +177,9 @@ public:
 	FilterStack *responseFilters;
 	QSet<QString> activeChannels;
 	int connectionSubscriptionMax;
-	SubscribeFunc subscribeCallback;
-	void *subscribeData;
-	UnsubscribeFunc unsubscribeCallback;
-	void *unsubscribeData;
-	FinishedFunc finishedCallback;
-	void *finishedData;
+	Callback<std::tuple<HttpSession *, const QString &>> subscribeCallback;
+	Callback<std::tuple<HttpSession *, const QString &>> unsubscribeCallback;
+	Callback<std::tuple<HttpSession *>> finishedCallback;
 
 	Private(HttpSession *_q, ZhttpRequest *_req, const HttpSession::AcceptData &_adata, const Instruct &_instruct, ZhttpManager *_outZhttp, StatsManager *_stats, RateLimiter *_updateLimiter, PublishLastIds *_publishLastIds, HttpSessionUpdateManager *_updateManager, int _connectionSubscriptionMax) :
 		QObject(_q),
@@ -200,13 +197,7 @@ public:
 		needUpdate(false),
 		pendingAction(0),
 		responseFilters(0),
-		connectionSubscriptionMax(_connectionSubscriptionMax),
-		subscribeCallback(0),
-		subscribeData(0),
-		unsubscribeCallback(0),
-		unsubscribeData(0),
-		finishedCallback(0),
-		finishedData(0)
+		connectionSubscriptionMax(_connectionSubscriptionMax)
 	{
 		state = NotStarted;
 
@@ -250,7 +241,10 @@ public:
 		assert(state == NotStarted);
 
 		ZhttpRequest::Rid rid = req->rid();
-		stats->addConnection(rid.first + ':' + rid.second, adata.statsRoute.toUtf8(), StatsManager::Http, adata.logicalPeerAddress, req->requestUri().scheme() == "https", true);
+
+		int reportOffset = stats->connectionSendEnabled() ? -1 : qMax(adata.unreportedTime, 0);
+
+		stats->addConnection(rid.first + ':' + rid.second, adata.statsRoute.toUtf8(), StatsManager::Http, adata.logicalPeerAddress, req->requestUri().scheme() == "https", true, reportOffset);
 
 		// set up implicit channels
 		QPointer<QObject> self = this;
@@ -263,10 +257,7 @@ public:
 
 				channels.insert(name, c);
 
-				if(subscribeCallback)
-				{
-					subscribeCallback(subscribeData, q, name);
-				}
+				subscribeCallback.call({q, name});
 
 				assert(self); // deleting here would leak subscriptions/connections
 			}
@@ -684,20 +675,14 @@ private:
 
 		foreach(const QString &channel, channelsRemoved)
 		{
-			if(unsubscribeCallback)
-			{
-				unsubscribeCallback(unsubscribeData, q, channel);
-			}
+			unsubscribeCallback.call({q, channel});
 
 			assert(self); // deleting here would leak subscriptions/connections
 		}
 
 		foreach(const QString &channel, channelsAdded)
 		{
-			if(subscribeCallback)
-			{
-				subscribeCallback(subscribeData, q, channel);
-			}
+			subscribeCallback.call({q, channel});
 
 			assert(self); // deleting here would leak subscriptions/connections
 		}
@@ -1075,10 +1060,7 @@ private:
 			it.next();
 			const QString &channel = it.key();
 
-			if(unsubscribeCallback)
-			{
-				unsubscribeCallback(unsubscribeData, q, channel);
-			}
+			unsubscribeCallback.call({q, channel});
 
 			assert(self); // deleting here would leak subscriptions/connections
 		}
@@ -1087,7 +1069,13 @@ private:
 		{
 			// refresh before remove, to ensure transition
 			stats->refreshConnection(cid);
-			stats->removeConnection(cid, true);
+
+			int unreportedTime = -1;
+
+			if(stats->connectionSendEnabled())
+				stats->removeConnection(cid, true);
+			else
+				unreportedTime = stats->removeConnection(cid, false);
 
 			ZhttpRequest::ServerState ss = req->serverState();
 
@@ -1101,6 +1089,7 @@ private:
 			rpreq.autoCrossOrigin = adata.autoCrossOrigin;
 			rpreq.jsonpCallback = adata.jsonpCallback;
 			rpreq.jsonpExtendedResponse = adata.jsonpExtendedResponse;
+			rpreq.unreportedTime = unreportedTime;
 			rpreq.inSeq = ss.inSeq;
 			rpreq.outSeq = ss.outSeq;
 			rpreq.outCredits = ss.outCredits;
@@ -1149,10 +1138,7 @@ private:
 			stats->removeConnection(cid, false);
 		}
 
-		if(finishedCallback)
-		{
-			finishedCallback(finishedData, q);
-		}
+		finishedCallback.call({q});
 	}
 
 	void requestNextLink()
@@ -1179,6 +1165,8 @@ private:
 
 		QVariantHash passthroughData;
 
+		passthroughData["route"] = adata.route.toUtf8();
+
 		// if next link points to the same service as the current request,
 		//   then we can assume the network would send the request back to
 		//   us, so we can handle it internally. if the link points to a
@@ -1189,14 +1177,10 @@ private:
 		{
 			// tell the proxy that we prefer the request to be handled
 			//   internally, using the same route
-			passthroughData["route"] = adata.route.toUtf8();
+			passthroughData["prefer-internal"] = true;
 		}
 
 		// these fields are needed in case proxy routing is not used
-		if(!adata.sigIss.isEmpty())
-			passthroughData["sig-iss"] = adata.sigIss;
-		if(!adata.sigKey.isEmpty())
-			passthroughData["sig-key"] = adata.sigKey;
 		if(adata.trusted)
 			passthroughData["trusted"] = true;
 
@@ -1622,22 +1606,19 @@ void HttpSession::publish(const PublishItem &item, const QList<QByteArray> &expo
 	d->publish(item, exposeHeaders);
 }
 
-void HttpSession::setSubscribeCallback(SubscribeFunc cb, void *data)
+Callback<std::tuple<HttpSession *, const QString &>> & HttpSession::subscribeCallback()
 {
-	d->subscribeCallback = cb;
-	d->subscribeData = data;
+	return d->subscribeCallback;
 }
 
-void HttpSession::setUnsubscribeCallback(UnsubscribeFunc cb, void *data)
+Callback<std::tuple<HttpSession *, const QString &>> & HttpSession::unsubscribeCallback()
 {
-	d->unsubscribeCallback = cb;
-	d->unsubscribeData = data;
+	return d->unsubscribeCallback;
 }
 
-void HttpSession::setFinishedCallback(FinishedFunc cb, void *data)
+Callback<std::tuple<HttpSession *>> & HttpSession::finishedCallback()
 {
-	d->finishedCallback = cb;
-	d->finishedData = data;
+	return d->finishedCallback;
 }
 
 #include "httpsession.moc"

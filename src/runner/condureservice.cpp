@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2022 Fanout, Inc.
+ * Copyright (C) 2020-2023 Fanout, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -45,6 +45,7 @@ CondureService::CondureService(
 	const QString &certsDir,
 	int clientBufferSize,
 	int maxconn,
+	bool allowCompression,
 	const QList<ListenPort> &ports,
 	QObject *parent) :
 	Service(parent)
@@ -66,6 +67,15 @@ CondureService::CondureService(
 		if(!p.localPath.isEmpty())
 		{
 			QString arg = "--listen=" + p.localPath + ",local,stream";
+
+			if(p.mode >= 0)
+				arg += ",mode=" + QString::number(p.mode, 8);
+
+			if(!p.user.isEmpty())
+				arg += ",user=" + p.user;
+
+			if(!p.group.isEmpty())
+				arg += ",group=" + p.group;
 
 			args_ += arg;
 		}
@@ -93,6 +103,9 @@ CondureService::CondureService(
 	args_ += "--buffer-size=" + QString::number(clientBufferSize);
 
 	args_ += "--stream-maxconn=" + QString::number(maxconn);
+
+	if(allowCompression)
+		args_ += "--compression";
 
 	if(usingSsl)
 		args_ += "--tls-identities-dir=" + certsDir;

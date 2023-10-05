@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2022 Fanout, Inc.
+ * Copyright (C) 2015-2023 Fanout, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -424,8 +424,6 @@ public:
 	QString statsRoute;
 	QString channelPrefix;
 	QStringList implicitChannels;
-	QByteArray sigIss;
-	QByteArray sigKey;
 	bool trusted;
 	QHash<ZhttpRequest::Rid, RequestState> requestStates;
 	HttpRequestData requestData;
@@ -518,28 +516,6 @@ public:
 
 					implicitChannels += QString::fromUtf8(v.toByteArray());
 				}
-			}
-
-			if(args.contains("sig-iss"))
-			{
-				if(args["sig-iss"].type() != QVariant::ByteArray)
-				{
-					respondError("bad-request");
-					return;
-				}
-
-				sigIss = args["sig-iss"].toByteArray();
-			}
-
-			if(args.contains("sig-key"))
-			{
-				if(args["sig-key"].type() != QVariant::ByteArray)
-				{
-					respondError("bad-request");
-					return;
-				}
-
-				sigKey = args["sig-key"].toByteArray();
 			}
 
 			if(args.contains("trusted"))
@@ -1062,13 +1038,12 @@ private:
 			adata.autoCrossOrigin = rs.autoCrossOrigin;
 			adata.jsonpCallback = rs.jsonpCallback;
 			adata.jsonpExtendedResponse = rs.jsonpExtendedResponse;
+			adata.unreportedTime = rs.unreportedTime;
 			adata.route = route;
 			adata.channelPrefix = channelPrefix;
-			adata.implicitChannels = QSet<QString>(implicitChannels.begin(), implicitChannels.end());
+			adata.implicitChannels = implicitChannels.toSet();
 			adata.sid = sid;
 			adata.responseSent = responseSent;
-			adata.sigIss = sigIss;
-			adata.sigKey = sigKey;
 			adata.trusted = trusted;
 			adata.haveInspectInfo = haveInspectInfo;
 			adata.inspectInfo = inspectInfo;
@@ -1449,6 +1424,7 @@ public:
 		connect(stats, &StatsManager::unsubscribed, this, &Private::stats_unsubscribed);
 		connect(stats, &StatsManager::reported, this, &Private::stats_reported);
 
+		stats->setConnectionSendEnabled(config.statsConnectionSend);
 		stats->setConnectionTtl(config.statsConnectionTtl);
 		stats->setSubscriptionTtl(config.statsSubscriptionTtl);
 		stats->setSubscriptionLinger(config.subscriptionLinger);
@@ -1845,25 +1821,25 @@ private:
 			removeSessionChannel(s, channel);
 	}
 
-	static void hs_subscribe_cb(void *data, HttpSession *hs, const QString &channel)
+	static void hs_subscribe_cb(void *data, std::tuple<HttpSession *, const QString &> value)
 	{
 		Private *self = (Private *)data;
 
-		self->hs_subscribe(hs, channel);
+		self->hs_subscribe(std::get<0>(value), std::get<1>(value));
 	}
 
-	static void hs_unsubscribe_cb(void *data, HttpSession *hs, const QString &channel)
+	static void hs_unsubscribe_cb(void *data, std::tuple<HttpSession *, const QString &> value)
 	{
 		Private *self = (Private *)data;
 
-		self->hs_unsubscribe(hs, channel);
+		self->hs_unsubscribe(std::get<0>(value), std::get<1>(value));
 	}
 
-	static void hs_finished_cb(void *data, HttpSession *hs)
+	static void hs_finished_cb(void *data, std::tuple<HttpSession *> value)
 	{
 		Private *self = (Private *)data;
 
-		self->hs_finished(hs);
+		self->hs_finished(std::get<0>(value));
 	}
 
 private slots:
@@ -2328,7 +2304,8 @@ private slots:
 			return;
 		}
 
-		QStringList updateSids;
+		QStringList createOrUpdateSids;
+		QHash<QString, LastIds> updateSids;
 
 		QList<WsControlPacket::Item> outItems;
 
@@ -2364,6 +2341,10 @@ private slots:
 				s->route = item.route;
 				s->statsRoute = item.separateStats ? item.route : QString();
 				s->channelPrefix = QString::fromUtf8(item.channelPrefix);
+
+				if(!s->sid.isEmpty())
+					updateSids[s->sid] = LastIds();
+
 				continue;
 			}
 
@@ -2461,7 +2442,7 @@ private slots:
 					if(!cm.sessionId.isEmpty())
 					{
 						s->sid = cm.sessionId;
-						updateSids += cm.sessionId;
+						createOrUpdateSids += cm.sessionId;
 					}
 					else
 					{
@@ -2575,12 +2556,19 @@ private slots:
 		if(!outItems.isEmpty())
 			writeWsControlItems(outItems);
 
-		if(stateClient && !updateSids.isEmpty())
+		if(stateClient)
 		{
-			foreach(const QString &sid, updateSids)
+			foreach(const QString &sid, createOrUpdateSids)
 			{
 				Deferred *d = SessionRequest::createOrUpdate(stateClient, sid, LastIds(), this);
 				connect(d, &Deferred::finished, this, &Private::sessionCreateOrUpdate_finished);
+				deferreds += d;
+			}
+
+			if(!updateSids.isEmpty())
+			{
+				Deferred *d = SessionRequest::updateMany(stateClient, updateSids, this);
+				connect(d, &Deferred::finished, this, &Private::sessionUpdateMany_finished);
 				deferreds += d;
 			}
 		}
@@ -2645,38 +2633,24 @@ private slots:
 		}
 		else if(p.type == StatsPacket::Connected || p.type == StatsPacket::Disconnected)
 		{
-			QString sid;
-			if(p.connectionType == StatsPacket::WebSocket)
+			if(stats->connectionSendEnabled())
 			{
-				WsSession *s = cs.wsSessions.value(QString::fromUtf8(p.connectionId));
-				if(s)
-					sid = s->sid;
-			}
+				// track proxy connections for reporting
+				bool localReplaced = stats->processExternalPacket(p, false);
 
-			// track proxy connections for reporting
-			bool localReplaced = stats->processExternalPacket(p);
-
-			if(!localReplaced)
-			{
-				// forward the packet. this will stamp the from field and keep the rest
-				stats->sendPacket(p);
-			}
-
-			// update session
-			if(stateClient && !sid.isEmpty() && p.type == StatsPacket::Connected)
-			{
-				QHash<QString, LastIds> sidLastIds;
-				sidLastIds[sid] = LastIds();
-				Deferred *d = SessionRequest::updateMany(stateClient, sidLastIds, this);
-				connect(d, &Deferred::finished, this, &Private::sessionUpdateMany_finished);
-				deferreds += d;
-				return;
+				if(!localReplaced)
+				{
+					// forward the packet. this will stamp the from field and keep the rest
+					stats->sendPacket(p);
+				}
 			}
 		}
 		else if(p.type == StatsPacket::Report)
 		{
+			bool mergeConnectionReport = !stats->connectionSendEnabled();
+
 			// merge into local report and don't forward
-			stats->processExternalPacket(p);
+			stats->processExternalPacket(p, mergeConnectionReport);
 		}
 	}
 
@@ -2876,9 +2850,9 @@ private slots:
 			// NOTE: for performance reasons we do not call hs->setParent and
 			// instead leave the object unparented
 
-			hs->setSubscribeCallback(Private::hs_subscribe_cb, this);
-			hs->setUnsubscribeCallback(Private::hs_unsubscribe_cb, this);
-			hs->setFinishedCallback(Private::hs_finished_cb, this);
+			hs->subscribeCallback().add(Private::hs_subscribe_cb, this);
+			hs->unsubscribeCallback().add(Private::hs_unsubscribe_cb, this);
+			hs->finishedCallback().add(Private::hs_finished_cb, this);
 
 			cs.httpSessions.insert(hs->rid(), hs);
 
@@ -2939,7 +2913,11 @@ private slots:
 		RetryRequestPacket rp = hs->retryPacket();
 
 		cs.httpSessions.remove(hs->rid());
-		delete hs;
+
+		hs->subscribeCallback().remove(this);
+		hs->unsubscribeCallback().remove(this);
+		hs->finishedCallback().remove(this);
+		hs->deleteLater();
 
 		if(!rp.requests.isEmpty())
 			writeRetryPacket(rp);
