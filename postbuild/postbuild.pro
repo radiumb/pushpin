@@ -15,9 +15,9 @@ RELEASE = $$(RELEASE)
 
 # copy bin files
 
-connmgr_bin.target = $$bin_dir/pushpin-connmgr
-connmgr_bin.depends = $$target_dir/pushpin-connmgr
-connmgr_bin.commands = mkdir -p $$bin_dir && cp -a $$target_dir/pushpin-connmgr $$bin_dir/pushpin-connmgr && ln -sf pushpin-connmgr $$bin_dir/pushpin-condure
+condure_bin.target = $$bin_dir/pushpin-condure
+condure_bin.depends = $$target_dir/pushpin-condure
+condure_bin.commands = mkdir -p $$bin_dir && cp -a $$target_dir/pushpin-condure $$bin_dir/pushpin-condure
 
 m2adapter_bin.target = $$bin_dir/m2adapter
 m2adapter_bin.depends = $$target_dir/m2adapter
@@ -31,10 +31,6 @@ handler_bin.target = $$bin_dir/pushpin-handler
 handler_bin.depends = $$target_dir/pushpin-handler
 handler_bin.commands = mkdir -p $$bin_dir && cp -a $$target_dir/pushpin-handler $$bin_dir/pushpin-handler
 
-runner_legacy_bin.target = $$root_dir/pushpin-legacy
-runner_legacy_bin.depends = $$target_dir/pushpin-legacy
-runner_legacy_bin.commands = cp -a $$target_dir/pushpin-legacy $$root_dir/pushpin-legacy
-
 runner_bin.target = $$root_dir/pushpin
 runner_bin.depends = $$target_dir/pushpin
 runner_bin.commands = cp -a $$target_dir/pushpin $$root_dir/pushpin
@@ -44,20 +40,18 @@ publish_bin.depends = $$target_dir/pushpin-publish
 publish_bin.commands = mkdir -p $$bin_dir && cp -a $$target_dir/pushpin-publish $$bin_dir/pushpin-publish
 
 QMAKE_EXTRA_TARGETS += \
-	connmgr_bin \
+	condure_bin \
 	m2adapter_bin \
 	proxy_bin \
 	handler_bin \
-	runner_legacy_bin \
 	runner_bin \
 	publish_bin
 
 PRE_TARGETDEPS += \
-	$$bin_dir/pushpin-connmgr \
+	$$bin_dir/pushpin-condure \
 	$$bin_dir/m2adapter \
 	$$bin_dir/pushpin-proxy \
 	$$bin_dir/pushpin-handler \
-	$$root_dir/pushpin-legacy \
 	$$root_dir/pushpin \
 	$$bin_dir/pushpin-publish
 
@@ -75,19 +69,15 @@ PRE_TARGETDEPS += pushpin.conf.inst
 unix:!isEmpty(BINDIR) {
 	binfiles.path = $$BINDIR
 	binfiles.files = \
-		$$bin_dir/pushpin-connmgr \
+		$$bin_dir/pushpin-condure \
 		$$bin_dir/m2adapter \
 		$$bin_dir/pushpin-proxy \
 		$$bin_dir/pushpin-handler \
-		$$root_dir/pushpin-legacy \
 		$$root_dir/pushpin \
 		$$bin_dir/pushpin-publish
 	binfiles.CONFIG += no_check_exist executable
 
-	symlinks.path = $$BINDIR
-	symlinks.extra = ln -sf pushpin-connmgr $(INSTALL_ROOT)$$symlinks.path/pushpin-condure
-
-	INSTALLS += binfiles symlinks
+	INSTALLS += binfiles
 }
 
 # install lib files

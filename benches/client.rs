@@ -16,11 +16,11 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use mio::net::TcpListener;
-use pushpin::connmgr::client::TestClient;
-use pushpin::core::channel;
-use pushpin::core::executor::Executor;
-use pushpin::core::reactor::Reactor;
-use pushpin::future::{AsyncReadExt, AsyncTcpListener, AsyncTcpStream, AsyncWriteExt};
+use pushpin::channel;
+use pushpin::client::TestClient;
+use pushpin::executor::Executor;
+use pushpin::future::{AsyncReadExt, AsyncSender, AsyncTcpListener, AsyncTcpStream, AsyncWriteExt};
+use pushpin::reactor::Reactor;
 use std::net::SocketAddr;
 use std::rc::Rc;
 use std::str;
@@ -46,7 +46,7 @@ where
 
     executor
         .spawn(async move {
-            let s = channel::AsyncSender::new(s);
+            let s = AsyncSender::new(s);
             let listener = AsyncTcpListener::new(listener);
 
             for _ in 0..REQS_PER_ITER {
