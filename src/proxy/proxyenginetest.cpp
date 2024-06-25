@@ -287,7 +287,7 @@ private:
 				zresp.from = "test-server";
 				zresp.ids += ZhttpResponsePacket::Id(zreq.ids.first().id, serverOutSeq++);
 				zresp.type = ZhttpResponsePacket::Credit;
-				zresp.credits = 200000;
+				zresp.credits = 10000000;
 				QByteArray buf = zreq.from + " T" + TnetString::fromVariant(zresp.toVariant());
 				zhttpServerOutSock->write(QList<QByteArray>() << buf);
 			}
@@ -307,7 +307,7 @@ private:
 			// accept websocket
 			zresp.code = 101;
 			zresp.reason = "Switching Protocols";
-			zresp.credits = 200000;
+			zresp.credits = 10000000;
 			QByteArray buf = zreq.from + " T" + TnetString::fromVariant(zresp.toVariant());
 			zhttpServerOutSock->write(QList<QByteArray>() << buf);
 
@@ -654,7 +654,7 @@ private slots:
 		zreq.method = "GET";
 		zreq.headers += HttpHeader("Host", "example");
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -694,7 +694,7 @@ private slots:
 		zreq.uri = "http://example/path";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -715,7 +715,7 @@ private slots:
 		zreq.uri = "http://example/jsonp?callback=jpcb";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -748,7 +748,7 @@ private slots:
 		zreq.uri = "http://example/jsonp-basic?bparam={}";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -775,7 +775,7 @@ private slots:
 		zreq.stream = true;
 		zreq.body = "hello"; // enough to hit the prefetch amount
 		zreq.more = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
@@ -839,7 +839,7 @@ private slots:
 		zreq.stream = true;
 		zreq.body = "hello"; // enough to hit the prefetch amount
 		zreq.more = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
@@ -898,7 +898,7 @@ private slots:
 		zreq.uri = "http://example/path?hold=response";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -941,7 +941,7 @@ private slots:
 		zreq.uri = "http://example/path?hold=stream";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -981,7 +981,7 @@ private slots:
 		zreq.uri = "http://example/path?hold=response&body-instruct=true";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -1006,7 +1006,7 @@ private slots:
 		zreq.uri = "http://example/path?hold=none";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -1043,7 +1043,7 @@ private slots:
 		zreq.uri = "http://example/path?hold=none&body-instruct=true";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -1068,7 +1068,7 @@ private slots:
 		zreq.uri = "http://example/path?hold=stream&large=true";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -1113,7 +1113,7 @@ private slots:
 		zreq.uri = "http://example/path?hold=none&large=true";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -1157,7 +1157,7 @@ private slots:
 		zreq.uri = "http://example/path2?hold=response&body-instruct=true";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);
@@ -1212,7 +1212,7 @@ private slots:
 		zreq.uri = "http://example/path";
 		zreq.method = "GET";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 
 		QByteArray buf;
 
@@ -1275,7 +1275,7 @@ private slots:
 		zreq.stream = true;
 		zreq.body = "hello"; // enough to hit the prefetch amount
 		zreq.more = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 
 		QByteArray buf;
 
@@ -1363,7 +1363,7 @@ private slots:
 		zreq.type = ZhttpRequestPacket::Data;
 		zreq.uri = "ws://example/path";
 		zreq.stream = true;
-		zreq.credits = 200000;
+		zreq.credits = 10000000;
 		QByteArray buf = 'T' + TnetString::fromVariant(zreq.toVariant());
 		log_debug("writing: %s", buf.data());
 		wrapper->zhttpClientOutSock->write(QList<QByteArray>() << buf);

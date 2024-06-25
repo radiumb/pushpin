@@ -40,7 +40,7 @@
 
 using std::map;
 
-#define BUFFER_SIZE 200000
+#define BUFFER_SIZE 10000000
 #define KEEPALIVE_TIMEOUT 25
 #define UNCONNECTED_TIMEOUT 5
 
