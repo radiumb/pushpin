@@ -35,7 +35,7 @@
 #include "uuidutil.h"
 #include "rtimer.h"
 
-#define BUFFER_SIZE 200000
+#define BUFFER_SIZE 10000000
 #define FRAME_SIZE_MAX 16384
 #define RESPONSE_BODY_MAX 1000000
 #define REJECT_BODY_MAX 100000

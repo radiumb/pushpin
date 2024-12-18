@@ -44,7 +44,7 @@ while True:
 			continue
 
 		sessions.add(rid)
-		resp['credits'] = 200000
+		resp['credits'] = 10000000
 	else:
 		rtype = req.get('type')
 		if rtype is None:

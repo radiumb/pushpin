@@ -39,7 +39,7 @@
 #include "rtimer.h"
 
 // make this somewhat big since PUB is lossy
-#define OUT_HWM 200000
+#define OUT_HWM 10000000
 
 #define ACTIVITY_TIMEOUT 100
 #define REFRESH_INTERVAL 1000
