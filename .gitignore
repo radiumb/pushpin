@@ -23,6 +23,5 @@ conf.pri
 /src/runner/certs/*.key
 /postbuild/Makefile
 /postbuild/*.inst
-/config
 /run
 /log
