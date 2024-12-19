@@ -279,8 +279,6 @@ public:
 		QCoreApplication::setApplicationName("pushpin");
 		QCoreApplication::setApplicationVersion(Config::get().version);
 
-		log_debug("aaaaaaaaa");
-
 		QCommandLineParser parser;
 		parser.setApplicationDescription("Reverse proxy for realtime web services.");
 
@@ -661,7 +659,6 @@ public:
 
 		if(serviceNames.contains("zurl"))
 		{
-			log_debug("aaaaaaaaa");
 			QString zurlBin = "zurl";
 			if(settings.contains("runner/zurl_bin"))
 				zurlBin = settings.value("runner/zurl_bin").toString();
