@@ -279,6 +279,8 @@ public:
 		QCoreApplication::setApplicationName("pushpin");
 		QCoreApplication::setApplicationVersion(Config::get().version);
 
+		log_debug("aaaaaaaaa");
+
 		QCommandLineParser parser;
 		parser.setApplicationDescription("Reverse proxy for realtime web services.");
 
