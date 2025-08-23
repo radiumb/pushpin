@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016-2017 Fanout, Inc.
- * Copyright (C) 2024-2025 Fastly, Inc.
+ * Copyright (C) 2024 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -32,11 +32,16 @@ namespace ControlRequest {
 
 class ConnCheck : public Deferred
 {
+	Q_OBJECT
+
+	Connection finishedConnection;
+
 public:
-	ConnCheck(ZrpcManager *controlClient, const CidSet &cids)
+	ConnCheck(ZrpcManager *controlClient, const CidSet &cids, QObject *parent = 0) :
+		Deferred(parent)
 	{
-		req = std::make_unique<ZrpcRequest>(controlClient);
-		finishedConnection = req->finished.connect(boost::bind(&ConnCheck::req_finished, this));
+		ZrpcRequest *req = new ZrpcRequest(controlClient, this);
+		finishedConnection = req->finished.connect(boost::bind(&ConnCheck::req_finished, this, req));
 
 		QVariantList vcids;
 		foreach(const QString &cid, cids)
@@ -48,10 +53,7 @@ public:
 	}
 
 private:
-	std::unique_ptr<ZrpcRequest> req;
-	Connection finishedConnection;
-
-	void req_finished()
+	void req_finished(ZrpcRequest *req)
 	{
 		if(req->success())
 		{
@@ -87,22 +89,23 @@ private:
 
 class Refresh : public Deferred
 {
+	Q_OBJECT
+
+	Connection finishedConnection;
+
 public:
-	Refresh(ZrpcManager *controlClient, const QByteArray &cid)
+	Refresh(ZrpcManager *controlClient, const QByteArray &cid, QObject *parent) :
+		Deferred(parent)
 	{
-		req = std::make_unique<ZrpcRequest>(controlClient);
-		finishedConnection = req->finished.connect(boost::bind(&Refresh::req_finished, this));
+		ZrpcRequest *req = new ZrpcRequest(controlClient, this);
+		finishedConnection = req->finished.connect(boost::bind(&Refresh::req_finished, this, req));
 
 		QVariantHash args;
 		args["cid"] = cid;
 		req->start("refresh", args);
 	}
 
-private:
-	std::unique_ptr<ZrpcRequest> req;
-	Connection finishedConnection;
-
-	void req_finished()
+	void req_finished(ZrpcRequest *req)
 	{
 		if(req->success())
 			setFinished(true);
@@ -113,22 +116,23 @@ private:
 
 class Report : public Deferred
 {
+	Q_OBJECT
+
+	Connection finishedConnection;
+
 public:
-	Report(ZrpcManager *controlClient, const StatsPacket &packet)
+	Report(ZrpcManager *controlClient, const StatsPacket &packet, QObject *parent) :
+		Deferred(parent)
 	{
-		req = std::make_unique<ZrpcRequest>(controlClient);
-		finishedConnection = req->finished.connect(boost::bind(&Report::req_finished, this));
+		ZrpcRequest *req = new ZrpcRequest(controlClient, this);
+		finishedConnection = req->finished.connect(boost::bind(&Report::req_finished, this, req));
 
 		QVariantHash args;
 		args["stats"] = packet.toVariant();
 		req->start("report", args);
 	}
 
-private:
-	std::unique_ptr<ZrpcRequest> req;
-	Connection finishedConnection;
-
-	void req_finished()
+	void req_finished(ZrpcRequest *req)
 	{
 		if(req->success())
 			setFinished(true);
@@ -137,19 +141,21 @@ private:
 	}
 };
 
-Deferred *connCheck(ZrpcManager *controlClient, const CidSet &cids)
+Deferred *connCheck(ZrpcManager *controlClient, const CidSet &cids, QObject *parent)
 {
-	return new ConnCheck(controlClient, cids);
+	return new ConnCheck(controlClient, cids, parent);
 }
 
-Deferred *refresh(ZrpcManager *controlClient, const QByteArray &cid)
+Deferred *refresh(ZrpcManager *controlClient, const QByteArray &cid, QObject *parent)
 {
-	return new Refresh(controlClient, cid);
+	return new Refresh(controlClient, cid, parent);
 }
 
-Deferred *report(ZrpcManager *controlClient, const StatsPacket &packet)
+Deferred *report(ZrpcManager *controlClient, const StatsPacket &packet, QObject *parent)
 {
-	return new Report(controlClient, packet);
+	return new Report(controlClient, packet, parent);
 }
 
 }
+
+#include "controlrequest.moc"

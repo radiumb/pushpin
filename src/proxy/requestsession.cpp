@@ -128,8 +128,10 @@ static QByteArray ridToString(const QPair<QByteArray, QByteArray> &rid)
 	return rid.first + ':' + rid.second;
 }
 
-class RequestSession::Private
+class RequestSession::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	enum State
 	{
@@ -172,7 +174,7 @@ public:
 	QString routeId;
 	bool debug;
 	bool autoCrossOrigin;
-	std::unique_ptr<InspectRequest> inspectRequest;
+	InspectRequest *inspectRequest;
 	InspectData idata;
 	std::unique_ptr<AcceptRequest> acceptRequest;
 	BufferList in;
@@ -201,6 +203,7 @@ public:
 	DeferCall deferCall;
 
 	Private(RequestSession *_q, int _workerId, DomainMap *_domainMap = 0, SockJsManager *_sockJsManager = 0, ZrpcManager *_inspectManager = 0, ZrpcChecker *_inspectChecker = 0, ZrpcManager *_acceptManager = 0, StatsManager *_stats = 0) :
+		QObject(_q),
 		q(_q),
 		workerId(_workerId),
 		state(Stopped),
@@ -214,6 +217,7 @@ public:
 		trusted(false),
 		debug(false),
 		autoCrossOrigin(false),
+		inspectRequest(0),
 		jsonpExtendedResponse(false),
 		responseBodySize(0),
 		responseBodyFinished(false),
@@ -247,7 +251,8 @@ public:
 		if(inspectRequest)
 		{
 			inspectFinishedConnection.disconnect();
-			inspectChecker->give(inspectRequest.release());
+			inspectChecker->give(inspectRequest);
+			inspectRequest = 0;
 		}
 
 		if(stats && connectionRegistered)
@@ -456,20 +461,20 @@ public:
 
 				if(inspectManager)
 				{
-					inspectRequest = std::make_unique<InspectRequest>(inspectManager);
+					inspectRequest = new InspectRequest(inspectManager, this);
 
 					if(inspectChecker->isInterfaceAvailable())
 					{
 						inspectFinishedConnection = inspectRequest->finished.connect(boost::bind(&Private::inspectRequest_finished, this));
-						inspectChecker->watch(inspectRequest.get());
+						inspectChecker->watch(inspectRequest);
 						inspectRequest->start(requestData, truncated, route.session, autoShare);
 					}
 					else
 					{
-						inspectChecker->watch(inspectRequest.get());
-						inspectChecker->give(inspectRequest.get());
+						inspectChecker->watch(inspectRequest);
+						inspectChecker->give(inspectRequest);
 						inspectRequest->start(requestData, truncated, route.session, autoShare);
-						inspectRequest.release();
+						inspectRequest = 0;
 					}
 				}
 
@@ -882,7 +887,8 @@ public:
 		if(!inspectRequest->success())
 		{
 			inspectFinishedConnection.disconnect();
-			inspectChecker->give(inspectRequest.release());
+			inspectChecker->give(inspectRequest);
+			inspectRequest = 0;
 
 			doInspectError();
 			return;
@@ -891,7 +897,8 @@ public:
 		idata = inspectRequest->result();
 
 		inspectFinishedConnection.disconnect();
-		inspectChecker->give(inspectRequest.release());
+		inspectChecker->give(inspectRequest);
+		inspectRequest = 0;
 
 		if(!idata.doProxy)
 		{
@@ -1180,7 +1187,8 @@ public:
 	}
 };
 
-RequestSession::RequestSession(int workerId, DomainMap *domainMap, SockJsManager *sockJsManager, ZrpcManager *inspectManager, ZrpcChecker *inspectChecker, ZrpcManager *acceptManager, StatsManager *stats)
+RequestSession::RequestSession(int workerId, DomainMap *domainMap, SockJsManager *sockJsManager, ZrpcManager *inspectManager, ZrpcChecker *inspectChecker, ZrpcManager *acceptManager, StatsManager *stats, QObject *parent) :
+	QObject(parent)
 {
 	d = std::make_shared<Private>(this, workerId, domainMap, sockJsManager, inspectManager, inspectChecker, acceptManager, stats);
 }
@@ -1412,3 +1420,5 @@ int RequestSession::unregisterConnection()
 	QByteArray cid = ridToString(d->rid);
 	return d->stats->removeConnection(cid, false);
 }
+
+#include "requestsession.moc"

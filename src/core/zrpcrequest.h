@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014-2015 Fanout, Inc.
- * Copyright (C) 2024-2025 Fastly, Inc.
+ * Copyright (C) 2024 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -24,6 +24,7 @@
 #ifndef ZRPCREQUEST_H
 #define ZRPCREQUEST_H
 
+#include <QObject>
 #include <QVariant>
 #include <boost/signals2.hpp>
 
@@ -33,8 +34,10 @@ class ZrpcRequestPacket;
 class ZrpcResponsePacket;
 class ZrpcManager;
 
-class ZrpcRequest
+class ZrpcRequest : public QObject
 {
+	Q_OBJECT
+
 public:
 	enum ErrorCondition
 	{
@@ -44,8 +47,8 @@ public:
 		ErrorTimeout
 	};
 
-	ZrpcRequest(ZrpcManager *manager);
-	virtual ~ZrpcRequest();
+	ZrpcRequest(ZrpcManager *manager, QObject *parent = 0);
+	~ZrpcRequest();
 
 	QByteArray from() const;
 	QByteArray id() const;
@@ -74,7 +77,7 @@ private:
 	Private *d;
 
 	friend class ZrpcManager;
-	ZrpcRequest();
+	ZrpcRequest(QObject *parent = 0);
 	void setupClient(ZrpcManager *manager);
 	void setupServer(ZrpcManager *manager);
 	void handle(const QList<QByteArray> &headers, const ZrpcRequestPacket &packet);

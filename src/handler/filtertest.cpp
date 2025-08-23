@@ -21,20 +21,17 @@
  */
 
 #include <unordered_map>
+#include <QtTest/QtTest>
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <qtestsupport_core.h>
 #include <boost/signals2.hpp>
-#include "test.h"
 #include "log.h"
 #include "timer.h"
 #include "defercall.h"
 #include "zhttpmanager.h"
 #include "ratelimiter.h"
 #include "filter.h"
-
-namespace {
 
 class HttpFilterServer
 {
@@ -157,14 +154,37 @@ public:
 	}
 };
 
-class TestState
+class FilterTest : public QObject
 {
-public:
+	Q_OBJECT
+
+private:
 	std::unique_ptr<HttpFilterServer> filterServer;
 	std::unique_ptr<ZhttpManager> zhttpOut;
 	std::shared_ptr<RateLimiter> limiter;
 
-	TestState()
+	Filter::MessageFilter::Result runMessageFilters(const QStringList &filterNames, const Filter::Context &context, const QByteArray &content)
+	{
+		Filter::MessageFilterStack fs(filterNames);
+
+		bool finished = false;
+		Filter::MessageFilter::Result r;
+
+		fs.finished.connect([&](const Filter::MessageFilter::Result &_r) {
+			finished = true;
+			r = _r;
+		});
+
+		fs.start(context, content);
+
+		while(!finished)
+			QTest::qWait(10);
+
+		return r;
+	}
+
+private slots:
+	void initTestCase()
 	{
 		log_setOutputLevel(LOG_LEVEL_WARNING);
 
@@ -186,155 +206,132 @@ public:
 		QTest::qWait(500);
 	}
 
-	~TestState()
+	void cleanupTestCase()
 	{
-		limiter.reset();
 		zhttpOut.reset();
 		filterServer.reset();
 
 		// ensure deferred deletes are processed
 		QCoreApplication::instance()->sendPostedEvents();
 
-		DeferCall::cleanup();
 		Timer::deinit();
+		DeferCall::cleanup();
+	}
+
+	void messageFilters()
+	{
+		QStringList filterNames = QStringList() << "skip-self" << "var-subst";
+
+		Filter::Context context;
+		context.subscriptionMeta["user"] = "alice";
+
+		QByteArray content = "hello %(user)s";
+
+		{
+			auto r = runMessageFilters(filterNames, context, content);
+			QVERIFY(r.errorMessage.isNull());
+			QCOMPARE(r.sendAction, Filter::Send);
+			QCOMPARE(r.content, "hello alice");
+		}
+
+		{
+			context.publishMeta["sender"] = "alice";
+			auto r = runMessageFilters(filterNames, context, content);
+			QVERIFY(r.errorMessage.isNull());
+			QCOMPARE(r.sendAction, Filter::Drop);
+		}
+	}
+
+	void httpCheck()
+	{
+		QStringList filterNames = QStringList() << "http-check";
+
+		Filter::Context context;
+		context.subscriptionMeta["url"] = "/filter/accept";
+		context.zhttpOut = zhttpOut.get();
+		context.currentUri = "http://localhost/";
+		context.limiter = limiter;
+
+		QByteArray content = "hello world";
+
+		{
+			auto r = runMessageFilters(filterNames, context, content);
+			QVERIFY(r.errorMessage.isNull());
+			QCOMPARE(r.sendAction, Filter::Send);
+			QCOMPARE(r.content, "hello world");
+		}
+
+		context.subscriptionMeta["url"] = "/filter/drop";
+
+		{
+			auto r = runMessageFilters(filterNames, context, content);
+			QVERIFY(r.errorMessage.isNull());
+			QCOMPARE(r.sendAction, Filter::Drop);
+		}
+
+		context.subscriptionMeta["url"] = "/filter/error";
+
+		{
+			auto r = runMessageFilters(filterNames, context, content);
+			QCOMPARE(r.errorMessage, "unexpected network request status: code=400");
+		}
+	}
+
+	void httpModify()
+	{
+		QStringList filterNames = QStringList() << "http-modify";
+
+		Filter::Context context;
+		context.prevIds["test"] = "a";
+		context.subscriptionMeta["url"] = "/filter/modify";
+		context.zhttpOut = zhttpOut.get();
+		context.currentUri = "http://localhost/";
+		context.limiter = limiter;
+
+		QByteArray content = "hello world";
+
+		{
+			auto r = runMessageFilters(filterNames, context, content);
+			QVERIFY(r.errorMessage.isNull());
+			QCOMPARE(r.sendAction, Filter::Send);
+			QCOMPARE(r.content, "hello world");
+		}
+
+		context.subscriptionMeta["prepend"] = "<<<";
+		context.publishMeta["append"] = ">>>";
+
+		{
+			auto r = runMessageFilters(filterNames, context, content);
+			QVERIFY(r.errorMessage.isNull());
+			QCOMPARE(r.sendAction, Filter::Send);
+			QCOMPARE(r.content, "<<<hello world>>>");
+		}
+
+		context.subscriptionMeta.clear();
+		context.publishMeta.clear();
+		context.subscriptionMeta["url"] = "/filter/large";
+		context.responseSizeMax = 1000;
+
+		{
+			auto r = runMessageFilters(filterNames, context, content);
+			QCOMPARE(r.errorMessage, "network response exceeded 1000 bytes");
+		}
 	}
 };
 
+namespace {
+namespace Main {
+QTEST_MAIN(FilterTest)
+}
 }
 
-static Filter::MessageFilter::Result runMessageFilters(const QStringList &filterNames, const Filter::Context &context, const QByteArray &content)
+extern "C" {
+
+int filter_test(int argc, char **argv)
 {
-	Filter::MessageFilterStack fs(filterNames);
-
-	bool finished = false;
-	Filter::MessageFilter::Result r;
-
-	fs.finished.connect([&](const Filter::MessageFilter::Result &_r) {
-		finished = true;
-		r = _r;
-	});
-
-	fs.start(context, content);
-
-	while(!finished)
-		QTest::qWait(10);
-
-	return r;
+	return Main::main(argc, argv);
 }
 
-static void messageFilters()
-{
-	TestQCoreApplication qapp;
-
-	QStringList filterNames = QStringList() << "skip-self" << "var-subst";
-
-	Filter::Context context;
-	context.subscriptionMeta["user"] = "alice";
-
-	QByteArray content = "hello %(user)s";
-
-	{
-		auto r = runMessageFilters(filterNames, context, content);
-		TEST_ASSERT(r.errorMessage.isNull());
-		TEST_ASSERT_EQ(r.sendAction, Filter::Send);
-		TEST_ASSERT_EQ(r.content, "hello alice");
-	}
-
-	{
-		context.publishMeta["sender"] = "alice";
-		auto r = runMessageFilters(filterNames, context, content);
-		TEST_ASSERT(r.errorMessage.isNull());
-		TEST_ASSERT_EQ(r.sendAction, Filter::Drop);
-	}
 }
 
-static void httpCheck()
-{
-	TestQCoreApplication qapp;
-	TestState state;
-
-	QStringList filterNames = QStringList() << "http-check";
-
-	Filter::Context context;
-	context.subscriptionMeta["url"] = "/filter/accept";
-	context.zhttpOut = state.zhttpOut.get();
-	context.currentUri = "http://localhost/";
-	context.limiter = state.limiter;
-
-	QByteArray content = "hello world";
-
-	{
-		auto r = runMessageFilters(filterNames, context, content);
-		TEST_ASSERT(r.errorMessage.isNull());
-		TEST_ASSERT_EQ(r.sendAction, Filter::Send);
-		TEST_ASSERT_EQ(r.content, "hello world");
-	}
-
-	context.subscriptionMeta["url"] = "/filter/drop";
-
-	{
-		auto r = runMessageFilters(filterNames, context, content);
-		TEST_ASSERT(r.errorMessage.isNull());
-		TEST_ASSERT_EQ(r.sendAction, Filter::Drop);
-	}
-
-	context.subscriptionMeta["url"] = "/filter/error";
-
-	{
-		auto r = runMessageFilters(filterNames, context, content);
-		TEST_ASSERT_EQ(r.errorMessage, "unexpected network request status: code=400");
-	}
-}
-
-static void httpModify()
-{
-	TestQCoreApplication qapp;
-	TestState state;
-
-	QStringList filterNames = QStringList() << "http-modify";
-
-	Filter::Context context;
-	context.prevIds["test"] = "a";
-	context.subscriptionMeta["url"] = "/filter/modify";
-	context.zhttpOut = state.zhttpOut.get();
-	context.currentUri = "http://localhost/";
-	context.limiter = state.limiter;
-
-	QByteArray content = "hello world";
-
-	{
-		auto r = runMessageFilters(filterNames, context, content);
-		TEST_ASSERT(r.errorMessage.isNull());
-		TEST_ASSERT_EQ(r.sendAction, Filter::Send);
-		TEST_ASSERT_EQ(r.content, "hello world");
-	}
-
-	context.subscriptionMeta["prepend"] = "<<<";
-	context.publishMeta["append"] = ">>>";
-
-	{
-		auto r = runMessageFilters(filterNames, context, content);
-		TEST_ASSERT(r.errorMessage.isNull());
-		TEST_ASSERT_EQ(r.sendAction, Filter::Send);
-		TEST_ASSERT_EQ(r.content, "<<<hello world>>>");
-	}
-
-	context.subscriptionMeta.clear();
-	context.publishMeta.clear();
-	context.subscriptionMeta["url"] = "/filter/large";
-	context.responseSizeMax = 1000;
-
-	{
-		auto r = runMessageFilters(filterNames, context, content);
-		TEST_ASSERT_EQ(r.errorMessage, "network response exceeded 1000 bytes");
-	}
-}
-
-extern "C" int filter_test(ffi::TestException *out_ex)
-{
-	TEST_CATCH(messageFilters());
-	TEST_CATCH(httpCheck());
-	TEST_CATCH(httpModify());
-
-	return 0;
-}
+#include "filtertest.moc"

@@ -43,22 +43,48 @@
 #define RETRY_MAX 5
 #define RETRY_RAND_MAX 1000
 
-class WebSocketOverHttp::DisconnectManager
+namespace {
+
+class WsEvent
 {
 public:
-	~DisconnectManager()
+	QByteArray type;
+	QByteArray content;
+
+	WsEvent()
 	{
-		while(!wsConnectionMap.empty())
-		{
-			auto it = wsConnectionMap.begin();
-			WebSocketOverHttp *sock = it->first;
-			wsConnectionMap.erase(it);
-			deleteSocket(sock);
-		}
+	}
+
+	WsEvent(const QByteArray &_type, const QByteArray &_content = QByteArray()) :
+		type(_type),
+		content(_content)
+	{
+	}
+};
+
+}
+
+class WebSocketOverHttp::DisconnectManager : public QObject
+{
+	Q_OBJECT
+
+	struct WSConnections {
+		Connection disconnectedConnection;
+		Connection closedConnection;
+		Connection errorConnection;
+	};
+
+	map<WebSocketOverHttp *, WSConnections> wsConnectionMap;
+
+public:
+	DisconnectManager(QObject *parent = 0) :
+		QObject(parent)
+	{
 	}
 
 	void addSocket(WebSocketOverHttp *sock)
 	{
+		sock->setParent(this);
 		wsConnectionMap[sock] = { 
 			sock->disconnected.connect(boost::bind(&DisconnectManager::sock_disconnected, this, sock)),
 			sock->closed.connect(boost::bind(&DisconnectManager::sock_closed, this, sock)),
@@ -70,32 +96,17 @@ public:
 
 	int count() const
 	{
-		return wsConnectionMap.size();
-	}
-
-	bool contains(WebSocketOverHttp *sock)
-	{
-		auto it = wsConnectionMap.find(sock);
-		return (it != wsConnectionMap.end());
+		return children().count();
 	}
 
 private:
-	struct WSConnections {
-		Connection disconnectedConnection;
-		Connection closedConnection;
-		Connection errorConnection;
-	};
-
-	map<WebSocketOverHttp *, WSConnections> wsConnectionMap;
-
-	void deleteSocket(WebSocketOverHttp *sock);
-
 	void cleanupSocket(WebSocketOverHttp *sock)
 	{
 		wsConnectionMap.erase(sock);
-		deleteSocket(sock);
+		delete sock;
 	}
 
+private:
 	void sock_disconnected(WebSocketOverHttp *sock)
 	{
 		cleanupSocket(sock);
@@ -115,9 +126,9 @@ private:
 thread_local WebSocketOverHttp::DisconnectManager *WebSocketOverHttp::g_disconnectManager = 0;
 thread_local int WebSocketOverHttp::g_maxManagedDisconnects = -1;
 
-static QList<WebSocketOverHttp::Event> decodeEvents(const QByteArray &in, bool *ok = 0)
+static QList<WsEvent> decodeEvents(const QByteArray &in, bool *ok = 0)
 {
-	QList<WebSocketOverHttp::Event> out;
+	QList<WsEvent> out;
 	if(ok)
 		*ok = false;
 
@@ -126,12 +137,12 @@ static QList<WebSocketOverHttp::Event> decodeEvents(const QByteArray &in, bool *
 	{
 		int at = in.indexOf("\r\n", start);
 		if(at == -1)
-			return QList<WebSocketOverHttp::Event>();
+			return QList<WsEvent>();
 
 		QByteArray typeLine = in.mid(start, at - start);
 		start = at + 2;
 
-		WebSocketOverHttp::Event e;
+		WsEvent e;
 		at = typeLine.indexOf(' ');
 		if(at != -1)
 		{
@@ -140,7 +151,7 @@ static QList<WebSocketOverHttp::Event> decodeEvents(const QByteArray &in, bool *
 			bool check;
 			int clen = typeLine.mid(at + 1).toInt(&check, 16);
 			if(!check)
-				return QList<WebSocketOverHttp::Event>();
+				return QList<WsEvent>();
 
 			e.content = in.mid(start, clen);
 			start += clen + 2;
@@ -158,11 +169,11 @@ static QList<WebSocketOverHttp::Event> decodeEvents(const QByteArray &in, bool *
 	return out;
 }
 
-static QByteArray encodeEvents(const QList<WebSocketOverHttp::Event> &events)
+static QByteArray encodeEvents(const QList<WsEvent> &events)
 {
 	QByteArray out;
 
-	foreach(const WebSocketOverHttp::Event &e, events)
+	foreach(const WsEvent &e, events)
 	{
 		if(!e.content.isNull())
 		{
@@ -177,8 +188,10 @@ static QByteArray encodeEvents(const QList<WebSocketOverHttp::Event> &events)
 	return out;
 }
 
-class WebSocketOverHttp::Private
+class WebSocketOverHttp::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	struct ReqConnections {
 		Connection readyReadConnection;
@@ -202,20 +215,15 @@ public:
 	int keepAliveInterval;
 	HttpHeaders meta;
 	bool updating;
-	std::unique_ptr<ZhttpRequest> req;
+	ZhttpRequest *req;
 	QByteArray reqBody;
 	int reqPendingBytes;
 	int reqFrames;
 	int reqContentSize;
-	bool reqMaxed;
 	bool reqClose;
-	int reqCloseContentSize;
 	BufferList inBuf;
 	QList<Frame> inFrames;
 	QList<Frame> outFrames;
-	int outContentSize;
-	int outFramesReplay;
-	int outContentReplay;
 	int closeCode;
 	QString closeReason;
 	bool closeSent;
@@ -235,6 +243,7 @@ public:
 	DeferCall deferCall;
 
 	Private(WebSocketOverHttp *_q) :
+		QObject(_q),
 		q(_q),
 		connectPort(-1),
 		ignorePolicies(false),
@@ -245,15 +254,11 @@ public:
 		pendingErrorCondition((ErrorCondition)-1),
 		keepAliveInterval(-1),
 		updating(false),
+		req(0),
 		reqPendingBytes(0),
 		reqFrames(0),
 		reqContentSize(0),
-		reqMaxed(false),
 		reqClose(false),
-		reqCloseContentSize(0),
-		outContentSize(0),
-		outFramesReplay(0),
-		outContentReplay(0),
 		closeCode(-1),
 		closeSent(false),
 		peerClosing(false),
@@ -286,7 +291,8 @@ public:
 		updateQueued = false;
 
 		reqConnections = ReqConnections();
-		req.reset();
+		delete req;
+		req = 0;
 
 		state = Idle;
 	}
@@ -331,7 +337,6 @@ public:
 		assert(state == Connected);
 
 		outFrames += frame;
-		outContentSize += frame.data.size();
 
 		if(needUpdate())
 			update();
@@ -355,10 +360,19 @@ public:
 
 	int writeBytesAvailable() const
 	{
-		if(outContentSize < BUFFER_SIZE)
-			return BUFFER_SIZE - outContentSize;
-		else
+		if(reqContentSize >= BUFFER_SIZE)
 			return 0;
+
+		int avail = BUFFER_SIZE - reqContentSize;
+		foreach(const Frame &f, outFrames)
+		{
+			if(f.data.size() >= avail)
+				return 0;
+
+			avail -= f.data.size();
+		}
+
+		return avail;
 	}
 
 	void sendDisconnect()
@@ -450,10 +464,8 @@ private:
 		if(!canReceive())
 			return false;
 
-		bool newData = outFrames.count() > outFramesReplay || outContentSize > outContentReplay;
-
 		// have message to send or close?
-		if((cscm && newData) || (outFrames.isEmpty() && state == Closing && !closeSent))
+		if(cscm || (outFrames.isEmpty() && state == Closing && !closeSent))
 			return true;
 
 		return false;
@@ -490,39 +502,85 @@ private:
 
 		reqFrames = 0;
 		reqContentSize = 0;
-		reqMaxed = false;
 		reqClose = false;
-		reqCloseContentSize = 0;
 
-		QList<Event> events;
+		QList<WsEvent> events;
 
 		if(state == Connecting)
 		{
-			events += Event("OPEN");
+			events += WsEvent("OPEN");
 		}
 		else if(disconnecting && !disconnectSent)
 		{
-			events += Event("DISCONNECT");
+			events += WsEvent("DISCONNECT");
 			disconnectSent = true;
 		}
 		else
 		{
-			bool ok = false;
-			events += framesToEvents(outFrames, BUFFER_SIZE, maxEvents, &ok, &reqFrames, &reqContentSize);
-			if(!ok)
+			while(!outFrames.isEmpty() && reqContentSize < BUFFER_SIZE && (maxEvents <= 0 || events.count() < maxEvents))
 			{
-				updating = false;
-				queueError(ErrorGeneric);
-				return;
-			}
+				// make sure the next message is fully readable
+				int takeCount = -1;
+				for(int n = 0; n < outFrames.count(); ++n)
+				{
+					if(!outFrames[n].more)
+					{
+						takeCount = n + 1;
+						break;
+					}
+				}
+				if(takeCount < 1)
+					break;
 
-			// set this if we couldn't fit everything
-			reqMaxed = reqFrames < outFrames.count();
+				Frame::Type ftype = Frame::Text;
+				BufferList content;
+
+				for(int n = 0; n < takeCount; ++n)
+				{
+					Frame f = outFrames.takeFirst();
+
+					if((n == 0 && f.type == Frame::Continuation) || (n > 0 && f.type != Frame::Continuation))
+					{
+						updating = false;
+						queueError(ErrorGeneric);
+						return;
+					}
+
+					if(n == 0)
+					{
+						assert(f.type != Frame::Continuation);
+						ftype = f.type;
+					}
+
+					content += f.data;
+
+					assert(n + 1 < takeCount || !f.more);
+				}
+
+				QByteArray data = content.toByteArray();
+
+				// for compactness, we only include content on ping/pong if non-empty
+				if(ftype == Frame::Text)
+					events += WsEvent("TEXT", data);
+				else if(ftype == Frame::Binary)
+					events += WsEvent("BINARY", data);
+				else if(ftype == Frame::Ping)
+					events += WsEvent("PING", !data.isEmpty() ? data : QByteArray());
+				else if(ftype == Frame::Pong)
+					events += WsEvent("PONG", !data.isEmpty() ? data : QByteArray());
+
+				reqFrames += takeCount;
+				reqContentSize += content.size();
+			}
 
 			if(state == Closing && (maxEvents <= 0 || events.count() < maxEvents))
 			{
-				if(reqFrames < outFrames.count())
-					log_debug("woh: skipping partial message at close");
+				// if there was a partial message left, throw it away
+				if(!outFrames.isEmpty())
+				{
+					log_warning("woh: dropping partial message before close");
+					outFrames.clear();
+				}
 
 				if(closeCode != -1)
 				{
@@ -532,12 +590,10 @@ private:
 					buf[0] = (closeCode >> 8) & 0xff;
 					buf[1] = closeCode & 0xff;
 					memcpy(buf.data() + 2, rawReason.data(), rawReason.size());
-					events += Event("CLOSE", buf);
-
-					reqCloseContentSize = buf.size();
+					events += WsEvent("CLOSE", buf);
 				}
 				else
-					events += Event("CLOSE");
+					events += WsEvent("CLOSE");
 
 				reqClose = true;
 			}
@@ -554,7 +610,8 @@ private:
 
 		q->aboutToSendRequest();
 
-		req = std::unique_ptr<ZhttpRequest>(zhttpManager->createRequest());
+		req = zhttpManager->createRequest();
+		req->setParent(this);
 		reqConnections = {
 			req->readyRead.connect(boost::bind(&Private::req_readyRead, this)),
 			req->bytesWritten.connect(boost::bind(&Private::req_bytesWritten, this, boost::placeholders::_1)),
@@ -576,9 +633,6 @@ private:
 		headers += HttpHeader("Connection-Id", cid);
 		headers += HttpHeader("Content-Type", "application/websocket-events");
 		headers += HttpHeader("Content-Length", QByteArray::number(reqBody.size()));
-
-		if(outContentReplay > 0)
-			headers += HttpHeader("Content-Bytes-Replayed", QByteArray::number(outContentReplay));
 
 		foreach(const HttpHeader &h, meta)
 			headers += HttpHeader("Meta-" + h.first, h.second);
@@ -616,7 +670,8 @@ private:
 		QByteArray responseBody = inBuf.take();
 
 		reqConnections = ReqConnections();
-		req.reset();
+		delete req;
+		req = 0;
 
 		if(state == Connecting)
 		{
@@ -658,86 +713,6 @@ private:
 				keepAliveInterval = -1;
 		}
 
-		int reqContentSizeWithClose = reqContentSize + reqCloseContentSize;
-
-		// by default, accept all
-		int contentBytesAccepted = reqContentSizeWithClose;
-
-		if(responseHeaders.contains("Content-Bytes-Accepted"))
-		{
-			bool ok;
-			int x = responseHeaders.get("Content-Bytes-Accepted").toInt(&ok);
-			if(ok && x >= 0)
-				contentBytesAccepted = x;
-
-			// can't accept more than was offered
-			if(contentBytesAccepted > reqContentSizeWithClose)
-			{
-				cleanup();
-				q->error();
-				return;
-			}
-		}
-
-		int nonCloseContentBytesAccepted = qMin(contentBytesAccepted, reqContentSize);
-
-		int outFramesCountOrig = outFrames.count();
-		int contentRemoved = removeContentFromFrames(&outFrames, nonCloseContentBytesAccepted);
-		int framesRemoved = outFramesCountOrig - outFrames.count();
-
-		// guaranteed to succeed, since reqContentSize represents the initial
-		// data in outFrames and we guard against too large of an input
-		assert(contentRemoved == nonCloseContentBytesAccepted);
-
-		outContentSize -= contentRemoved;
-
-		// if we couldn't fit all pending data in the request, then require
-		// progress to be made
-		if(reqMaxed && framesRemoved == 0 && contentRemoved == 0)
-		{
-			updating = false;
-			queueError(ErrorGeneric);
-			return;
-		}
-
-		// framesRemoved could exceed reqFrames if any zero-sized frames are
-		// appended to outFrames before acceptance, causing them to be
-		// removed even though they weren't in the request
-		outFramesReplay = qMax(reqFrames - framesRemoved, 0);
-
-		outContentReplay = reqContentSize - contentRemoved;
-
-		if(reqClose)
-		{
-			if(nonCloseContentBytesAccepted < reqContentSize)
-			{
-				// if server didn't accept all content before close, then don't close yet
-				reqClose = false;
-			}
-			else
-			{
-				// server accepted all content before close. in that case, we
-				// require the server to also accept the close. partial
-				// acceptance is meant for waiting for more data and from
-				// this point there won't be any more data.
-				if(contentBytesAccepted < reqContentSizeWithClose)
-				{
-					cleanup();
-					q->error();
-					return;
-				}
-			}
-		}
-
-		// after close, remove any partial message left
-		if(reqClose)
-		{
-			outFrames.clear();
-			outContentSize = 0;
-			outFramesReplay = 0;
-			outContentReplay = 0;
-		}
-
 		foreach(const HttpHeader &h, responseHeaders)
 		{
 			if(h.first.size() >= 10 && qstrnicmp(h.first.data(), "Set-Meta-", 9) == 0)
@@ -751,7 +726,7 @@ private:
 		}
 
 		bool ok;
-		QList<Event> events = decodeEvents(responseBody, &ok);
+		QList<WsEvent> events = decodeEvents(responseBody, &ok);
 		if(!ok)
 		{
 			cleanup();
@@ -810,7 +785,7 @@ private:
 		bool closed = false;
 		bool disconnected = false;
 
-		foreach(const Event &e, events)
+		foreach(const WsEvent &e, events)
 		{
 			if(e.type == "OPEN")
 			{
@@ -878,14 +853,19 @@ private:
 				return;
 		}
 
-		if(framesRemoved > 0 || contentRemoved > 0)
+		if(reqFrames > 0)
 		{
-			q->framesWritten(framesRemoved, contentRemoved);
+			q->framesWritten(reqFrames, reqContentSize);
 			if(self.expired())
 				return;
 		}
 
-		if(contentRemoved > 0)
+		bool hadContent = reqContentSize > 0;
+
+		reqFrames = 0;
+		reqContentSize = 0;
+
+		if(hadContent)
 		{
 			q->writeBytesChanged();
 			if(self.expired())
@@ -971,7 +951,8 @@ private:
 		}
 
 		reqConnections = ReqConnections();
-		req.reset();
+		delete req;
+		req = 0;
 
 		if(retry && retries < RETRY_MAX && state != Connecting)
 		{
@@ -1023,29 +1004,26 @@ private:
 	}
 };
 
-void WebSocketOverHttp::DisconnectManager::deleteSocket(WebSocketOverHttp *sock)
-{
-	// ensure state is Idle to prevent the destructor from re-adding it to the manager
-	sock->d->cleanup();
-
-	delete sock;
-}
-
-WebSocketOverHttp::WebSocketOverHttp(ZhttpManager *zhttpManager)
+WebSocketOverHttp::WebSocketOverHttp(ZhttpManager *zhttpManager, QObject *parent) :
+	WebSocket(parent)
 {
 	d = std::make_shared<Private>(this);
 	d->zhttpManager = zhttpManager;
 }
 
-WebSocketOverHttp::WebSocketOverHttp() = default;
+WebSocketOverHttp::WebSocketOverHttp(QObject *parent) :
+	WebSocket(parent)
+{
+}
 
 WebSocketOverHttp::~WebSocketOverHttp()
 {
-	if(d->state != Idle && !g_disconnectManager->contains(this) && (g_maxManagedDisconnects < 0 || g_disconnectManager->count() < g_maxManagedDisconnects))
+	if(d->state != Idle && parent() != g_disconnectManager && (g_maxManagedDisconnects < 0 || g_disconnectManager->count() < g_maxManagedDisconnects))
 	{
 		// if we get destructed while active, clean up in the background
 		WebSocketOverHttp *sock = new WebSocketOverHttp;
 		sock->d = d;
+		d->setParent(sock);
 		d->q = sock;
 		d.reset();
 		g_disconnectManager->addSocket(sock);
@@ -1228,117 +1206,4 @@ void WebSocketOverHttp::setHeaders(const HttpHeaders &headers)
 	d->sanitizeRequestHeaders();
 }
 
-QList<WebSocketOverHttp::Event> WebSocketOverHttp::framesToEvents(const QList<Frame> &frames, int eventsMax, int contentMax, bool *ok, int *framesRepresented, int *contentRepresented)
-{
-	QList<WebSocketOverHttp::Event> out;
-	int pos = 0;
-	int contentSize = 0;
-
-	while(pos < frames.count() && (eventsMax <= 0 || out.count() < eventsMax) && (contentMax <= 0 || contentSize < contentMax))
-	{
-		// make sure the next message is fully readable
-		int takeCount = -1;
-		for(int n = pos; n < frames.count(); ++n)
-		{
-			if(!frames[n].more)
-			{
-				takeCount = n - pos + 1;
-				break;
-			}
-		}
-		if(takeCount < 1)
-			break;
-
-		Frame::Type ftype = Frame::Text;
-		BufferList content;
-
-		for(int n = 0; n < takeCount; ++n)
-		{
-			Frame f = frames[pos + n];
-
-			if((n == 0 && f.type == Frame::Continuation) || (n > 0 && f.type != Frame::Continuation))
-			{
-				*ok = false;
-				return QList<WebSocketOverHttp::Event>();
-			}
-
-			if(n == 0)
-			{
-				assert(f.type != Frame::Continuation);
-				ftype = f.type;
-			}
-
-			content += f.data;
-
-			assert(n + 1 < takeCount || !f.more);
-		}
-
-		QByteArray data = content.toByteArray();
-
-		// for compactness, we only include content on ping/pong if non-empty
-		if(ftype == Frame::Text)
-			out += Event("TEXT", data);
-		else if(ftype == Frame::Binary)
-			out += Event("BINARY", data);
-		else if(ftype == Frame::Ping)
-			out += Event("PING", !data.isEmpty() ? data : QByteArray());
-		else if(ftype == Frame::Pong)
-			out += Event("PONG", !data.isEmpty() ? data : QByteArray());
-
-		pos += takeCount;
-		contentSize += content.size();
-	}
-
-	*ok = true;
-	*framesRepresented = pos;
-	*contentRepresented = contentSize;
-
-	return out;
-}
-
-int WebSocketOverHttp::removeContentFromFrames(QList<WebSocket::Frame> *frames, int count)
-{
-	int left = count;
-
-	while(!frames->isEmpty())
-	{
-		WebSocket::Frame &f = frames->first();
-
-		// not allowed
-		if(f.type == WebSocket::Frame::Continuation)
-			break;
-
-		int size = qMin(left, f.data.size());
-		left -= size;
-
-		if(size < f.data.size())
-		{
-			assert(left == 0);
-
-			if(size > 0)
-				f.data = f.data.mid(size);
-
-			break;
-		}
-
-		WebSocket::Frame::Type ftype = f.type;
-		bool more = f.more;
-
-		// only remove frame of a multipart message if we can carry over
-		// the type
-		if(more && frames->count() < 2)
-			break;
-
-		frames->removeFirst();
-
-		// if removed frame was part of a multipart message, carry over
-		// the type
-		if(more)
-		{
-			assert(!frames->isEmpty());
-			frames->first().type = ftype;
-		}
-	}
-
-	return (count - left);
-}
+#include "websocketoverhttp.moc"

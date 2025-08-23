@@ -29,10 +29,6 @@
 #include <QStringList>
 #include <QFile>
 #include <QFileInfo>
-#include <QThread>
-#include <QMutex>
-#include <QWaitCondition>
-#include "eventloop.h"
 #include "processquit.h"
 #include "timer.h"
 #include "defercall.h"
@@ -42,6 +38,9 @@
 #include "domainmap.h"
 #include "engine.h"
 #include "config.h"
+#include "cacheutil.h"
+
+extern bool gCacheThreadAllowFlag;
 
 using Connection = boost::signals2::scoped_connection;
 
@@ -187,26 +186,29 @@ static CommandLineParseResult parseCommandLine(QCommandLineParser *parser, ArgsD
 	return CommandLineOk;
 }
 
-class EngineWorker
+class EngineWorker : public QObject
 {
+	Q_OBJECT
+
 public:
 	EngineWorker(const Engine::Configuration &config, DomainMap *domainMap) :
+		QObject(),
 		config_(config),
-		engine_(std::make_unique<Engine>(domainMap))
+		engine_(new Engine(domainMap, this))
 	{
 	}
-
-	DeferCall deferCall;
 
 	Signal started;
 	Signal stopped;
 	Signal error;
 
+public slots:
 	void start()
 	{
 		if(!engine_->start(config_))
 		{
-			engine_.reset();
+			delete engine_;
+			engine_ = 0;
 
 			error();
 			return;
@@ -217,7 +219,8 @@ public:
 
 	void stop()
 	{
-		engine_.reset();
+		delete engine_;
+		engine_ = 0;
 
 		stopped();
 	}
@@ -230,7 +233,7 @@ public:
 
 private:
 	Engine::Configuration config_;
-	std::unique_ptr<Engine> engine_;
+	Engine *engine_;
 };
 
 class EngineThread : public QThread
@@ -272,12 +275,7 @@ public:
 		QMutexLocker locker(&m);
 
 		if(worker)
-		{
-			worker->deferCall.defer([=] {
-				// NOTE: called from worker thread
-				worker->stop();
-			});
-		}
+			QMetaObject::invokeMethod(worker, "stop", Qt::QueuedConnection);
 	}
 
 	void routesChanged()
@@ -285,12 +283,7 @@ public:
 		QMutexLocker locker(&m);
 
 		if(worker)
-		{
-			worker->deferCall.defer([=] {
-				// NOTE: called from worker thread
-				worker->routesChanged();
-			});
-		}
+			QMetaObject::invokeMethod(worker, "routesChanged", Qt::QueuedConnection);
 	}
 
 	virtual void run()
@@ -298,22 +291,19 @@ public:
 		// will unlock during exec
 		m.lock();
 
-		// enough timers for sessions and zroutes, plus an extra 100 for misc
-		Timer::init((config.sessionsMax * TIMERS_PER_SESSION) + (ZROUTES_MAX * TIMERS_PER_ZROUTE) + 100);
-
 		worker = new EngineWorker(config, domainMap);
 		Connection startedConnection = worker->started.connect(boost::bind(&EngineThread::worker_started, this));
 		Connection stoppedConnection = worker->stopped.connect(boost::bind(&EngineThread::worker_stopped, this));
 		Connection errorConnection = worker->error.connect(boost::bind(&EngineThread::worker_error, this));
-		worker->deferCall.defer([=] { worker->start(); });
+		QMetaObject::invokeMethod(worker, "start", Qt::QueuedConnection);
 		exec();
 
 		// ensure deferred deletes are processed
 		QCoreApplication::instance()->sendPostedEvents();
 
 		// deinit here, after all event loop activity has completed
-		DeferCall::cleanup();
 		Timer::deinit();
+		DeferCall::cleanup();
 	}
 
 private:
@@ -349,10 +339,29 @@ private:
 	}
 };
 
-class App::Private
+class App::Private : public QObject
 {
+	Q_OBJECT
+
 public:
-	static int run()
+	App *q;
+	ArgsData args;
+	DomainMap *domainMap;
+	std::list<EngineThread*> threads;
+	Connection quitConnection;
+	Connection hupConnection;
+	Connection changedConnection;
+
+	Private(App *_q) :
+		QObject(_q),
+		q(_q),
+		domainMap(0)
+	{
+		quitConnection = ProcessQuit::instance()->quit.connect(boost::bind(&Private::doQuit, this));
+		hupConnection = ProcessQuit::instance()->hup.connect(boost::bind(&App::Private::reload, this));
+	}
+
+	void start()
 	{
 		QCoreApplication::setApplicationName("pushpin-proxy");
 		QCoreApplication::setApplicationVersion(Config::get().version);
@@ -360,7 +369,6 @@ public:
 		QCommandLineParser parser;
 		parser.setApplicationDescription("Pushpin proxy component.");
 
-		ArgsData args;
 		QString errorMessage;
 		switch(parseCommandLine(&parser, &args, &errorMessage))
 		{
@@ -368,11 +376,13 @@ public:
 				break;
 			case CommandLineError:
 				fprintf(stderr, "%s\n\n%s", qPrintable(errorMessage), qPrintable(parser.helpText()));
-				return 1;
+				q->quit(1);
+				return;
 			case CommandLineVersionRequested:
 				printf("%s %s\n", qPrintable(QCoreApplication::applicationName()),
 					qPrintable(QCoreApplication::applicationVersion()));
-				return 0;
+				q->quit(0);
+				return;
 			case CommandLineHelpRequested:
 				parser.showHelp();
 				Q_UNREACHABLE();
@@ -388,7 +398,8 @@ public:
 			if(!log_setFile(args.logFile))
 			{
 				log_error("failed to open log file: %s", qPrintable(args.logFile));
-				return 1;
+				q->quit(1);
+				return;
 			}
 		}
 
@@ -404,7 +415,8 @@ public:
 			if(!file.open(QIODevice::ReadOnly))
 			{
 				log_error("failed to open %s, and --config not passed", qPrintable(configFile));
-				return 1;
+				q->quit(0);
+				return;
 			}
 		}
 
@@ -417,7 +429,11 @@ public:
 
 		QStringList services = settings.value("runner/services").toStringList();
 
+		bool cacheEnable = settings.value("cache/cache_enable").toBool();
+		
 		int workerCount = settings.value("proxy/workers", 1).toInt();
+		if (cacheEnable == true)
+			workerCount = 1;
 		QStringList connmgr_in_specs = settings.value("proxy/connmgr_in_specs").toStringList();
 		trimlist(&connmgr_in_specs);
 		QStringList connmgr_in_stream_specs = settings.value("proxy/connmgr_in_stream_specs").toStringList();
@@ -506,7 +522,6 @@ public:
 		int statsReportInterval = settings.value("proxy/stats_report_interval", 10).toInt();
 		QString prometheusPort = settings.value("proxy/prometheus_port").toString();
 		QString prometheusPrefix = settings.value("proxy/prometheus_prefix").toString();
-		bool newEventLoop = settings.value("proxy/new_event_loop", false).toBool();
 
 		QList<QByteArray> origHeadersNeedMark;
 		foreach(const QString &s, origHeadersNeedMarkStr)
@@ -520,13 +535,15 @@ public:
 		if(!(!connmgr_in_specs.isEmpty() && !connmgr_in_stream_specs.isEmpty() && !connmgr_out_specs.isEmpty()) && !(!m2a_in_specs.isEmpty() && !m2a_in_stream_specs.isEmpty() && !m2a_out_specs.isEmpty()))
 		{
 			log_error("must set connmgr_in_specs, connmgr_in_stream_specs, and connmgr_out_specs, or m2a_in_specs, m2a_in_stream_specs, and m2a_out_specs");
-			return 1;
+			q->quit(0);
+			return;
 		}
 
 		if(!(!connmgr_client_out_specs.isEmpty() && !connmgr_client_out_stream_specs.isEmpty() && !connmgr_client_in_specs.isEmpty()) && !(!zurl_out_specs.isEmpty() && !zurl_out_stream_specs.isEmpty() && !zurl_in_specs.isEmpty()))
 		{
 			log_error("must set connmgr_client_out_specs, connmgr_client_out_stream_specs, and connmgr_client_in_specs, or zurl_out_specs, zurl_out_stream_specs, and zurl_in_specs");
-			return 1;
+			q->quit(0);
+			return;
 		}
 
 		if(updatesCheck == "true")
@@ -537,6 +554,17 @@ public:
 			sessionsMax = qMin(sessionsMax, clientMaxconn);
 		else
 			sessionsMax = clientMaxconn;
+
+		if(!args.routeLines.isEmpty())
+		{
+			domainMap = new DomainMap(this);
+			foreach(const QString &line, args.routeLines)
+				domainMap->addRouteLine(line);
+		}
+		else
+			domainMap = new DomainMap(routesFile, this);
+
+		changedConnection = domainMap->changed.connect(boost::bind(&Private::domainMap_changed, this));
 
 		Engine::Configuration config;
 		config.appVersion = Config::get().version;
@@ -603,156 +631,220 @@ public:
 		config.prometheusPort = prometheusPort;
 		config.prometheusPrefix = prometheusPrefix;
 
-		return runLoop(config, args.routeLines, routesFile, workerCount, newEventLoop);
-	}
-
-private:
-	static int runLoop(const Engine::Configuration &config, const QStringList &routeLines, const QString &routesFile, int workerCount, bool newEventLoop)
-	{
-		// plenty for the main thread
-		int timersMax = 100;
-
-		std::unique_ptr<EventLoop> loop;
-
-		if(newEventLoop)
+		// Cache config
+		QStringList httpBackendUrlList = settings.value("cache/http_backend_urls").toStringList();
+		QStringList wsBackendUrlList = settings.value("cache/ws_backend_urls").toStringList();
+		QStringList cacheMethodList = settings.value("cache/ws_cache_methods").toStringList();
+		QStringList subscribeMethodList = settings.value("cache/ws_subscribe_methods").toStringList();
+		QStringList neverTimeoutMethodList = settings.value("cache/ws_never_timeout_methods").toStringList();
+		QStringList refreshShorterMethodList = settings.value("cache/ws_refresh_shorter_methods").toStringList();
+		QStringList refreshLongerMethodList = settings.value("cache/ws_refresh_longer_methods").toStringList();
+		QStringList refreshUneraseMethodList = settings.value("cache/ws_refresh_unerase_methods").toStringList();
+		QStringList refreshExcludeMethodList = settings.value("cache/ws_refresh_exclude_methods").toStringList();
+		QStringList refreshPassthroughMethodList = settings.value("cache/ws_refresh_passthrough_methods").toStringList();
+		QStringList nullResponseMethodList = settings.value("cache/ws_null_response_methods").toStringList();
+		QString cacheKeyConfig = settings.value("cache/ws_cache_key", "").toString().simplified().remove("'").remove("\"").toLower();
+		QStringList cacheKeyParts = cacheKeyConfig.split(u'+', QString::SkipEmptyParts);
+		QStringList cacheKeyItemList;
+		for (int i = 0; i < cacheKeyParts.count(); i++)
 		{
-			log_debug("using new event loop");
-
-			// for processquit
-			int socketNotifiersMax = 1;
-
-			int registrationsMax = timersMax + socketNotifiersMax;
-			loop = std::make_unique<EventLoop>(registrationsMax);
-		}
-		else
-		{
-			// for qt event loop, timer subsystem must be explicitly initialized
-			Timer::init(timersMax);
-		}
-
-		std::unique_ptr<DomainMap> domainMap;
-		std::list<EngineThread*> threads;
-
-		DeferCall deferCall;
-		deferCall.defer([&] {
-			if(!routeLines.isEmpty())
+			QString keyPart = cacheKeyParts[i].trimmed();
+			if (keyPart.startsWith("$request_json_value[") && keyPart.endsWith("]"))
 			{
-				domainMap = std::make_unique<DomainMap>();
-				foreach(const QString &line, routeLines)
-					domainMap->addRouteLine(line);
+				QString jsonValue = keyPart.mid(20, keyPart.length()-20-1).trimmed();
+				jsonValue += ".JSON_VALUE";
+				cacheKeyItemList.append(jsonValue);
+			}
+			else if (keyPart.startsWith("$request_json_pair[") && keyPart.endsWith("]"))
+			{
+				QString jsonValue = keyPart.mid(19, keyPart.length()-19-1).trimmed();
+				jsonValue += ".JSON_PAIR";
+				cacheKeyItemList.append(jsonValue);
+			}
+			else if (keyPart.startsWith("$user_defined[") && keyPart.endsWith("]"))
+			{
+				QString jsonValue = keyPart.mid(14, keyPart.length()-14-1).trimmed();
+				QString userDefinedKeyConfig = settings.value("cache/"+jsonValue, "").toString().simplified().remove("'").remove("\"").toLower();
+				QStringList userDefinedKeyParts = userDefinedKeyConfig.split(u'+', QString::SkipEmptyParts);
+				for (int j = 0; j < userDefinedKeyParts.count(); j++)
+				{
+					QString userDefinedKeyPart = userDefinedKeyParts[j].trimmed();
+					if (userDefinedKeyPart.startsWith("$request_json_value[") && userDefinedKeyPart.endsWith("]"))
+					{
+						jsonValue = userDefinedKeyPart.mid(20, userDefinedKeyPart.length()-20-1).trimmed();
+						jsonValue += ".JSON_VALUE";
+						cacheKeyItemList.append(jsonValue);
+					}
+					else if (userDefinedKeyPart.startsWith("$request_json_pair[") && userDefinedKeyPart.endsWith("]"))
+					{
+						jsonValue = userDefinedKeyPart.mid(19, userDefinedKeyPart.length()-19-1).trimmed();
+						jsonValue += ".JSON_PAIR";
+						cacheKeyItemList.append(jsonValue);
+					}
+					else
+					{
+						userDefinedKeyPart += ".RAW_VALUE";
+						cacheKeyItemList.append(userDefinedKeyPart);
+					}
+				}
 			}
 			else
-				domainMap = std::make_unique<DomainMap>(routesFile);
+			{
+				keyPart += ".RAW_VALUE";
+				cacheKeyItemList.append(keyPart);
+			}
+		}
+		// message iden attribute and cache check attribute
+		QString msgIdFieldName = settings.value("cache/message_id_attribute", "").toString().simplified().remove("'").remove("\"").toLower();
+		QString msgMethodFieldName = settings.value("cache/message_method_attribute", "").toString().simplified().remove("'").remove("\"").toLower();
+		QString msgParamsFieldName = settings.value("cache/message_params_attribute", "params").toString().simplified().remove("'").remove("\"").toLower();
+		QStringList msgErrorFieldList = settings.value("cache/message_error_attributes").toStringList();
+		// time seconds to retry another backend for null response (default 10)
+		int backendSwitchIntervalSeconds = settings.value("cache/backend_switch_interval_seconds", 10).toInt();
+		// prometheus restore allow seconds (default 300)
+		int prometheusRestoreAllowSeconds = settings.value("cache/prometheus_restore_allow_seconds", 300).toInt();
+		// redis
+		bool redisEnable = settings.value("cache/redis_enable").toBool();
+		QString redisHostAddr = settings.value("cache/redis_host_addr").toString();
+		int redisPort = settings.value("cache/redis_port", 6379).toInt();
+		int redisPoolCount = settings.value("cache/redis_pool_count", 10).toInt();
+		QString redisKeyHeader = settings.value("cache/redis_key_header").toString();
+		QString replicaMasterAddr = settings.value("cache/replica_master_addr").toString();
+		int replicaMasterPort = settings.value("cache/replica_master_port", 6379).toInt();
+		// count method group
+		QStringList countMethodGroups = settings.value("cache/ws_count_groups").toStringList();
+		QMap<QString, QStringList> countMethodGroupMap;
+		for (int i = 0; i < countMethodGroups.count(); i++)
+		{
+			QString groupKey = countMethodGroups[i];
+			QStringList groupValue = settings.value("cache/" + groupKey).toStringList();
+			countMethodGroupMap[groupKey] = groupValue;
+		}
 
-			domainMap->changed.connect([&] {
-				for(EngineThread *t : threads)
-					t->routesChanged();
-			});
+		config.cacheEnable = cacheEnable;
+		config.httpBackendUrlList = httpBackendUrlList;
+		config.wsBackendUrlList = wsBackendUrlList;
+		config.cacheMethodList = cacheMethodList;
+		config.subscribeMethodList = subscribeMethodList;
+		config.neverTimeoutMethodList = neverTimeoutMethodList;
+		config.refreshShorterMethodList = refreshShorterMethodList;
+		config.refreshLongerMethodList = refreshLongerMethodList;
+		config.refreshUneraseMethodList = refreshUneraseMethodList;
+		config.refreshExcludeMethodList = refreshExcludeMethodList;
+		config.refreshPassthroughMethodList = refreshPassthroughMethodList;
+		config.nullResponseMethodList = nullResponseMethodList;
+		config.cacheKeyItemList = cacheKeyItemList;
+		config.msgIdFieldName = msgIdFieldName;
+		config.msgMethodFieldName = msgMethodFieldName;
+		config.msgParamsFieldName = msgParamsFieldName;
+		config.msgErrorFieldList = msgErrorFieldList;
+		config.backendSwitchIntervalSeconds = backendSwitchIntervalSeconds;
+		config.prometheusRestoreAllowSeconds = prometheusRestoreAllowSeconds;
+		config.redisEnable = redisEnable;
+		config.redisEnable = redisEnable;
+		config.redisHostAddr = redisHostAddr;
+		config.redisPort = redisPort;
+		config.redisPoolCount = redisPoolCount;
+		config.redisKeyHeader = redisKeyHeader;
+		config.replicaMasterAddr = replicaMasterAddr;
+		config.replicaMasterPort = replicaMasterPort;
+		config.countMethodGroupMap = countMethodGroupMap;
 
-			ProcessQuit::instance()->quit.connect([&] {
-				log_info("stopping...");
+		for(int n = 0; n < workerCount; ++n)
+		{
+			Engine::Configuration wconfig = config;
 
-				// remove the handler, so if we get another signal then we crash out
-				ProcessQuit::cleanup();
+			wconfig.id = n;
 
-				for(EngineThread *t : threads)
-					t->stop();
+			if(workerCount > 1)
+			{
+				wconfig.clientId += '-' + QByteArray::number(n);
+
+				wconfig.inspectSpec = suffixSpec(wconfig.inspectSpec, n);
+				wconfig.acceptSpec = suffixSpec(wconfig.acceptSpec, n);
+				wconfig.retryInSpec = suffixSpec(wconfig.retryInSpec, n);
+				wconfig.wsControlInitSpecs = suffixSpecs(wconfig.wsControlInitSpecs, n);
+				wconfig.wsControlStreamSpecs = suffixSpecs(wconfig.wsControlStreamSpecs, n);
+				wconfig.statsSpec = suffixSpec(wconfig.statsSpec, n);
+				wconfig.commandSpec = suffixSpec(wconfig.commandSpec, n);
+				wconfig.intServerInSpecs = suffixSpecs(wconfig.intServerInSpecs, n);
+				wconfig.intServerInStreamSpecs = suffixSpecs(wconfig.intServerInStreamSpecs, n);
+				wconfig.intServerOutSpecs = suffixSpecs(wconfig.intServerOutSpecs, n);
+			}
+
+			EngineThread *t = new EngineThread(wconfig, domainMap);
+			if(!t->start())
+			{
+				delete t;
 
 				for(EngineThread *t : threads)
 					delete t;
 
 				threads.clear();
 
-				log_debug("stopped");
-
-				if(newEventLoop)
-					loop->exit(0);
-				else
-					QCoreApplication::exit(0);
-			});
-
-			ProcessQuit::instance()->hup.connect([&] {
-				log_info("reloading");
-				log_rotate();
-				domainMap->reload();
-			});
-
-			for(int n = 0; n < workerCount; ++n)
-			{
-				Engine::Configuration wconfig = config;
-
-				wconfig.id = n;
-
-				if(workerCount > 1)
-				{
-					wconfig.clientId += '-' + QByteArray::number(n);
-
-					wconfig.inspectSpec = suffixSpec(wconfig.inspectSpec, n);
-					wconfig.acceptSpec = suffixSpec(wconfig.acceptSpec, n);
-					wconfig.retryInSpec = suffixSpec(wconfig.retryInSpec, n);
-					wconfig.wsControlInitSpecs = suffixSpecs(wconfig.wsControlInitSpecs, n);
-					wconfig.wsControlStreamSpecs = suffixSpecs(wconfig.wsControlStreamSpecs, n);
-					wconfig.statsSpec = suffixSpec(wconfig.statsSpec, n);
-					wconfig.commandSpec = suffixSpec(wconfig.commandSpec, n);
-					wconfig.intServerInSpecs = suffixSpecs(wconfig.intServerInSpecs, n);
-					wconfig.intServerInStreamSpecs = suffixSpecs(wconfig.intServerInStreamSpecs, n);
-					wconfig.intServerOutSpecs = suffixSpecs(wconfig.intServerOutSpecs, n);
-				}
-
-				EngineThread *t = new EngineThread(wconfig, domainMap.get());
-				if(!t->start())
-				{
-					delete t;
-
-					for(EngineThread *t : threads)
-						delete t;
-
-					threads.clear();
-
-					if(newEventLoop)
-						loop->exit(1);
-					else
-						QCoreApplication::exit(1);
-
-					return;
-				}
-
-				threads.push_back(t);
+				q->quit(0);
+				return;
 			}
 
-			log_info("started");
-		});
-
-		int ret;
-		if(newEventLoop)
-			ret = loop->exec();
-		else
-			ret = QCoreApplication::exec();
-
-		if(!newEventLoop)
-		{
-			// ensure deferred deletes are processed
-			QCoreApplication::instance()->sendPostedEvents();
+			threads.push_back(t);
 		}
 
-		// deinit here, after all event loop activity has completed
+		log_info("started");
+	}
 
-		DeferCall::cleanup();
+private:
+	void domainMap_changed()
+	{
+		for(EngineThread *t : threads)
+			t->routesChanged();
+	}
 
-		if(!newEventLoop)
-			Timer::deinit();
+private slots:
+	void reload()
+	{
+		log_info("reloading");
+		log_rotate();
 
-		return ret;
+		domainMap->reload();
+	}
+
+	void doQuit()
+	{
+		log_info("stopping...");
+
+		gCacheThreadAllowFlag = false;
+		save_prometheusStatIntoFile();
+
+		// remove the handler, so if we get another signal then we crash out
+		ProcessQuit::cleanup();
+
+		for(EngineThread *t : threads)
+			t->stop();
+
+		for(EngineThread *t : threads)
+			delete t;
+
+		threads.clear();
+
+		log_debug("stopped");
+		q->quit(0);
 	}
 };
 
-App::App() = default;
-
-App::~App() = default;
-
-int App::run()
+App::App(QObject *parent) :
+	QObject(parent)
 {
-	return Private::run();
+	d = new Private(this);
+}
+
+App::~App()
+{
+	delete d;
+}
+
+void App::start()
+{
+	d->start();
 }
 
 #include "app.moc"

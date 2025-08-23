@@ -30,8 +30,10 @@
 
 #define MIN_BATCH_INTERVAL 25
 
-class RateLimiter::Private
+class RateLimiter::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	class ActionItem
 	{
@@ -72,13 +74,14 @@ public:
 	bool batchWaitEnabled;
 	QMap<QString, Bucket> buckets;
 	QString lastKey;
-	std::unique_ptr<Timer> timer;
+	Timer *timer;
 	bool firstPass;
 	int batchInterval;
 	int batchSize;
 	bool lastBatchEmpty;
 
 	Private(RateLimiter *_q) :
+		QObject(_q),
 		q(_q),
 		rate(-1),
 		hwm(-1),
@@ -87,8 +90,15 @@ public:
 		batchSize(-1),
 		lastBatchEmpty(false)
 	{
-		timer = std::make_unique<Timer>();
+		timer = new Timer;
 		timer->timeout.connect(boost::bind(&Private::timeout, this));
+	}
+
+	~Private()
+	{
+		timer->disconnect(this);
+		timer->setParent(0);
+		DeferCall::deleteLater(timer);
 	}
 
 	void setRate(int actionsPerSecond)
@@ -329,3 +339,5 @@ RateLimiter::Action *RateLimiter::lastAction(const QString &key) const
 
 	return 0;
 }
+
+#include "ratelimiter.moc"

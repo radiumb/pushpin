@@ -15,7 +15,6 @@ HEADERS += $$PWD/processquit.h
 SOURCES += $$PWD/processquit.cpp
 
 HEADERS += \
-	$$PWD/test.h \
 	$$PWD/tnetstring.h \
 	$$PWD/httpheaders.h \
 	$$PWD/zhttprequestpacket.h \
@@ -57,14 +56,10 @@ HEADERS += \
 	$$PWD/timer.h \
 	$$PWD/defercall.h \
 	$$PWD/socketnotifier.h \
-	$$PWD/event.h \
 	$$PWD/eventloop.h \
-	$$PWD/readwrite.h \
-	$$PWD/tcplistener.h \
-	$$PWD/tcpstream.h \
-	$$PWD/unixlistener.h \
-	$$PWD/unixstream.h \
-	$$PWD/filewatcher.h \
+	$$PWD/wscatworker.h \
+	$$PWD/cacheutil.h \
+	$$PWD/redispool.h \
 	$$PWD/logutil.h \
 	$$PWD/uuidutil.h \
 	$$PWD/zutil.h \
@@ -90,13 +85,10 @@ SOURCES += \
 	$$PWD/timer.cpp \
 	$$PWD/defercall.cpp \
 	$$PWD/socketnotifier.cpp \
-	$$PWD/event.cpp \
 	$$PWD/eventloop.cpp \
-	$$PWD/tcplistener.cpp \
-	$$PWD/tcpstream.cpp \
-	$$PWD/unixlistener.cpp \
-	$$PWD/unixstream.cpp \
-	$$PWD/filewatcher.cpp \
+	$$PWD/wscatworker.cpp \
+	$$PWD/cacheutil.cpp \
+	$$PWD/redispool.cpp \
 	$$PWD/logutil.cpp \
 	$$PWD/uuidutil.cpp \
 	$$PWD/zutil.cpp \

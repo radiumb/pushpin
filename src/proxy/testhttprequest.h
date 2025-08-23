@@ -27,11 +27,13 @@
 
 class TestHttpRequest : public HttpRequest
 {
+	Q_OBJECT
+
 public:
 	// pair of sender + request id
 	typedef QPair<QByteArray, QByteArray> Rid;
 
-	TestHttpRequest();
+	TestHttpRequest(QObject *parent = 0);
 	~TestHttpRequest();
 
 	// reimplemented

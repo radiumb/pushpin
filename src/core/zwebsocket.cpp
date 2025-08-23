@@ -32,12 +32,14 @@
 #include "zhttpmanager.h"
 #include "uuidutil.h"
 
-#define IDEAL_CREDITS 200000
+#define IDEAL_CREDITS 2000000
 #define SESSION_EXPIRE 60000
 #define KEEPALIVE_INTERVAL 45000
 
-class ZWebSocket::Private
+class ZWebSocket::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	enum InternalState
 	{
@@ -82,8 +84,8 @@ public:
 	bool readableChanged;
 	bool writableChanged;
 	ErrorCondition errorCondition;
-	std::unique_ptr<Timer> expireTimer;
-	std::unique_ptr<Timer> keepAliveTimer;
+	Timer *expireTimer;
+	Timer *keepAliveTimer;
 	QList<Frame> inFrames;
 	QList<Frame> outFrames;
 	int inSize;
@@ -91,9 +93,12 @@ public:
 	int inContentType;
 	int outContentType;
 	bool multi;
+	Connection expireTimerConnection;
+	Connection keepAliveTimerConnection;
 	DeferCall deferCall;
 
 	Private(ZWebSocket *_q) :
+		QObject(_q),
 		q(_q),
 		manager(0),
 		server(false),
@@ -114,18 +119,20 @@ public:
 		pendingUpdate(false),
 		readableChanged(false),
 		writableChanged(false),
+		expireTimer(0),
+		keepAliveTimer(0),
 		inSize(0),
 		outSize(0),
 		inContentType(-1),
 		outContentType((int)Frame::Text),
 		multi(false)
 	{
-		expireTimer = std::make_unique<Timer>();
-		expireTimer->timeout.connect(boost::bind(&Private::expire_timeout, this));
+		expireTimer = new Timer;
+		expireTimerConnection = expireTimer->timeout.connect(boost::bind(&Private::expire_timeout, this));
 		expireTimer->setSingleShot(true);
 
-		keepAliveTimer = std::make_unique<Timer>();
-		keepAliveTimer->timeout.connect(boost::bind(&Private::keepAlive_timeout, this));
+		keepAliveTimer = new Timer;
+		keepAliveTimerConnection = keepAliveTimer->timeout.connect(boost::bind(&Private::keepAlive_timeout, this));
 	}
 
 	~Private()
@@ -141,8 +148,21 @@ public:
 		readableChanged = false;
 		writableChanged = false;
 
-		expireTimer.reset();
-		keepAliveTimer.reset();
+		if(expireTimer)
+		{
+			expireTimerConnection.disconnect();
+			expireTimer->setParent(0);
+			DeferCall::deleteLater(expireTimer);
+			expireTimer = 0;
+		}
+
+		if(keepAliveTimer)
+		{
+			keepAliveTimerConnection.disconnect();
+			keepAliveTimer->setParent(0);
+			DeferCall::deleteLater(keepAliveTimer);
+			keepAliveTimer = 0;
+		}
 
 		if(manager)
 		{
@@ -480,7 +500,7 @@ public:
 
 		if(seq != inSeq)
 		{
-			log_warning("zws server: error id=%s received message out of sequence, canceling", id.data());
+			log_warning("zws server: error id=%s received message out of sequence (expected %d, got %d), canceling", id.data(), inSeq, seq);
 
 			tryRespondCancel(packet);
 
@@ -588,7 +608,7 @@ public:
 
 		if(seq != inSeq)
 		{
-			log_warning("zws client: error id=%s received message out of sequence, canceling", id.data());
+			log_warning("zws client: error id=%s received message out of sequence (expected %d, got %d), canceling", id.data(), inSeq, seq);
 
 			tryRespondCancel(packet);
 
@@ -1071,7 +1091,8 @@ public:
 	}
 };
 
-ZWebSocket::ZWebSocket()
+ZWebSocket::ZWebSocket(QObject *parent) :
+	WebSocket(parent)
 {
 	d = std::make_shared<Private>(this);
 }
@@ -1294,3 +1315,5 @@ void ZWebSocket::handle(const QByteArray &id, int seq, const ZhttpResponsePacket
 
 	d->handle(id, seq, packet);
 }
+
+#include "zwebsocket.moc"

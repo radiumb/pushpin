@@ -32,16 +32,18 @@
 #include <QFile>
 #include <QDir>
 #include <QTextStream>
+#include <QFileSystemWatcher>
 #include "log.h"
 #include "timer.h"
 #include "defercall.h"
-#include "filewatcher.h"
 #include "routesfile.h"
 
-#define WORKER_THREAD_TIMERS 10
+#define WORKER_THREAD_TIMERS 1
 
-class DomainMap::Worker
+class DomainMap::Worker : public QObject
 {
+	Q_OBJECT
+
 public:
 	enum AddRuleResult
 	{
@@ -202,10 +204,11 @@ public:
 	QHash<QString, Rule> rulesById;
 	Timer t;
 	Connection tConnection;
-	FileWatcher watcher;
+	QFileSystemWatcher watcher;
 	DeferCall deferCall;
 
-	Worker()
+	Worker() :
+		watcher(this)
 	{
 		tConnection = t.timeout.connect(boost::bind(&Worker::doReload, this));
 		t.setSingleShot(true);
@@ -309,15 +312,13 @@ public:
 	Signal started;
 	Signal changed;
 
+public slots:
 	void start()
 	{
 		if(!fileName.isEmpty())
 		{
-			watcher.fileChanged.connect(boost::bind(&Worker::fileChanged, this));
-
-			if(!watcher.start(fileName)) {
-				log_error("failed to watch %s", qPrintable(fileName));
-			}
+			connect(&watcher, &QFileSystemWatcher::fileChanged, this, &Worker::fileChanged);
+			watcher.addPath(fileName);
 
 			reload();
 		}
@@ -325,8 +326,10 @@ public:
 		started();
 	}
 
-	void fileChanged()
+	void fileChanged(const QString &path)
 	{
+		Q_UNUSED(path);
+
 		// inotify tends to give us extra events so let's hang around a
 		//   little bit before reloading
 		if(!t.isActive())
@@ -338,6 +341,13 @@ public:
 
 	void doReload()
 	{
+		// in case the file was not changed, but overwritten by a different
+		// file, re-arm watcher.
+		if(!fileName.isEmpty())
+		{
+			watcher.addPath(fileName);
+		}
+
 		reload();
 	}
 
@@ -569,38 +579,17 @@ private:
 			}
 			else
 			{
-				QString host;
-				int portPos = -1;
+				target.type = Target::Default;
 
-				if(val.startsWith("["))
-				{
-					// ipv6 address
-					int at = val.indexOf("]:");
-					if(at >= 0)
-					{
-						host = val.mid(1, at - 1);
-						portPos = at + 2;
-					}
-				}
-				else
-				{
-					// domain or ipv4 address
-					int at = val.indexOf(':');
-					if(at >= 0)
-					{
-						host = val.mid(0, at);
-						portPos = at + 1;
-					}
-				}
-
-				if(portPos < 0)
+				int at = val.indexOf(':');
+				if(at == -1)
 				{
 					log_warning("%s:%d: target bad format", qPrintable(fileName), lineNum);
 					ok = false;
 					break;
 				}
 
-				QString sport = val.mid(portPos);
+				QString sport = val.mid(at + 1);
 				int port = sport.toInt(&ok);
 				if(!ok || port < 1 || port > 65535)
 				{
@@ -609,8 +598,7 @@ private:
 					break;
 				}
 
-				target.type = Target::Default;
-				target.connectHost = host;
+				target.connectHost = val.mid(0, at);
 				target.connectPort = port;
 			}
 
@@ -766,13 +754,13 @@ public:
 		worker = new Worker;
 		worker->fileName = fileName;
 		Connection startedConnection = worker->started.connect(boost::bind(&Thread::worker_started, this));
-		worker->deferCall.defer([=] { worker->start(); });
+		QMetaObject::invokeMethod(worker, "start", Qt::QueuedConnection);
 		exec();
 		startedConnection.disconnect();
 		delete worker;
 
-		DeferCall::cleanup();
 		Timer::deinit();
+		DeferCall::cleanup();
 	}
 
 public:
@@ -783,15 +771,17 @@ public:
 	}
 };
 
-class DomainMap::Private
+class DomainMap::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	DomainMap *q;
 	Thread *thread;
 	Connection changedConnection;
-	DeferCall deferCall;
 
 	Private(DomainMap *_q) :
+		QObject(_q),
 		q(_q),
 		thread(0)
 	{
@@ -814,28 +804,28 @@ public:
 	}
 
 private:
-	// NOTE: called from worker thread
+	// NOTE: must be thread-safe. called from separate thread
 	void workerChanged()
 	{
-		deferCall.defer([=] {
-			// NOTE: called from outer thread
-			doChanged();
-		});
+		QMetaObject::invokeMethod(this, "doChanged", Qt::QueuedConnection);
 	}
 
+private slots:
 	void doChanged()
 	{
 		q->changed();
 	}
 };
 
-DomainMap::DomainMap()
+DomainMap::DomainMap(QObject *parent) :
+	QObject(parent)
 {
 	d = new Private(this);
 	d->start();
 }
 
-DomainMap::DomainMap(const QString &fileName)
+DomainMap::DomainMap(const QString &fileName, QObject *parent) :
+	QObject(parent)
 {
 	d = new Private(this);
 	d->start(fileName);
@@ -848,12 +838,7 @@ DomainMap::~DomainMap()
 
 void DomainMap::reload()
 {
-	Worker *worker = d->thread->worker;
-
-	worker->deferCall.defer([=] {
-		// NOTE: called from worker thread
-		worker->doReload();
-	});
+	QMetaObject::invokeMethod(d->thread->worker, "doReload", Qt::QueuedConnection);
 }
 
 bool DomainMap::isIdShared(const QString &id) const

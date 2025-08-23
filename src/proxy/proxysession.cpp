@@ -57,8 +57,10 @@ using std::map;
 #define MAX_INITIAL_BUFFER 100000
 #define MAX_STREAM_BUFFER 100000
 
-class ProxySession::Private
+class ProxySession::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	enum State
 	{
@@ -127,7 +129,7 @@ public:
 	DomainMap::Entry route;
 	QList<DomainMap::Target> targets;
 	DomainMap::Target target;
-	std::unique_ptr<HttpRequest> zhttpRequest;
+	HttpRequest *zhttpRequest;
 	bool addAllowed;
 	bool haveInspectData;
 	InspectData idata;
@@ -171,6 +173,7 @@ public:
 	map<RequestSession*, RequestSessionConnections> reqSessionConnectionMap;
 
 	Private(ProxySession *_q, ZRoutes *_zroutes, ZrpcManager *_acceptManager, const LogUtil::Config &_logConfig, StatsManager *_statsManager) :
+		QObject(_q),
 		q(_q),
 		state(Stopped),
 		zroutes(_zroutes),
@@ -178,6 +181,7 @@ public:
 		inRequest(0),
 		acceptManager(_acceptManager),
 		isHttps(false),
+		zhttpRequest(0),
 		addAllowed(true),
 		haveInspectData(false),
 		shared(false),
@@ -231,6 +235,7 @@ public:
 
 		SessionItem *si = new SessionItem;
 		si->rs = rs;
+		si->rs->setParent(this);
 
 		// a retried request already had its received bytes counted earlier
 		if(rs->isRetry())
@@ -433,7 +438,7 @@ public:
 					uri.setPath(uri.path(QUrl::FullyEncoded).mid(pathRemove));
 			}
 
-			zhttpRequest = std::make_unique<TestHttpRequest>();
+			zhttpRequest = new TestHttpRequest(this);
 		}
 		else
 		{
@@ -450,7 +455,8 @@ public:
 
 			zroutes->addRef(zhttpManager);
 
-			zhttpRequest = std::unique_ptr<HttpRequest>(zhttpManager->createRequest());
+			zhttpRequest = zhttpManager->createRequest();
+			zhttpRequest->setParent(this);
 		}
 
 		zhttpReqConnections = {
@@ -620,7 +626,8 @@ public:
 	{
 		zhttpReqConnections = ZhttpReqConnections();
 		// kill the active target request, if any
-		zhttpRequest.reset();
+		delete zhttpRequest;
+		zhttpRequest = 0;
 
 		assert(state != Responding);
 		assert(state != Responded);
@@ -930,7 +937,8 @@ public:
 			}
 
 			zhttpReqConnections = ZhttpReqConnections();			
-			zhttpRequest.reset();
+			delete zhttpRequest;
+			zhttpRequest = 0;
 
 			// once the entire response has been received, cut off any new adds
 			if(addAllowed)
@@ -1477,7 +1485,8 @@ public:
 	}
 };
 
-ProxySession::ProxySession(ZRoutes *zroutes, ZrpcManager *acceptManager, const LogUtil::Config &logConfig, StatsManager *statsManager)
+ProxySession::ProxySession(ZRoutes *zroutes, ZrpcManager *acceptManager, const LogUtil::Config &logConfig, StatsManager *statsManager, QObject *parent) :
+	QObject(parent)
 {
 	d = std::make_shared<Private>(this, zroutes, acceptManager, logConfig, statsManager);
 }
@@ -1542,3 +1551,5 @@ void ProxySession::add(RequestSession *rs)
 {
 	d->add(rs);
 }
+
+#include "proxysession.moc"

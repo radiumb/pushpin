@@ -48,37 +48,37 @@ static qint64 ticksToDuration(qint64 ticks)
 	return ticks * TICK_DURATION_MS;
 }
 
-class TimerManager
+class TimerManager : public QObject
 {
+	Q_OBJECT
+
 public:
-	TimerManager(int capacity);
+	TimerManager(int capacity, QObject *parent = 0);
 
 	int add(int msec, Timer *r);
 	void remove(int key);
+
+private slots:
+	void t_timeout();
 
 private:
 	TimerWheel wheel_;
 	qint64 startTime_;
 	quint64 currentTicks_;
-	std::unique_ptr<QTimer> t_;
+	QTimer *t_;
 
-	void t_timeout();
 	void updateTimeout(qint64 currentTime);
 };
 
-TimerManager::TimerManager(int capacity) :
+TimerManager::TimerManager(int capacity, QObject *parent) :
+	QObject(parent),
 	wheel_(TimerWheel(capacity))
 {
 	startTime_ = QDateTime::currentMSecsSinceEpoch();
 	currentTicks_ = 0;
 
-	t_ = std::make_unique<QTimer>();
-
-	// safe to not track, since t_ can't outlive this
-	QObject::connect(t_.get(), &QTimer::timeout, [=] {
-		t_timeout();
-	});
-
+	t_ = new QTimer(this);
+	connect(t_, &QTimer::timeout, this, &TimerManager::t_timeout);
 	t_->setSingleShot(true);
 }
 
@@ -86,19 +86,10 @@ int TimerManager::add(int msec, Timer *r)
 {
 	qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 
-	qint64 expiresTicks;
-	if(msec <= 0)
-	{
-		// for timeouts of zero, set immediate expiration with no rounding up
-		expiresTicks = currentTicks_;
-	}
-	else
-	{
-		// expireTime must be >= startTime_
-		qint64 expireTime = qMax(currentTime + msec, startTime_);
+	// expireTime must be >= startTime_
+	qint64 expireTime = qMax(currentTime + msec, startTime_);
 
-		expiresTicks = durationToTicksRoundUp(expireTime - startTime_);
-	}
+	qint64 expiresTicks = durationToTicksRoundUp(expireTime - startTime_);
 
 	int id = wheel_.add(expiresTicks, (size_t)r);
 
@@ -263,10 +254,8 @@ void Timer::stop()
 	}
 }
 
-void Timer::cb_timer_activated(void *ctx, uint8_t readiness)
+void Timer::cb_timer_activated(void *ctx)
 {
-	Q_UNUSED(readiness);
-
 	Timer *self = (Timer *)ctx;
 
 	self->timerReady();
@@ -296,3 +285,5 @@ void Timer::deinit()
 	delete g_manager;
 	g_manager = 0;
 }
+
+#include "timer.moc"

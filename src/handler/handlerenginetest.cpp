@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016 Fanout, Inc.
- * Copyright (C) 2024-2025 Fastly, Inc.
+ * Copyright (C) 2024 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -21,8 +21,8 @@
  * $FANOUT_END_LICENSE$
  */
 
+#include <QtTest/QtTest>
 #include <QDir>
-#include "test.h"
 #include "qzmqsocket.h"
 #include "qzmqvalve.h"
 #include "qzmqreqmessage.h"
@@ -38,8 +38,10 @@
 
 namespace {
 
-class Wrapper
+class Wrapper : public QObject
 {
+	Q_OBJECT
+
 public:
 	std::unique_ptr<QZmq::Socket> zhttpClientOutStreamSock;
 	std::unique_ptr<QZmq::Socket> zhttpClientInSock;
@@ -67,7 +69,8 @@ public:
 	Connection zhttpServerInStreamValveConnection;
 	Connection proxyAcceptValveConnection;
 
-	Wrapper(QDir _workDir) :
+	Wrapper(QObject *parent, QDir _workDir) :
+		QObject(parent),
 		workDir(_workDir),
 		acceptSuccess(false),
 		finished(false),
@@ -144,6 +147,7 @@ public:
 		requestBody.clear();
 	}
 
+private slots:
 	void zhttpClientIn_readyRead(const QList<QByteArray> &message)
 	{
 		log_debug("client in");
@@ -244,26 +248,31 @@ public:
 		QZmq::ReqMessage message(_message);
 		QVariant v = TnetString::toVariant(message.content()[0]);
 
-		TEST_ASSERT(typeId(v) == QMetaType::QVariantHash);
+		QVERIFY(typeId(v) == QMetaType::QVariantHash);
 		QVariantHash vresp = v.toHash();
 
-		TEST_ASSERT(vresp.value("success").toBool());
+		QVERIFY(vresp.value("success").toBool());
 
 		acceptSuccess = true;
 
 		v = vresp.value("value");
-		TEST_ASSERT(typeId(v) == QMetaType::QVariantHash);
+		QVERIFY(typeId(v) == QMetaType::QVariantHash);
 		acceptValue = v.toHash();
 	}
 };
 
-class TestState
+}
+
+class HandlerEngineTest : public QObject
 {
-public:
+	Q_OBJECT
+
+private:
 	HandlerEngine *engine;
 	Wrapper *wrapper;
 
-	TestState()
+private slots:
+	void initTestCase()
 	{
 		log_setOutputLevel(LOG_LEVEL_WARNING);
 		//log_setOutputLevel(LOG_LEVEL_DEBUG);
@@ -271,13 +280,11 @@ public:
 		QDir outDir(qgetenv("OUT_DIR"));
 		QDir workDir(QDir::current().relativeFilePath(outDir.filePath("test-work")));
 
-		Timer::init(100);
-
-		wrapper = new Wrapper(workDir);
+		wrapper = new Wrapper(this, workDir);
 		wrapper->startHttp();
 		wrapper->startProxy();
 
-		engine = new HandlerEngine;
+		engine = new HandlerEngine(this);
 
 		HandlerEngine::Configuration config;
 		config.instanceId = "handler";
@@ -290,14 +297,14 @@ public:
 		config.pushInSpec = ("ipc://" + workDir.filePath("publish-pull"));
 		config.connectionSubscriptionMax = 20;
 		config.connectionsMax = 20;
-		TEST_ASSERT(engine->start(config));
+		QVERIFY(engine->start(config));
 
 		wrapper->startPublish();
 
 		QTest::qWait(500);
 	}
 
-	~TestState()
+	void cleanupTestCase()
 	{
 		delete engine;
 		delete wrapper;
@@ -305,571 +312,545 @@ public:
 		// ensure deferred deletes are processed
 		QCoreApplication::instance()->sendPostedEvents();
 
-		DeferCall::cleanup();
 		Timer::deinit();
+		DeferCall::cleanup();
+	}
+
+	void acceptNoHold()
+	{
+		wrapper->reset();
+
+		QByteArray id = "1";
+
+		QVariantHash rid;
+		rid["sender"] = QByteArray("test-client");
+		rid["id"] = id;
+
+		QVariantHash reqState;
+		reqState["rid"] = rid;
+		reqState["in-seq"] = 1;
+		reqState["out-seq"] = 1;
+		reqState["out-credits"] = 1000;
+
+		QVariantHash req;
+		req["method"] = QByteArray("GET");
+		req["uri"] = QByteArray("http://example.com/path");
+		QVariantList reqHeaders;
+		req["headers"] = reqHeaders;
+		req["body"] = QByteArray();
+
+		QVariantHash resp;
+		resp["code"] = 200;
+		resp["reason"] = QByteArray("OK");
+		QVariantList respHeaders;
+		respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
+		resp["headers"] = respHeaders;
+		resp["body"] = QByteArray("hello world\n");
+
+		QVariantHash args;
+		args["requests"] = QVariantList() << reqState;
+		args["request-data"] = req;
+		args["orig-request-data"] = req;
+		args["response"] = resp;
+
+		QVariantHash data;
+		data["id"] = id;
+		data["method"] = QByteArray("accept");
+		data["args"] = args;
+
+		QByteArray buf = TnetString::fromVariant(data);
+		wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
+		while(!wrapper->acceptSuccess)
+			QTest::qWait(10);
+
+		QVERIFY(!wrapper->acceptValue.value("accepted").toBool());
+		QCOMPARE(wrapper->acceptValue["response"].toHash()["body"].toByteArray(), QByteArray("hello world\n"));
+	}
+
+	void acceptNoHoldResponseSent()
+	{
+		wrapper->reset();
+
+		QByteArray id = "2";
+
+		QVariantHash rid;
+		rid["sender"] = QByteArray("test-client");
+		rid["id"] = id;
+
+		QVariantHash reqState;
+		reqState["rid"] = rid;
+		reqState["in-seq"] = 1;
+		reqState["out-seq"] = 1;
+		reqState["out-credits"] = 1000;
+
+		QVariantHash req;
+		req["method"] = QByteArray("GET");
+		req["uri"] = QByteArray("http://example.com/path");
+		QVariantList reqHeaders;
+		req["headers"] = reqHeaders;
+		req["body"] = QByteArray();
+
+		QVariantHash resp;
+		resp["code"] = 200;
+		resp["reason"] = QByteArray("OK");
+		QVariantList respHeaders;
+		respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
+		resp["headers"] = respHeaders;
+		resp["body"] = QByteArray("hello world\n");
+
+		QVariantHash args;
+		args["requests"] = QVariantList() << reqState;
+		args["request-data"] = req;
+		args["orig-request-data"] = req;
+		args["response"] = resp;
+		args["response-sent"] = true;
+
+		QVariantHash data;
+		data["id"] = id;
+		data["method"] = QByteArray("accept");
+		data["args"] = args;
+
+		QByteArray buf = TnetString::fromVariant(data);
+		wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
+		while(!wrapper->acceptSuccess)
+			QTest::qWait(10);
+
+		QVERIFY(!wrapper->acceptValue.value("accepted").toBool());
+		QVERIFY(!wrapper->acceptValue.contains("response"));
+	}
+
+	void acceptNoHoldNext()
+	{
+		wrapper->reset();
+
+		QByteArray id = "3";
+
+		QVariantHash rid;
+		rid["sender"] = QByteArray("test-client");
+		rid["id"] = id;
+
+		QVariantHash reqState;
+		reqState["rid"] = rid;
+		reqState["in-seq"] = 1;
+		reqState["out-seq"] = 1;
+		reqState["out-credits"] = 1000;
+
+		QVariantHash req;
+		req["method"] = QByteArray("GET");
+		req["uri"] = QByteArray("http://example.com/path");
+		QVariantList reqHeaders;
+		req["headers"] = reqHeaders;
+		req["body"] = QByteArray();
+
+		QVariantHash resp;
+		resp["code"] = 200;
+		resp["reason"] = QByteArray("OK");
+		QVariantList respHeaders;
+		respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
+		respHeaders += QVariant(QVariantList() << QByteArray("Grip-Link") << QByteArray("</next>; rel=next"));
+		resp["headers"] = respHeaders;
+		resp["body"] = QByteArray("hello world\n");
+
+		QVariantHash args;
+		args["requests"] = QVariantList() << reqState;
+		args["request-data"] = req;
+		args["orig-request-data"] = req;
+		args["response"] = resp;
+
+		QVariantHash data;
+		data["id"] = id;
+		data["method"] = QByteArray("accept");
+		data["args"] = args;
+
+		QByteArray buf = TnetString::fromVariant(data);
+		wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
+		while(!wrapper->acceptSuccess)
+			QTest::qWait(10);
+
+		QVERIFY(wrapper->acceptValue.value("accepted").toBool());
+
+		while(!wrapper->finished)
+			QTest::qWait(10);
+
+		QVERIFY(wrapper->responses.contains(id));
+		QCOMPARE(wrapper->responses.value(id).body, QByteArray("hello world\nthis is what's next\n"));
+	}
+
+	void acceptNoHoldNextResponseSent()
+	{
+		wrapper->reset();
+
+		QByteArray id = "4";
+
+		QVariantHash rid;
+		rid["sender"] = QByteArray("test-client");
+		rid["id"] = id;
+
+		QVariantHash reqState;
+		reqState["rid"] = rid;
+		reqState["in-seq"] = 1;
+		reqState["out-seq"] = 1;
+		reqState["out-credits"] = 1000;
+		reqState["response-code"] = 200;
+
+		QVariantHash req;
+		req["method"] = QByteArray("GET");
+		req["uri"] = QByteArray("http://example.com/path");
+		QVariantList reqHeaders;
+		req["headers"] = reqHeaders;
+		req["body"] = QByteArray();
+
+		QVariantHash resp;
+		resp["code"] = 200;
+		resp["reason"] = QByteArray("OK");
+		QVariantList respHeaders;
+		respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
+		respHeaders += QVariant(QVariantList() << QByteArray("Grip-Link") << QByteArray("</next>; rel=next"));
+		resp["headers"] = respHeaders;
+		resp["body"] = QByteArray("hello world\n");
+
+		QVariantHash args;
+		args["requests"] = QVariantList() << reqState;
+		args["request-data"] = req;
+		args["orig-request-data"] = req;
+		args["response"] = resp;
+		args["response-sent"] = true;
+
+		QVariantHash data;
+		data["id"] = id;
+		data["method"] = QByteArray("accept");
+		data["args"] = args;
+
+		QByteArray buf = TnetString::fromVariant(data);
+		wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
+		while(!wrapper->acceptSuccess)
+			QTest::qWait(10);
+
+		QVERIFY(wrapper->acceptValue.value("accepted").toBool());
+
+		while(!wrapper->finished)
+			QTest::qWait(10);
+
+		QVERIFY(wrapper->responses.contains(id));
+		QCOMPARE(wrapper->responses.value(id).body, QByteArray("this is what's next\n"));
+	}
+
+	void publishResponse()
+	{
+		wrapper->reset();
+
+		QByteArray id = "5";
+
+		QVariantHash rid;
+		rid["sender"] = QByteArray("test-client");
+		rid["id"] = id;
+
+		QVariantHash reqState;
+		reqState["rid"] = rid;
+		reqState["in-seq"] = 1;
+		reqState["out-seq"] = 1;
+		reqState["out-credits"] = 1000;
+
+		QVariantHash req;
+		req["method"] = QByteArray("GET");
+		req["uri"] = QByteArray("http://example.com/path");
+		QVariantList reqHeaders;
+		req["headers"] = reqHeaders;
+		req["body"] = QByteArray();
+
+		QVariantHash resp;
+		resp["code"] = 200;
+		resp["reason"] = QByteArray("OK");
+		QVariantList respHeaders;
+		respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
+		respHeaders += QVariant(QVariantList() << QByteArray("Grip-Hold") << QByteArray("response"));
+		respHeaders += QVariant(QVariantList() << QByteArray("Grip-Channel") << QByteArray("apple"));
+		resp["headers"] = respHeaders;
+		resp["body"] = QByteArray("timeout\n");
+
+		QVariantHash args;
+		args["requests"] = QVariantList() << reqState;
+		args["request-data"] = req;
+		args["orig-request-data"] = req;
+		args["response"] = resp;
+
+		QVariantHash data;
+		data["id"] = id;
+		data["method"] = QByteArray("accept");
+		data["args"] = args;
+
+		QByteArray buf = TnetString::fromVariant(data);
+		wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
+		while(!wrapper->acceptSuccess)
+			QTest::qWait(10);
+
+		data.clear();
+
+		QVariantHash hr;
+		hr["body"] = QByteArray("hello world\n");
+
+		QVariantHash formats;
+		formats["http-response"] = hr;
+
+		data["channel"] = QByteArray("apple");
+		data["formats"] = formats;
+
+		buf = TnetString::fromVariant(data);
+		wrapper->publishPushSock->write(QList<QByteArray>() << buf);
+		while(!wrapper->finished)
+			QTest::qWait(10);
+
+		QVERIFY(wrapper->responses.contains(id));
+		QCOMPARE(wrapper->responses.value(id).body, QByteArray("hello world\n"));
+	}
+
+	void publishStream()
+	{
+		wrapper->reset();
+
+		QByteArray id = "6";
+
+		QVariantHash rid;
+		rid["sender"] = QByteArray("test-client");
+		rid["id"] = id;
+
+		QVariantHash reqState;
+		reqState["rid"] = rid;
+		reqState["in-seq"] = 1;
+		reqState["out-seq"] = 1;
+		reqState["out-credits"] = 1000;
+
+		QVariantHash req;
+		req["method"] = QByteArray("GET");
+		req["uri"] = QByteArray("http://example.com/path");
+		QVariantList reqHeaders;
+		req["headers"] = reqHeaders;
+		req["body"] = QByteArray();
+
+		QVariantHash resp;
+		resp["code"] = 200;
+		resp["reason"] = QByteArray("OK");
+		QVariantList respHeaders;
+		respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
+		respHeaders += QVariant(QVariantList() << QByteArray("Grip-Hold") << QByteArray("stream"));
+		respHeaders += QVariant(QVariantList() << QByteArray("Grip-Channel") << QByteArray("apple"));
+		resp["headers"] = respHeaders;
+		resp["body"] = QByteArray("stream open\n");
+
+		QVariantHash args;
+		args["requests"] = QVariantList() << reqState;
+		args["request-data"] = req;
+		args["orig-request-data"] = req;
+		args["response"] = resp;
+
+		QVariantHash data;
+		data["id"] = id;
+		data["method"] = QByteArray("accept");
+		data["args"] = args;
+
+		QByteArray buf = TnetString::fromVariant(data);
+		wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
+		while(!wrapper->acceptSuccess)
+			QTest::qWait(10);
+
+		data.clear();
+
+		{
+			QVariantHash hs;
+			hs["content"] = QByteArray("hello world\n");
+
+			QVariantHash formats;
+			formats["http-stream"] = hs;
+
+			data["channel"] = QByteArray("apple");
+			data["formats"] = formats;
+		}
+
+		buf = TnetString::fromVariant(data);
+		wrapper->publishPushSock->write(QList<QByteArray>() << buf);
+
+		data.clear();
+
+		{
+			QVariantHash hs;
+			hs["action"] = QByteArray("close");
+
+			QVariantHash formats;
+			formats["http-stream"] = hs;
+
+			data["channel"] = QByteArray("apple");
+			data["formats"] = formats;
+		}
+
+		buf = TnetString::fromVariant(data);
+		wrapper->publishPushSock->write(QList<QByteArray>() << buf);
+
+		while(!wrapper->finished)
+			QTest::qWait(10);
+
+		QVERIFY(wrapper->responses.contains(id));
+		QCOMPARE(wrapper->responses.value(id).body, QByteArray("stream open\nhello world\n"));
+	}
+
+	void publishStreamReorder()
+	{
+		wrapper->reset();
+
+		QByteArray id = "7";
+
+		QVariantHash rid;
+		rid["sender"] = QByteArray("test-client");
+		rid["id"] = id;
+
+		QVariantHash reqState;
+		reqState["rid"] = rid;
+		reqState["in-seq"] = 1;
+		reqState["out-seq"] = 1;
+		reqState["out-credits"] = 1000;
+
+		QVariantHash req;
+		req["method"] = QByteArray("GET");
+		req["uri"] = QByteArray("http://example.com/path");
+		QVariantList reqHeaders;
+		req["headers"] = reqHeaders;
+		req["body"] = QByteArray();
+
+		QVariantHash resp;
+		resp["code"] = 200;
+		resp["reason"] = QByteArray("OK");
+		QVariantList respHeaders;
+		respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
+		respHeaders += QVariant(QVariantList() << QByteArray("Grip-Hold") << QByteArray("stream"));
+		respHeaders += QVariant(QVariantList() << QByteArray("Grip-Channel") << QByteArray("apple"));
+		resp["headers"] = respHeaders;
+		resp["body"] = QByteArray("stream open\n");
+
+		QVariantHash args;
+		args["requests"] = QVariantList() << reqState;
+		args["request-data"] = req;
+		args["orig-request-data"] = req;
+		args["response"] = resp;
+
+		QVariantHash data;
+		data["id"] = id;
+		data["method"] = QByteArray("accept");
+		data["args"] = args;
+
+		QByteArray buf = TnetString::fromVariant(data);
+		wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
+		while(!wrapper->acceptSuccess)
+			QTest::qWait(10);
+
+		data.clear();
+
+		{
+			QVariantHash hs;
+			hs["content"] = QByteArray("one\n");
+
+			QVariantHash formats;
+			formats["http-stream"] = hs;
+
+			data["channel"] = QByteArray("apple");
+			data["id"] = QByteArray("a");
+			data["formats"] = formats;
+		}
+
+		buf = TnetString::fromVariant(data);
+		wrapper->publishPushSock->write(QList<QByteArray>() << buf);
+
+		data.clear();
+
+		{
+			QVariantHash hs;
+			hs["action"] = QByteArray("close");
+
+			QVariantHash formats;
+			formats["http-stream"] = hs;
+
+			data["channel"] = QByteArray("apple");
+			data["id"] = QByteArray("e");
+			data["prev-id"] = QByteArray("d");
+			data["formats"] = formats;
+		}
+
+		buf = TnetString::fromVariant(data);
+		wrapper->publishPushSock->write(QList<QByteArray>() << buf);
+
+		data.clear();
+
+		{
+			QVariantHash hs;
+			hs["content"] = QByteArray("four\n");
+
+			QVariantHash formats;
+			formats["http-stream"] = hs;
+
+			data["channel"] = QByteArray("apple");
+			data["id"] = QByteArray("d");
+			data["prev-id"] = QByteArray("c");
+			data["formats"] = formats;
+		}
+
+		buf = TnetString::fromVariant(data);
+		wrapper->publishPushSock->write(QList<QByteArray>() << buf);
+
+		data.clear();
+
+		{
+			QVariantHash hs;
+			hs["content"] = QByteArray("three\n");
+
+			QVariantHash formats;
+			formats["http-stream"] = hs;
+
+			data["channel"] = QByteArray("apple");
+			data["id"] = QByteArray("c");
+			data["prev-id"] = QByteArray("b");
+			data["formats"] = formats;
+		}
+
+		buf = TnetString::fromVariant(data);
+		wrapper->publishPushSock->write(QList<QByteArray>() << buf);
+
+		data.clear();
+
+		{
+			QVariantHash hs;
+			hs["content"] = QByteArray("two\n");
+
+			QVariantHash formats;
+			formats["http-stream"] = hs;
+
+			data["channel"] = QByteArray("apple");
+			data["id"] = QByteArray("b");
+			data["prev-id"] = QByteArray("a");
+			data["formats"] = formats;
+		}
+
+		buf = TnetString::fromVariant(data);
+		wrapper->publishPushSock->write(QList<QByteArray>() << buf);
+
+		while(!wrapper->finished)
+			QTest::qWait(10);
+
+		QVERIFY(wrapper->responses.contains(id));
+		QCOMPARE(wrapper->responses.value(id).body, QByteArray("stream open\none\ntwo\nthree\nfour\n"));
 	}
 };
 
+namespace {
+namespace Main {
+QTEST_MAIN(HandlerEngineTest)
+}
 }
 
-static void acceptNoHold()
+extern "C" {
+
+int handlerengine_test(int argc, char **argv)
 {
-	TestQCoreApplication qapp;
-	TestState state;
-	Wrapper *wrapper = state.wrapper;
-
-	wrapper->reset();
-
-	QByteArray id = "1";
-
-	QVariantHash rid;
-	rid["sender"] = QByteArray("test-client");
-	rid["id"] = id;
-
-	QVariantHash reqState;
-	reqState["rid"] = rid;
-	reqState["in-seq"] = 1;
-	reqState["out-seq"] = 1;
-	reqState["out-credits"] = 1000;
-
-	QVariantHash req;
-	req["method"] = QByteArray("GET");
-	req["uri"] = QByteArray("http://example.com/path");
-	QVariantList reqHeaders;
-	req["headers"] = reqHeaders;
-	req["body"] = QByteArray();
-
-	QVariantHash resp;
-	resp["code"] = 200;
-	resp["reason"] = QByteArray("OK");
-	QVariantList respHeaders;
-	respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
-	resp["headers"] = respHeaders;
-	resp["body"] = QByteArray("hello world\n");
-
-	QVariantHash args;
-	args["requests"] = QVariantList() << reqState;
-	args["request-data"] = req;
-	args["orig-request-data"] = req;
-	args["response"] = resp;
-
-	QVariantHash data;
-	data["id"] = id;
-	data["method"] = QByteArray("accept");
-	data["args"] = args;
-
-	QByteArray buf = TnetString::fromVariant(data);
-	wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
-	while(!wrapper->acceptSuccess)
-		QTest::qWait(10);
-
-	TEST_ASSERT(!wrapper->acceptValue.value("accepted").toBool());
-	TEST_ASSERT_EQ(wrapper->acceptValue["response"].toHash()["body"].toByteArray(), QByteArray("hello world\n"));
+	return Main::main(argc, argv);
 }
 
-static void acceptNoHoldResponseSent()
-{
-	TestQCoreApplication qapp;
-	TestState state;
-	Wrapper *wrapper = state.wrapper;
-
-	wrapper->reset();
-
-	QByteArray id = "2";
-
-	QVariantHash rid;
-	rid["sender"] = QByteArray("test-client");
-	rid["id"] = id;
-
-	QVariantHash reqState;
-	reqState["rid"] = rid;
-	reqState["in-seq"] = 1;
-	reqState["out-seq"] = 1;
-	reqState["out-credits"] = 1000;
-
-	QVariantHash req;
-	req["method"] = QByteArray("GET");
-	req["uri"] = QByteArray("http://example.com/path");
-	QVariantList reqHeaders;
-	req["headers"] = reqHeaders;
-	req["body"] = QByteArray();
-
-	QVariantHash resp;
-	resp["code"] = 200;
-	resp["reason"] = QByteArray("OK");
-	QVariantList respHeaders;
-	respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
-	resp["headers"] = respHeaders;
-	resp["body"] = QByteArray("hello world\n");
-
-	QVariantHash args;
-	args["requests"] = QVariantList() << reqState;
-	args["request-data"] = req;
-	args["orig-request-data"] = req;
-	args["response"] = resp;
-	args["response-sent"] = true;
-
-	QVariantHash data;
-	data["id"] = id;
-	data["method"] = QByteArray("accept");
-	data["args"] = args;
-
-	QByteArray buf = TnetString::fromVariant(data);
-	wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
-	while(!wrapper->acceptSuccess)
-		QTest::qWait(10);
-
-	TEST_ASSERT(!wrapper->acceptValue.value("accepted").toBool());
-	TEST_ASSERT(!wrapper->acceptValue.contains("response"));
 }
 
-static void acceptNoHoldNext()
-{
-	TestQCoreApplication qapp;
-	TestState state;
-	Wrapper *wrapper = state.wrapper;
-
-	wrapper->reset();
-
-	QByteArray id = "3";
-
-	QVariantHash rid;
-	rid["sender"] = QByteArray("test-client");
-	rid["id"] = id;
-
-	QVariantHash reqState;
-	reqState["rid"] = rid;
-	reqState["in-seq"] = 1;
-	reqState["out-seq"] = 1;
-	reqState["out-credits"] = 1000;
-
-	QVariantHash req;
-	req["method"] = QByteArray("GET");
-	req["uri"] = QByteArray("http://example.com/path");
-	QVariantList reqHeaders;
-	req["headers"] = reqHeaders;
-	req["body"] = QByteArray();
-
-	QVariantHash resp;
-	resp["code"] = 200;
-	resp["reason"] = QByteArray("OK");
-	QVariantList respHeaders;
-	respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
-	respHeaders += QVariant(QVariantList() << QByteArray("Grip-Link") << QByteArray("</next>; rel=next"));
-	resp["headers"] = respHeaders;
-	resp["body"] = QByteArray("hello world\n");
-
-	QVariantHash args;
-	args["requests"] = QVariantList() << reqState;
-	args["request-data"] = req;
-	args["orig-request-data"] = req;
-	args["response"] = resp;
-
-	QVariantHash data;
-	data["id"] = id;
-	data["method"] = QByteArray("accept");
-	data["args"] = args;
-
-	QByteArray buf = TnetString::fromVariant(data);
-	wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
-	while(!wrapper->acceptSuccess)
-		QTest::qWait(10);
-
-	TEST_ASSERT(wrapper->acceptValue.value("accepted").toBool());
-
-	while(!wrapper->finished)
-		QTest::qWait(10);
-
-	TEST_ASSERT(wrapper->responses.contains(id));
-	TEST_ASSERT_EQ(wrapper->responses.value(id).body, QByteArray("hello world\nthis is what's next\n"));
-}
-
-static void acceptNoHoldNextResponseSent()
-{
-	TestQCoreApplication qapp;
-	TestState state;
-	Wrapper *wrapper = state.wrapper;
-
-	wrapper->reset();
-
-	QByteArray id = "4";
-
-	QVariantHash rid;
-	rid["sender"] = QByteArray("test-client");
-	rid["id"] = id;
-
-	QVariantHash reqState;
-	reqState["rid"] = rid;
-	reqState["in-seq"] = 1;
-	reqState["out-seq"] = 1;
-	reqState["out-credits"] = 1000;
-	reqState["response-code"] = 200;
-
-	QVariantHash req;
-	req["method"] = QByteArray("GET");
-	req["uri"] = QByteArray("http://example.com/path");
-	QVariantList reqHeaders;
-	req["headers"] = reqHeaders;
-	req["body"] = QByteArray();
-
-	QVariantHash resp;
-	resp["code"] = 200;
-	resp["reason"] = QByteArray("OK");
-	QVariantList respHeaders;
-	respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
-	respHeaders += QVariant(QVariantList() << QByteArray("Grip-Link") << QByteArray("</next>; rel=next"));
-	resp["headers"] = respHeaders;
-	resp["body"] = QByteArray("hello world\n");
-
-	QVariantHash args;
-	args["requests"] = QVariantList() << reqState;
-	args["request-data"] = req;
-	args["orig-request-data"] = req;
-	args["response"] = resp;
-	args["response-sent"] = true;
-
-	QVariantHash data;
-	data["id"] = id;
-	data["method"] = QByteArray("accept");
-	data["args"] = args;
-
-	QByteArray buf = TnetString::fromVariant(data);
-	wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
-	while(!wrapper->acceptSuccess)
-		QTest::qWait(10);
-
-	TEST_ASSERT(wrapper->acceptValue.value("accepted").toBool());
-
-	while(!wrapper->finished)
-		QTest::qWait(10);
-
-	TEST_ASSERT(wrapper->responses.contains(id));
-	TEST_ASSERT_EQ(wrapper->responses.value(id).body, QByteArray("this is what's next\n"));
-}
-
-static void publishResponse()
-{
-	TestQCoreApplication qapp;
-	TestState state;
-	Wrapper *wrapper = state.wrapper;
-
-	wrapper->reset();
-
-	QByteArray id = "5";
-
-	QVariantHash rid;
-	rid["sender"] = QByteArray("test-client");
-	rid["id"] = id;
-
-	QVariantHash reqState;
-	reqState["rid"] = rid;
-	reqState["in-seq"] = 1;
-	reqState["out-seq"] = 1;
-	reqState["out-credits"] = 1000;
-
-	QVariantHash req;
-	req["method"] = QByteArray("GET");
-	req["uri"] = QByteArray("http://example.com/path");
-	QVariantList reqHeaders;
-	req["headers"] = reqHeaders;
-	req["body"] = QByteArray();
-
-	QVariantHash resp;
-	resp["code"] = 200;
-	resp["reason"] = QByteArray("OK");
-	QVariantList respHeaders;
-	respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
-	respHeaders += QVariant(QVariantList() << QByteArray("Grip-Hold") << QByteArray("response"));
-	respHeaders += QVariant(QVariantList() << QByteArray("Grip-Channel") << QByteArray("apple"));
-	resp["headers"] = respHeaders;
-	resp["body"] = QByteArray("timeout\n");
-
-	QVariantHash args;
-	args["requests"] = QVariantList() << reqState;
-	args["request-data"] = req;
-	args["orig-request-data"] = req;
-	args["response"] = resp;
-
-	QVariantHash data;
-	data["id"] = id;
-	data["method"] = QByteArray("accept");
-	data["args"] = args;
-
-	QByteArray buf = TnetString::fromVariant(data);
-	wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
-	while(!wrapper->acceptSuccess)
-		QTest::qWait(10);
-
-	data.clear();
-
-	QVariantHash hr;
-	hr["body"] = QByteArray("hello world\n");
-
-	QVariantHash formats;
-	formats["http-response"] = hr;
-
-	data["channel"] = QByteArray("apple");
-	data["formats"] = formats;
-
-	buf = TnetString::fromVariant(data);
-	wrapper->publishPushSock->write(QList<QByteArray>() << buf);
-	while(!wrapper->finished)
-		QTest::qWait(10);
-
-	TEST_ASSERT(wrapper->responses.contains(id));
-	TEST_ASSERT_EQ(wrapper->responses.value(id).body, QByteArray("hello world\n"));
-}
-
-static void publishStream()
-{
-	TestQCoreApplication qapp;
-	TestState state;
-	Wrapper *wrapper = state.wrapper;
-
-	wrapper->reset();
-
-	QByteArray id = "6";
-
-	QVariantHash rid;
-	rid["sender"] = QByteArray("test-client");
-	rid["id"] = id;
-
-	QVariantHash reqState;
-	reqState["rid"] = rid;
-	reqState["in-seq"] = 1;
-	reqState["out-seq"] = 1;
-	reqState["out-credits"] = 1000;
-
-	QVariantHash req;
-	req["method"] = QByteArray("GET");
-	req["uri"] = QByteArray("http://example.com/path");
-	QVariantList reqHeaders;
-	req["headers"] = reqHeaders;
-	req["body"] = QByteArray();
-
-	QVariantHash resp;
-	resp["code"] = 200;
-	resp["reason"] = QByteArray("OK");
-	QVariantList respHeaders;
-	respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
-	respHeaders += QVariant(QVariantList() << QByteArray("Grip-Hold") << QByteArray("stream"));
-	respHeaders += QVariant(QVariantList() << QByteArray("Grip-Channel") << QByteArray("apple"));
-	resp["headers"] = respHeaders;
-	resp["body"] = QByteArray("stream open\n");
-
-	QVariantHash args;
-	args["requests"] = QVariantList() << reqState;
-	args["request-data"] = req;
-	args["orig-request-data"] = req;
-	args["response"] = resp;
-
-	QVariantHash data;
-	data["id"] = id;
-	data["method"] = QByteArray("accept");
-	data["args"] = args;
-
-	QByteArray buf = TnetString::fromVariant(data);
-	wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
-	while(!wrapper->acceptSuccess)
-		QTest::qWait(10);
-
-	data.clear();
-
-	{
-		QVariantHash hs;
-		hs["content"] = QByteArray("hello world\n");
-
-		QVariantHash formats;
-		formats["http-stream"] = hs;
-
-		data["channel"] = QByteArray("apple");
-		data["formats"] = formats;
-	}
-
-	buf = TnetString::fromVariant(data);
-	wrapper->publishPushSock->write(QList<QByteArray>() << buf);
-
-	data.clear();
-
-	{
-		QVariantHash hs;
-		hs["action"] = QByteArray("close");
-
-		QVariantHash formats;
-		formats["http-stream"] = hs;
-
-		data["channel"] = QByteArray("apple");
-		data["formats"] = formats;
-	}
-
-	buf = TnetString::fromVariant(data);
-	wrapper->publishPushSock->write(QList<QByteArray>() << buf);
-
-	while(!wrapper->finished)
-		QTest::qWait(10);
-
-	TEST_ASSERT(wrapper->responses.contains(id));
-	TEST_ASSERT_EQ(wrapper->responses.value(id).body, QByteArray("stream open\nhello world\n"));
-}
-
-static void publishStreamReorder()
-{
-	TestQCoreApplication qapp;
-	TestState state;
-	Wrapper *wrapper = state.wrapper;
-
-	wrapper->reset();
-
-	QByteArray id = "7";
-
-	QVariantHash rid;
-	rid["sender"] = QByteArray("test-client");
-	rid["id"] = id;
-
-	QVariantHash reqState;
-	reqState["rid"] = rid;
-	reqState["in-seq"] = 1;
-	reqState["out-seq"] = 1;
-	reqState["out-credits"] = 1000;
-
-	QVariantHash req;
-	req["method"] = QByteArray("GET");
-	req["uri"] = QByteArray("http://example.com/path");
-	QVariantList reqHeaders;
-	req["headers"] = reqHeaders;
-	req["body"] = QByteArray();
-
-	QVariantHash resp;
-	resp["code"] = 200;
-	resp["reason"] = QByteArray("OK");
-	QVariantList respHeaders;
-	respHeaders += QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
-	respHeaders += QVariant(QVariantList() << QByteArray("Grip-Hold") << QByteArray("stream"));
-	respHeaders += QVariant(QVariantList() << QByteArray("Grip-Channel") << QByteArray("apple"));
-	resp["headers"] = respHeaders;
-	resp["body"] = QByteArray("stream open\n");
-
-	QVariantHash args;
-	args["requests"] = QVariantList() << reqState;
-	args["request-data"] = req;
-	args["orig-request-data"] = req;
-	args["response"] = resp;
-
-	QVariantHash data;
-	data["id"] = id;
-	data["method"] = QByteArray("accept");
-	data["args"] = args;
-
-	QByteArray buf = TnetString::fromVariant(data);
-	wrapper->proxyAcceptSock->write(QList<QByteArray>() << QByteArray() << buf);
-	while(!wrapper->acceptSuccess)
-		QTest::qWait(10);
-
-	data.clear();
-
-	{
-		QVariantHash hs;
-		hs["content"] = QByteArray("one\n");
-
-		QVariantHash formats;
-		formats["http-stream"] = hs;
-
-		data["channel"] = QByteArray("apple");
-		data["id"] = QByteArray("a");
-		data["formats"] = formats;
-	}
-
-	buf = TnetString::fromVariant(data);
-	wrapper->publishPushSock->write(QList<QByteArray>() << buf);
-
-	data.clear();
-
-	{
-		QVariantHash hs;
-		hs["action"] = QByteArray("close");
-
-		QVariantHash formats;
-		formats["http-stream"] = hs;
-
-		data["channel"] = QByteArray("apple");
-		data["id"] = QByteArray("e");
-		data["prev-id"] = QByteArray("d");
-		data["formats"] = formats;
-	}
-
-	buf = TnetString::fromVariant(data);
-	wrapper->publishPushSock->write(QList<QByteArray>() << buf);
-
-	data.clear();
-
-	{
-		QVariantHash hs;
-		hs["content"] = QByteArray("four\n");
-
-		QVariantHash formats;
-		formats["http-stream"] = hs;
-
-		data["channel"] = QByteArray("apple");
-		data["id"] = QByteArray("d");
-		data["prev-id"] = QByteArray("c");
-		data["formats"] = formats;
-	}
-
-	buf = TnetString::fromVariant(data);
-	wrapper->publishPushSock->write(QList<QByteArray>() << buf);
-
-	data.clear();
-
-	{
-		QVariantHash hs;
-		hs["content"] = QByteArray("three\n");
-
-		QVariantHash formats;
-		formats["http-stream"] = hs;
-
-		data["channel"] = QByteArray("apple");
-		data["id"] = QByteArray("c");
-		data["prev-id"] = QByteArray("b");
-		data["formats"] = formats;
-	}
-
-	buf = TnetString::fromVariant(data);
-	wrapper->publishPushSock->write(QList<QByteArray>() << buf);
-
-	data.clear();
-
-	{
-		QVariantHash hs;
-		hs["content"] = QByteArray("two\n");
-
-		QVariantHash formats;
-		formats["http-stream"] = hs;
-
-		data["channel"] = QByteArray("apple");
-		data["id"] = QByteArray("b");
-		data["prev-id"] = QByteArray("a");
-		data["formats"] = formats;
-	}
-
-	buf = TnetString::fromVariant(data);
-	wrapper->publishPushSock->write(QList<QByteArray>() << buf);
-
-	while(!wrapper->finished)
-		QTest::qWait(10);
-
-	TEST_ASSERT(wrapper->responses.contains(id));
-	TEST_ASSERT_EQ(wrapper->responses.value(id).body, QByteArray("stream open\none\ntwo\nthree\nfour\n"));
-}
-
-extern "C" int handlerengine_test(ffi::TestException *out_ex)
-{
-	TEST_CATCH(acceptNoHold());
-	TEST_CATCH(acceptNoHoldResponseSent());
-	TEST_CATCH(acceptNoHoldNext());
-	TEST_CATCH(acceptNoHoldNextResponseSent());
-	TEST_CATCH(publishResponse());
-	TEST_CATCH(publishStream());
-	TEST_CATCH(publishStreamReorder());
-
-	return 0;
-}
+#include "handlerenginetest.moc"

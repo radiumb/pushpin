@@ -44,8 +44,10 @@ using std::map;
 #define KEEPALIVE_TIMEOUT 25
 #define UNCONNECTED_TIMEOUT 5
 
-class SockJsSession::Private
+class SockJsSession::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	enum Mode
 	{
@@ -167,6 +169,7 @@ public:
 	DeferCall deferCall;
 
 	Private(SockJsSession *_q) :
+		QObject(_q),
 		q(_q),
 		manager(0),
 		mode((Mode)-1),
@@ -1109,7 +1112,8 @@ public:
 	}
 };
 
-SockJsSession::SockJsSession()
+SockJsSession::SockJsSession(QObject *parent) :
+	WebSocket(parent)
 {
 	d = std::make_shared<Private>(this);
 }
@@ -1353,3 +1357,5 @@ void SockJsSession::handleRequest(ZhttpRequest *req, const QByteArray &jsonpCall
 {
 	d->handleRequest(req, jsonpCallback, lastPart, body);
 }
+
+#include "sockjssession.moc"

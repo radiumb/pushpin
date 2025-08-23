@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024-2025 Fastly, Inc.
+ * Copyright (C) 2024 Fastly, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,76 +16,77 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::core::test::{run_serial, TestException};
+    use crate::core::{call_c_main, qtest};
     use crate::ffi;
+    use std::ffi::OsStr;
 
-    fn filter_test(out_ex: &mut TestException) -> bool {
+    fn filter_test(args: &[&OsStr]) -> u8 {
         // SAFETY: safe to call
-        unsafe { ffi::filter_test(out_ex) == 0 }
+        unsafe { call_c_main(ffi::filter_test, args) as u8 }
     }
 
-    fn jsonpatch_test(out_ex: &mut TestException) -> bool {
+    fn jsonpatch_test(args: &[&OsStr]) -> u8 {
         // SAFETY: safe to call
-        unsafe { ffi::jsonpatch_test(out_ex) == 0 }
+        unsafe { call_c_main(ffi::jsonpatch_test, args) as u8 }
     }
 
-    fn instruct_test(out_ex: &mut TestException) -> bool {
+    fn instruct_test(args: &[&OsStr]) -> u8 {
         // SAFETY: safe to call
-        unsafe { ffi::instruct_test(out_ex) == 0 }
+        unsafe { call_c_main(ffi::instruct_test, args) as u8 }
     }
 
-    fn idformat_test(out_ex: &mut TestException) -> bool {
+    fn idformat_test(args: &[&OsStr]) -> u8 {
         // SAFETY: safe to call
-        unsafe { ffi::idformat_test(out_ex) == 0 }
+        unsafe { call_c_main(ffi::idformat_test, args) as u8 }
     }
 
-    fn publishformat_test(out_ex: &mut TestException) -> bool {
+    fn publishformat_test(args: &[&OsStr]) -> u8 {
         // SAFETY: safe to call
-        unsafe { ffi::publishformat_test(out_ex) == 0 }
+        unsafe { call_c_main(ffi::publishformat_test, args) as u8 }
     }
 
-    fn publishitem_test(out_ex: &mut TestException) -> bool {
+    fn publishitem_test(args: &[&OsStr]) -> u8 {
         // SAFETY: safe to call
-        unsafe { ffi::publishitem_test(out_ex) == 0 }
+        unsafe { call_c_main(ffi::publishitem_test, args) as u8 }
     }
 
-    fn handlerengine_test(out_ex: &mut TestException) -> bool {
+    fn handlerengine_test(args: &[&OsStr]) -> u8 {
         // SAFETY: safe to call
-        unsafe { ffi::handlerengine_test(out_ex) == 0 }
+        unsafe { call_c_main(ffi::handlerengine_test, args) as u8 }
     }
 
     #[test]
     fn filter() {
-        run_serial(filter_test);
+        assert!(qtest::run(filter_test));
     }
 
     #[test]
     fn jsonpatch() {
-        run_serial(jsonpatch_test);
+        assert!(qtest::run(jsonpatch_test));
     }
 
     #[test]
     fn instruct() {
-        run_serial(instruct_test);
+        assert!(qtest::run(instruct_test));
     }
 
     #[test]
     fn idformat() {
-        run_serial(idformat_test);
+        assert!(qtest::run(idformat_test));
     }
 
     #[test]
     fn publishformat() {
-        run_serial(publishformat_test);
+        assert!(qtest::run(publishformat_test));
     }
 
     #[test]
     fn publishitem() {
-        run_serial(publishitem_test);
+        assert!(qtest::run(publishitem_test));
     }
 
     #[test]
     fn handlerengine() {
-        run_serial(handlerengine_test);
+        assert!(qtest::run(handlerengine_test));
     }
 }

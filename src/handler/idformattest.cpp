@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2017 Fanout, Inc.
- * Copyright (C) 2025 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -21,70 +20,84 @@
  * $FANOUT_END_LICENSE$
  */
 
-#include "test.h"
+#include <QtTest/QtTest>
 #include "idformat.h"
 
-static void renderId()
+class IdFormatTest : public QObject
 {
-	QHash<QString, QByteArray> vars;
-	QByteArray sformat = "This template has no directives.";
-	QByteArray ret = IdFormat::renderId(sformat, vars);
-	TEST_ASSERT_EQ(ret, QByteArray("This template has no directives."));
+	Q_OBJECT
 
-	vars["name"] = "Alice";
-	vars["food\\fruit(type)"] = "apples";
+private slots:
+	void renderId()
+	{
+		QHash<QString, QByteArray> vars;
+		QByteArray sformat = "This template has no directives.";
+		QByteArray ret = IdFormat::renderId(sformat, vars);
+		QCOMPARE(ret, QByteArray("This template has no directives."));
 
-	sformat = "My name is %(name)s and I eat %(food\\\\fruit(type\\))s 10%% of the time.";
-	ret = IdFormat::renderId(sformat, vars);
-	TEST_ASSERT_EQ(ret, QByteArray("My name is Alice and I eat apples 10% of the time."));
+		vars["name"] = "Alice";
+		vars["food\\fruit(type)"] = "apples";
+
+		sformat = "My name is %(name)s and I eat %(food\\\\fruit(type\\))s 10%% of the time.";
+		ret = IdFormat::renderId(sformat, vars);
+		QCOMPARE(ret, QByteArray("My name is Alice and I eat apples 10% of the time."));
+	}
+
+	void renderContent()
+	{
+		QByteArray id = "C3PO";
+		QByteArray content = "This content has no directives.";
+		QByteArray ret = IdFormat::ContentRenderer(id, false).process(content);
+		QCOMPARE(ret, QByteArray("This content has no directives."));
+
+		content = "The ID is %I.";
+		ret = IdFormat::ContentRenderer(id, false).process(content);
+		QCOMPARE(ret, QByteArray("The ID is C3PO."));
+
+		ret = IdFormat::ContentRenderer(id, true).process(content);
+		QCOMPARE(ret, QByteArray("The ID is 4333504f."));
+
+		content = "The ID is %(R2D2)I.";
+		ret = IdFormat::ContentRenderer(id, true).process(content);
+		QCOMPARE(ret, QByteArray("The ID is 52324432."));
+	}
+
+	void renderContentIncremental()
+	{
+		IdFormat::ContentRenderer cr(QByteArray(), true);
+
+		QByteArray ret = cr.update("The ID is %");
+		QCOMPARE(ret, QByteArray("The ID is "));
+		ret += cr.update("(");
+		QCOMPARE(ret, QByteArray("The ID is "));
+		ret += cr.update("R2D");
+		QCOMPARE(ret, QByteArray("The ID is "));
+		ret += cr.update("2");
+		QCOMPARE(ret, QByteArray("The ID is "));
+		ret += cr.update(")");
+		QCOMPARE(ret, QByteArray("The ID is "));
+		ret += cr.update("I.");
+		QCOMPARE(ret, QByteArray("The ID is 52324432."));
+
+		ret += cr.finalize();
+		QVERIFY(!ret.isNull());
+		QCOMPARE(ret, QByteArray("The ID is 52324432."));
+	}
+};
+
+namespace {
+namespace Main {
+QTEST_MAIN(IdFormatTest)
+}
 }
 
-static void renderContent()
+extern "C" {
+
+int idformat_test(int argc, char **argv)
 {
-	QByteArray id = "C3PO";
-	QByteArray content = "This content has no directives.";
-	QByteArray ret = IdFormat::ContentRenderer(id, false).process(content);
-	TEST_ASSERT_EQ(ret, QByteArray("This content has no directives."));
-
-	content = "The ID is %I.";
-	ret = IdFormat::ContentRenderer(id, false).process(content);
-	TEST_ASSERT_EQ(ret, QByteArray("The ID is C3PO."));
-
-	ret = IdFormat::ContentRenderer(id, true).process(content);
-	TEST_ASSERT_EQ(ret, QByteArray("The ID is 4333504f."));
-
-	content = "The ID is %(R2D2)I.";
-	ret = IdFormat::ContentRenderer(id, true).process(content);
-	TEST_ASSERT_EQ(ret, QByteArray("The ID is 52324432."));
+	return Main::main(argc, argv);
 }
 
-static void renderContentIncremental()
-{
-	IdFormat::ContentRenderer cr(QByteArray(), true);
-
-	QByteArray ret = cr.update("The ID is %");
-	TEST_ASSERT_EQ(ret, QByteArray("The ID is "));
-	ret += cr.update("(");
-	TEST_ASSERT_EQ(ret, QByteArray("The ID is "));
-	ret += cr.update("R2D");
-	TEST_ASSERT_EQ(ret, QByteArray("The ID is "));
-	ret += cr.update("2");
-	TEST_ASSERT_EQ(ret, QByteArray("The ID is "));
-	ret += cr.update(")");
-	TEST_ASSERT_EQ(ret, QByteArray("The ID is "));
-	ret += cr.update("I.");
-	TEST_ASSERT_EQ(ret, QByteArray("The ID is 52324432."));
-
-	ret += cr.finalize();
-	TEST_ASSERT(!ret.isNull());
-	TEST_ASSERT_EQ(ret, QByteArray("The ID is 52324432."));
 }
 
-extern "C" int idformat_test(ffi::TestException *out_ex)
-{
-	TEST_CATCH(renderId());
-	TEST_CATCH(renderContent());
-	TEST_CATCH(renderContentIncremental());
-
-	return 0;
-}
+#include "idformattest.moc"

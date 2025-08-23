@@ -24,14 +24,14 @@
 #ifndef WSSESSION_H
 #define WSSESSION_H
 
+#include <QObject>
 #include <QHash>
 #include <QSet>
-#include <boost/signals2.hpp>
 #include "packet/httprequestdata.h"
 #include "packet/wscontrolpacket.h"
 #include "ratelimiter.h"
 #include "filter.h"
-#include "clientsession.h"
+#include <boost/signals2.hpp>
 
 // each session can have a bunch of timers:
 // 3 misc timers
@@ -45,8 +45,10 @@ class Timer;
 class ZhttpManager;
 class PublishItem;
 
-class WsSession : public ClientSession
+class WsSession : public QObject
 {
+	Q_OBJECT
+
 public:
 	QByteArray peer;
 	QString cid;
@@ -69,9 +71,9 @@ public:
 	QByteArray delayedType;
 	QByteArray delayedMessage;
 	QHash<int, qint64> pendingRequests;
-	std::unique_ptr<Timer> expireTimer;
-	std::unique_ptr<Timer> delayedTimer;
-	std::unique_ptr<Timer> requestTimer;
+	Timer *expireTimer;
+	Timer *delayedTimer;
+	Timer *requestTimer;
 	QList<PublishItem> publishQueue;
 	ZhttpManager *zhttpOut;
 	std::shared_ptr<RateLimiter> filterLimiter;
@@ -80,7 +82,7 @@ public:
 	bool inProcessPublishQueue;
 	bool closed;
 
-	WsSession();
+	WsSession(QObject *parent = 0);
 	~WsSession();
 
 	void refreshExpiration();

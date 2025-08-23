@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2015-2022 Fanout, Inc.
- * Copyright (C) 2024-2025 Fastly, Inc.
+ * Copyright (C) 2024 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -29,16 +29,8 @@
 #include <QStringList>
 #include <QFile>
 #include <QFileInfo>
-#include <QDir>
-#include "timer.h"
-#include "defercall.h"
-#include "eventloop.h"
 #include "processquit.h"
 #include "log.h"
-#include "simplehttpserver.h"
-#include "httpsession.h"
-#include "wssession.h"
-#include "httpsessionupdatemanager.h"
 #include "settings.h"
 #include "handlerengine.h"
 #include "config.h"
@@ -177,10 +169,27 @@ static CommandLineParseResult parseCommandLine(QCommandLineParser *parser, ArgsD
 	return CommandLineOk;
 }
 
-class HandlerApp::Private
+class HandlerApp::Private : public QObject
 {
+	Q_OBJECT
+
 public:
-	static int run()
+	HandlerApp *q;
+	ArgsData args;
+	HandlerEngine *engine;
+	Connection quitConnection;
+	Connection hupConnection;
+
+	Private(HandlerApp *_q) :
+		QObject(_q),
+		q(_q),
+		engine(0)
+	{
+		quitConnection = ProcessQuit::instance()->quit.connect(boost::bind(&Private::doQuit, this));
+		hupConnection = ProcessQuit::instance()->hup.connect(boost::bind(&Private::reload, this));
+	}
+
+	void start()
 	{
 		QCoreApplication::setApplicationName("pushpin-handler");
 		QCoreApplication::setApplicationVersion(Config::get().version);
@@ -188,7 +197,6 @@ public:
 		QCommandLineParser parser;
 		parser.setApplicationDescription("Pushpin handler component.");
 
-		ArgsData args;
 		QString errorMessage;
 		switch(parseCommandLine(&parser, &args, &errorMessage))
 		{
@@ -196,11 +204,13 @@ public:
 				break;
 			case CommandLineError:
 				fprintf(stderr, "%s\n\n%s", qPrintable(errorMessage), qPrintable(parser.helpText()));
-				return 1;
+				q->quit(1);
+				return;
 			case CommandLineVersionRequested:
 				printf("%s %s\n", qPrintable(QCoreApplication::applicationName()),
 					qPrintable(QCoreApplication::applicationVersion()));
-				return 0;
+				q->quit(0);
+				return;
 			case CommandLineHelpRequested:
 				parser.showHelp();
 				Q_UNREACHABLE();
@@ -216,7 +226,8 @@ public:
 			if(!log_setFile(args.logFile))
 			{
 				log_error("failed to open log file: %s", qPrintable(args.logFile));
-				return 1;
+				q->quit(1);
+				return;
 			}
 		}
 
@@ -232,7 +243,8 @@ public:
 			if(!file.open(QIODevice::ReadOnly))
 			{
 				log_error("failed to open %s, and --config not passed", qPrintable(configFile));
-				return 1;
+				q->quit(0);
+				return;
 			}
 		}
 
@@ -256,7 +268,12 @@ public:
 		QStringList condure_out_specs = settings.value("proxy/condure_out_specs").toStringList();
 		trimlist(&condure_out_specs);
 		connmgr_out_specs += condure_out_specs;
+
+		bool cacheEnable = settings.value("cache/cache_enable").toBool();
+		
 		int proxyWorkerCount = settings.value("proxy/workers", 1).toInt();
+		if (cacheEnable == true)
+			proxyWorkerCount = 1;
 		QStringList m2a_in_stream_specs = settings.value("handler/m2a_in_stream_specs").toStringList();
 		trimlist(&m2a_in_stream_specs);
 		QStringList m2a_out_specs = settings.value("handler/m2a_out_specs").toStringList();
@@ -324,18 +341,19 @@ public:
 		QString statsFormat = settings.value("handler/stats_format").toString();
 		QString prometheusPort = settings.value("handler/prometheus_port").toString();
 		QString prometheusPrefix = settings.value("handler/prometheus_prefix").toString();
-		bool newEventLoop = settings.value("handler/new_event_loop", false).toBool();
 
 		if(m2a_in_stream_specs.isEmpty() || m2a_out_specs.isEmpty())
 		{
 			log_error("must set m2a_in_stream_specs and m2a_out_specs");
-			return 1;
+			q->quit(0);
+			return;
 		}
 
 		if(proxy_inspect_specs.isEmpty() || proxy_accept_specs.isEmpty() || proxy_retry_out_specs.isEmpty())
 		{
 			log_error("must set proxy_inspect_specs, proxy_accept_specs, and proxy_retry_out_specs");
-			return 1;
+			q->quit(0);
+			return;
 		}
 
 		HandlerEngine::Configuration config;
@@ -389,110 +407,53 @@ public:
 		config.prometheusPort = prometheusPort;
 		config.prometheusPrefix = prometheusPrefix;
 
-		return runLoop(config, newEventLoop);
+		engine = new HandlerEngine(this);
+		if(!engine->start(config))
+		{
+			q->quit(0);
+			return;
+		}
+
+		log_info("started");
 	}
 
 private:
-	static int runLoop(const HandlerEngine::Configuration &config, bool newEventLoop)
+	void reload()
 	{
-		// includes worst-case subscriptions and update registrations
-		int timersPerSession = qMax(TIMERS_PER_HTTPSESSION, TIMERS_PER_WSSESSION) +
-			(config.connectionSubscriptionMax * TIMERS_PER_SUBSCRIPTION) +
-			TIMERS_PER_UNIQUE_UPDATE_REGISTRATION;
+		log_info("reloading");
+		log_rotate();
+		engine->reload();
+	}
 
-		// enough timers for sessions, plus an extra 100 for misc
-		int timersMax = (config.connectionsMax * timersPerSession) + 100;
-
-		std::unique_ptr<EventLoop> loop;
-
-		if(newEventLoop)
-		{
-			log_debug("using new event loop");
-
-			// enough for control requests and prometheus requests. client
-			// sessions don't use socket notifiers
-			int socketNotifiersMax = SOCKETNOTIFIERS_PER_SIMPLEHTTPREQUEST * (CONTROL_CONNECTIONS_MAX + PROMETHEUS_CONNECTIONS_MAX);
-
-			int registrationsMax = timersMax + socketNotifiersMax;
-			loop = std::make_unique<EventLoop>(registrationsMax);
-		}
-		else
-		{
-			// for qt event loop, timer subsystem must be explicitly initialized
-			Timer::init(timersMax);
-		}
-
-		std::unique_ptr<HandlerEngine> engine;
-
-		DeferCall deferCall;
-		deferCall.defer([&] {
-			engine = std::make_unique<HandlerEngine>();
-
-			ProcessQuit::instance()->quit.connect([&] {
-				log_info("stopping...");
+	void doQuit()
+	{
+		log_info("stopping...");
 		
-				// remove the handler, so if we get another signal then we crash out
-				ProcessQuit::cleanup();
+		// remove the handler, so if we get another signal then we crash out
+		ProcessQuit::cleanup();
 
-				engine.reset();
+		delete engine;
+		engine = 0;
 
-				log_debug("stopped");
-
-				if(newEventLoop)
-					loop->exit(0);
-				else
-					QCoreApplication::exit(0);
-			});
-
-			ProcessQuit::instance()->hup.connect([&] {
-				log_info("reloading");
-				log_rotate();
-				engine->reload();
-			});
-
-			if(!engine->start(config))
-			{
-				engine.reset();
-
-				if(newEventLoop)
-					loop->exit(1);
-				else
-					QCoreApplication::exit(1);
-
-				return;
-			}
-
-			log_info("started");
-		});
-
-		int ret;
-		if(newEventLoop)
-			ret = loop->exec();
-		else
-			ret = QCoreApplication::exec();
-
-		if(!newEventLoop)
-		{
-			// ensure deferred deletes are processed
-			QCoreApplication::instance()->sendPostedEvents();
-		}
-
-		// deinit here, after all event loop activity has completed
-
-		DeferCall::cleanup();
-
-		if(!newEventLoop)
-			Timer::deinit();
-
-		return ret;
+		log_debug("stopped");
+		q->quit(0);
 	}
 };
 
-HandlerApp::HandlerApp() = default;
-
-HandlerApp::~HandlerApp() = default;
-
-int HandlerApp::run()
+HandlerApp::HandlerApp(QObject *parent) :
+	QObject(parent)
 {
-	return Private::run();
+	d = new Private(this);
 }
+
+HandlerApp::~HandlerApp()
+{
+	delete d;
+}
+
+void HandlerApp::start()
+{
+	d->start();
+}
+
+#include "handlerapp.moc"

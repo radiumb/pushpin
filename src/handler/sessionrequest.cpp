@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016 Fanout, Inc.
- * Copyright (C) 2024-2025 Fastly, Inc.
+ * Copyright (C) 2024 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -24,6 +24,7 @@
 #include "sessionrequest.h"
 
 #include <QVariant>
+#include <QObject>
 #include "qtcompat.h"
 #include "zrpcmanager.h"
 #include "zrpcrequest.h"
@@ -34,11 +35,16 @@ namespace SessionRequest {
 
 class DetectRulesSet : public Deferred
 {
+	Q_OBJECT
+
+	Connection finishedConnection;
+
 public:
-	DetectRulesSet(ZrpcManager *stateClient, const QList<DetectRule> &rules)
+	DetectRulesSet(ZrpcManager *stateClient, const QList<DetectRule> &rules, QObject *parent = 0) :
+		Deferred(parent)
 	{
-		req = std::make_unique<ZrpcRequest>(stateClient);
-		finishedConnection = req->finished.connect(boost::bind(&DetectRulesSet::req_finished, this));
+		ZrpcRequest *req = new ZrpcRequest(stateClient, this);
+		finishedConnection = req->finished.connect(boost::bind(&DetectRulesSet::req_finished, this, req));
 
 		QVariantList rlist;
 		foreach(const DetectRule &rule, rules)
@@ -58,10 +64,7 @@ public:
 	}
 
 private:
-	std::unique_ptr<ZrpcRequest> req;
-	Connection finishedConnection;
-
-	void req_finished()
+	void req_finished(ZrpcRequest *req)
 	{
 		if(req->success())
 		{
@@ -76,11 +79,16 @@ private:
 
 class DetectRulesGet : public Deferred
 {
+	Q_OBJECT
+
+	Connection finishedConnection;
+
 public:
-	DetectRulesGet(ZrpcManager *stateClient, const QString &domain, const QByteArray &path)
+	DetectRulesGet(ZrpcManager *stateClient, const QString &domain, const QByteArray &path, QObject *parent = 0) :
+		Deferred(parent)
 	{
-		req = std::make_unique<ZrpcRequest>(stateClient);
-		finishedConnection = req->finished.connect(boost::bind(&DetectRulesGet::req_finished, this));
+		ZrpcRequest *req = new ZrpcRequest(stateClient, this);
+		finishedConnection = req->finished.connect(boost::bind(&DetectRulesGet::req_finished, this, req));
 
 		QVariantHash args;
 		args["domain"] = domain.toUtf8();
@@ -89,10 +97,7 @@ public:
 	}
 
 private:
-	std::unique_ptr<ZrpcRequest> req;
-	Connection finishedConnection;
-
-	void req_finished()
+	void req_finished(ZrpcRequest *req)
 	{
 		if(req->success())
 		{
@@ -167,11 +172,16 @@ private:
 
 class CreateOrUpdate : public Deferred
 {
+	Q_OBJECT
+
+	Connection finishedConnection;
+	
 public:
-	CreateOrUpdate(ZrpcManager *stateClient, const QString &sid, const LastIds &lastIds)
+	CreateOrUpdate(ZrpcManager *stateClient, const QString &sid, const LastIds &lastIds, QObject *parent = 0) :
+		Deferred(parent)
 	{
-		req = std::make_unique<ZrpcRequest>(stateClient);
-		finishedConnection = req->finished.connect(boost::bind(&CreateOrUpdate::req_finished, this));
+		ZrpcRequest *req = new ZrpcRequest(stateClient, this);
+		finishedConnection = req->finished.connect(boost::bind(&CreateOrUpdate::req_finished, this, req));
 
 		QVariantHash args;
 
@@ -190,10 +200,7 @@ public:
 	}
 
 private:
-	std::unique_ptr<ZrpcRequest> req;
-	Connection finishedConnection;
-
-	void req_finished()
+	void req_finished(ZrpcRequest *req)
 	{
 		if(req->success())
 		{
@@ -208,11 +215,16 @@ private:
 
 class UpdateMany : public Deferred
 {
+	Q_OBJECT
+
+	Connection finishedConnection;
+	
 public:
-	UpdateMany(ZrpcManager *stateClient, const QHash<QString, LastIds> &sidLastIds)
+	UpdateMany(ZrpcManager *stateClient, const QHash<QString, LastIds> &sidLastIds, QObject *parent = 0) :
+		Deferred(parent)
 	{
-		req = std::make_unique<ZrpcRequest>(stateClient);
-		finishedConnection = req->finished.connect(boost::bind(&UpdateMany::req_finished, this));
+		ZrpcRequest *req = new ZrpcRequest(stateClient, this);
+		finishedConnection = req->finished.connect(boost::bind(&UpdateMany::req_finished, this, req));
 
 		QVariantHash vsidLastIds;
 
@@ -241,10 +253,7 @@ public:
 	}
 
 private:
-	std::unique_ptr<ZrpcRequest> req;
-	Connection finishedConnection;
-
-	void req_finished()
+	void req_finished(ZrpcRequest *req)
 	{
 		if(req->success())
 		{
@@ -259,11 +268,16 @@ private:
 
 class GetLastIds : public Deferred
 {
+	Q_OBJECT
+
+	Connection finishedConnection;
+	
 public:
-	GetLastIds(ZrpcManager *stateClient, const QString &sid)
+	GetLastIds(ZrpcManager *stateClient, const QString &sid, QObject *parent = 0) :
+		Deferred(parent)
 	{
-		req = std::make_unique<ZrpcRequest>(stateClient);
-		finishedConnection = req->finished.connect(boost::bind(&GetLastIds::req_finished, this));
+		ZrpcRequest *req = new ZrpcRequest(stateClient, this);
+		finishedConnection = req->finished.connect(boost::bind(&GetLastIds::req_finished, this, req));
 
 		QVariantHash args;
 		args["sid"] = sid.toUtf8();
@@ -271,10 +285,7 @@ public:
 	}
 
 private:
-	std::unique_ptr<ZrpcRequest> req;
-	Connection finishedConnection;
-
-	void req_finished()
+	void req_finished(ZrpcRequest *req)
 	{
 		if(req->success())
 		{
@@ -311,29 +322,31 @@ private:
 	}
 };
 
-Deferred *detectRulesSet(ZrpcManager *stateClient, const QList<DetectRule> &rules)
+Deferred *detectRulesSet(ZrpcManager *stateClient, const QList<DetectRule> &rules, QObject *parent)
 {
-	return new DetectRulesSet(stateClient, rules);
+	return new DetectRulesSet(stateClient, rules, parent);
 }
 
-Deferred *detectRulesGet(ZrpcManager *stateClient, const QString &domain, const QByteArray &path)
+Deferred *detectRulesGet(ZrpcManager *stateClient, const QString &domain, const QByteArray &path, QObject *parent)
 {
-	return new DetectRulesGet(stateClient, domain, path);
+	return new DetectRulesGet(stateClient, domain, path, parent);
 }
 
-Deferred *createOrUpdate(ZrpcManager *stateClient, const QString &sid, const LastIds &lastIds)
+Deferred *createOrUpdate(ZrpcManager *stateClient, const QString &sid, const LastIds &lastIds, QObject *parent)
 {
-	return new CreateOrUpdate(stateClient, sid, lastIds);
+	return new CreateOrUpdate(stateClient, sid, lastIds, parent);
 }
 
-Deferred *updateMany(ZrpcManager *stateClient, const QHash<QString, LastIds> &sidLastIds)
+Deferred *updateMany(ZrpcManager *stateClient, const QHash<QString, LastIds> &sidLastIds, QObject *parent)
 {
-	return new UpdateMany(stateClient, sidLastIds);
+	return new UpdateMany(stateClient, sidLastIds, parent);
 }
 
-Deferred *getLastIds(ZrpcManager *stateClient, const QString &sid)
+Deferred *getLastIds(ZrpcManager *stateClient, const QString &sid, QObject *parent)
 {
-	return new GetLastIds(stateClient, sid);
+	return new GetLastIds(stateClient, sid, parent);
 }
 
 }
+
+#include "sessionrequest.moc"

@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 Fanout, Inc.
- * Copyright (C) 2025 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -21,113 +20,127 @@
  * $FANOUT_END_LICENSE$
  */
 
-#include "test.h"
+#include <QtTest/QtTest>
 #include <QVariant>
 #include "publishformat.h"
 
-static void responseFormat()
+class PublishFormatTest : public QObject
 {
-	QVariantHash data;
-	data["code"] = 200;
-	data["reason"] = QByteArray("OK");
-	data["headers"] = QVariantList() << QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
-	data["body"] = QByteArray("hello world");
+	Q_OBJECT
 
-	bool ok;
-	PublishFormat f = PublishFormat::fromVariant(PublishFormat::HttpResponse, data, &ok);
-	TEST_ASSERT(ok);
-	TEST_ASSERT_EQ(f.code, 200);
-	TEST_ASSERT_EQ(f.reason, QByteArray("OK"));
-	TEST_ASSERT_EQ(f.headers.count(), 1);
-	TEST_ASSERT_EQ(f.headers[0].first, QByteArray("Content-Type"));
-	TEST_ASSERT_EQ(f.headers[0].second, QByteArray("text/plain"));
-	TEST_ASSERT_EQ(f.body, QByteArray("hello world"));
+private slots:
+	void responseFormat()
+	{
+		QVariantHash data;
+		data["code"] = 200;
+		data["reason"] = QByteArray("OK");
+		data["headers"] = QVariantList() << QVariant(QVariantList() << QByteArray("Content-Type") << QByteArray("text/plain"));
+		data["body"] = QByteArray("hello world");
 
-	data.clear();
-	data["body"] = QByteArray("other fields implied");
+		bool ok;
+		PublishFormat f = PublishFormat::fromVariant(PublishFormat::HttpResponse, data, &ok);
+		QVERIFY(ok);
+		QCOMPARE(f.code, 200);
+		QCOMPARE(f.reason, QByteArray("OK"));
+		QCOMPARE(f.headers.count(), 1);
+		QCOMPARE(f.headers[0].first, QByteArray("Content-Type"));
+		QCOMPARE(f.headers[0].second, QByteArray("text/plain"));
+		QCOMPARE(f.body, QByteArray("hello world"));
 
-	f = PublishFormat::fromVariant(PublishFormat::HttpResponse, data, &ok);
-	TEST_ASSERT(ok);
-	TEST_ASSERT_EQ(f.code, 200);
-	TEST_ASSERT_EQ(f.reason, QByteArray("OK"));
-	TEST_ASSERT_EQ(f.headers.count(), 0);
-	TEST_ASSERT_EQ(f.body, QByteArray("other fields implied"));
+		data.clear();
+		data["body"] = QByteArray("other fields implied");
+
+		f = PublishFormat::fromVariant(PublishFormat::HttpResponse, data, &ok);
+		QVERIFY(ok);
+		QCOMPARE(f.code, 200);
+		QCOMPARE(f.reason, QByteArray("OK"));
+		QCOMPARE(f.headers.count(), 0);
+		QCOMPARE(f.body, QByteArray("other fields implied"));
+	}
+
+	void streamFormat()
+	{
+		QVariantHash data;
+		data["content"] = QByteArray("hello world");
+
+		bool ok;
+		PublishFormat f = PublishFormat::fromVariant(PublishFormat::HttpStream, data, &ok);
+		QVERIFY(ok);
+		QVERIFY(f.action == PublishFormat::Send);
+		QCOMPARE(f.body, QByteArray("hello world"));
+
+		data.clear();
+		data["action"] = QByteArray("close");
+
+		f = PublishFormat::fromVariant(PublishFormat::HttpStream, data, &ok);
+		QVERIFY(ok);
+		QVERIFY(f.action == PublishFormat::Close);
+		QVERIFY(f.body.isEmpty());
+	}
+
+	void webSocketMessageFormat()
+	{
+		QVariantHash data;
+		data["content"] = QByteArray("hello world");
+
+		bool ok;
+		PublishFormat f = PublishFormat::fromVariant(PublishFormat::WebSocketMessage, data, &ok);
+		QVERIFY(ok);
+		QVERIFY(f.action == PublishFormat::Send);
+		QCOMPARE(f.messageType, PublishFormat::Text);
+		QCOMPARE(f.body, QByteArray("hello world"));
+
+		data.clear();
+		data["type"] = "binary";
+		data["content"] = QByteArray("hello world");
+
+		f = PublishFormat::fromVariant(PublishFormat::WebSocketMessage, data, &ok);
+		QVERIFY(ok);
+		QVERIFY(f.action == PublishFormat::Send);
+		QCOMPARE(f.messageType, PublishFormat::Binary);
+		QCOMPARE(f.body, QByteArray("hello world"));
+
+		data.clear();
+		data["content-bin"] = QByteArray("hello world");
+
+		f = PublishFormat::fromVariant(PublishFormat::WebSocketMessage, data, &ok);
+		QVERIFY(ok);
+		QVERIFY(f.action == PublishFormat::Send);
+		QCOMPARE(f.messageType, PublishFormat::Binary);
+		QCOMPARE(f.body, QByteArray("hello world"));
+
+		data.clear();
+		data["action"] = "close";
+
+		f = PublishFormat::fromVariant(PublishFormat::WebSocketMessage, data, &ok);
+		QVERIFY(ok);
+		QVERIFY(f.action == PublishFormat::Close);
+		QCOMPARE(f.code, -1);
+
+		data.clear();
+		data["action"] = "close";
+		data["code"] = 1001;
+
+		f = PublishFormat::fromVariant(PublishFormat::WebSocketMessage, data, &ok);
+		QVERIFY(ok);
+		QVERIFY(f.action == PublishFormat::Close);
+		QCOMPARE(f.code, 1001);
+	}
+};
+
+namespace {
+namespace Main {
+QTEST_MAIN(PublishFormatTest)
+}
 }
 
-static void streamFormat()
+extern "C" {
+
+int publishformat_test(int argc, char **argv)
 {
-	QVariantHash data;
-	data["content"] = QByteArray("hello world");
-
-	bool ok;
-	PublishFormat f = PublishFormat::fromVariant(PublishFormat::HttpStream, data, &ok);
-	TEST_ASSERT(ok);
-	TEST_ASSERT(f.action == PublishFormat::Send);
-	TEST_ASSERT_EQ(f.body, QByteArray("hello world"));
-
-	data.clear();
-	data["action"] = QByteArray("close");
-
-	f = PublishFormat::fromVariant(PublishFormat::HttpStream, data, &ok);
-	TEST_ASSERT(ok);
-	TEST_ASSERT(f.action == PublishFormat::Close);
-	TEST_ASSERT(f.body.isEmpty());
+	return Main::main(argc, argv);
 }
 
-static void webSocketMessageFormat()
-{
-	QVariantHash data;
-	data["content"] = QByteArray("hello world");
-
-	bool ok;
-	PublishFormat f = PublishFormat::fromVariant(PublishFormat::WebSocketMessage, data, &ok);
-	TEST_ASSERT(ok);
-	TEST_ASSERT(f.action == PublishFormat::Send);
-	TEST_ASSERT_EQ(f.messageType, PublishFormat::Text);
-	TEST_ASSERT_EQ(f.body, QByteArray("hello world"));
-
-	data.clear();
-	data["type"] = "binary";
-	data["content"] = QByteArray("hello world");
-
-	f = PublishFormat::fromVariant(PublishFormat::WebSocketMessage, data, &ok);
-	TEST_ASSERT(ok);
-	TEST_ASSERT(f.action == PublishFormat::Send);
-	TEST_ASSERT_EQ(f.messageType, PublishFormat::Binary);
-	TEST_ASSERT_EQ(f.body, QByteArray("hello world"));
-
-	data.clear();
-	data["content-bin"] = QByteArray("hello world");
-
-	f = PublishFormat::fromVariant(PublishFormat::WebSocketMessage, data, &ok);
-	TEST_ASSERT(ok);
-	TEST_ASSERT(f.action == PublishFormat::Send);
-	TEST_ASSERT_EQ(f.messageType, PublishFormat::Binary);
-	TEST_ASSERT_EQ(f.body, QByteArray("hello world"));
-
-	data.clear();
-	data["action"] = "close";
-
-	f = PublishFormat::fromVariant(PublishFormat::WebSocketMessage, data, &ok);
-	TEST_ASSERT(ok);
-	TEST_ASSERT(f.action == PublishFormat::Close);
-	TEST_ASSERT_EQ(f.code, -1);
-
-	data.clear();
-	data["action"] = "close";
-	data["code"] = 1001;
-
-	f = PublishFormat::fromVariant(PublishFormat::WebSocketMessage, data, &ok);
-	TEST_ASSERT(ok);
-	TEST_ASSERT(f.action == PublishFormat::Close);
-	TEST_ASSERT_EQ(f.code, 1001);
 }
 
-extern "C" int publishformat_test(ffi::TestException *out_ex)
-{
-	TEST_CATCH(responseFormat());
-	TEST_CATCH(streamFormat());
-	TEST_CATCH(webSocketMessageFormat());
-
-	return 0;
-}
+#include "publishformattest.moc"

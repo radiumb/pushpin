@@ -24,15 +24,17 @@
 #ifndef HTTPSESSIONUPDATEMANAGER_H
 #define HTTPSESSIONUPDATEMANAGER_H
 
+#include <QObject>
+
 #define TIMERS_PER_UNIQUE_UPDATE_REGISTRATION 1
 
 class QUrl;
 class HttpSession;
 
-class HttpSessionUpdateManager
+class HttpSessionUpdateManager : public QObject
 {
 public:
-	HttpSessionUpdateManager();
+	HttpSessionUpdateManager(QObject *parent = 0);
 	~HttpSessionUpdateManager();
 
 	// no-op if session already registered and resetTimeout=false

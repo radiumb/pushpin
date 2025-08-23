@@ -24,6 +24,7 @@
 #ifndef ZHTTPMANAGER_H
 #define ZHTTPMANAGER_H
 
+#include <QObject>
 #include "zhttprequest.h"
 #include "zwebsocket.h"
 #include <boost/signals2.hpp>
@@ -33,10 +34,12 @@ using Signal = boost::signals2::signal<void()>;
 class ZhttpRequestPacket;
 class ZhttpResponsePacket;
 
-class ZhttpManager
+class ZhttpManager : public QObject
 {
+	Q_OBJECT
+
 public:
-	ZhttpManager();
+	ZhttpManager(QObject *parent = 0);
 	~ZhttpManager();
 
 	int connectionCount() const;
@@ -58,6 +61,37 @@ public:
 	bool setServerInSpecs(const QStringList &specs);
 	bool setServerInStreamSpecs(const QStringList &specs);
 	bool setServerOutSpecs(const QStringList &specs);
+
+	void setCacheParameters(
+		bool cacheEnable,
+		const QStringList &httpBackendUrlList,
+		const QStringList &wsBackendUrlList,
+		const QStringList &cacheMethodList,
+		const QStringList &subscribeMethodList,
+		const QStringList &neverTimeoutMethodList,
+		const QStringList &refreshShorterMethodList,
+		const QStringList &refreshLongerMethodList,
+		const QStringList &refreshUneraseMethodList,
+		const QStringList &refreshExcludeMethodList,
+		const QStringList &refreshPassthroughMethodList,
+		const QStringList &nullResponseMethodList,
+		const QStringList &cacheKeyItemList,
+		const QString &msgIdFieldName,
+		const QString &msgMethodFieldName,
+		const QString &msgParamsFieldName,
+		const QStringList &msgErrorFieldList,
+		const int backendSwitchIntervalSeconds,
+		const int prometheusRestoreAllowSeconds,
+		bool redisEnable,
+		const QString &redisHostAddr,
+		const int redisPort,
+		const int redisPoolCount,
+		const QString &redisKeyHeader,
+		const QString &replicaMasterAddr,
+		const int replicaMasterPort,
+		QMap<QString, QStringList> countMethodGroupMap);
+	
+	int create_wsCacheClientProcesses();
 
 	ZhttpRequest *createRequest();
 	ZhttpRequest *takeNextRequest();

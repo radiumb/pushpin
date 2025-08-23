@@ -31,8 +31,6 @@
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QTimer>
-#include <QDir>
-#include <QSettings>
 #include "qzmqsocket.h"
 #include "qzmqvalve.h"
 #include "qtcompat.h"

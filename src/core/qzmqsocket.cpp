@@ -419,18 +419,11 @@ public:
 
 		sn_read = std::make_unique<SocketNotifier>(get_fd(sock), SocketNotifier::Read);
 		sn_read->activated.connect(boost::bind(&Private::sn_read_activated, this));
-		sn_read->setReadEnabled(true);
+		sn_read->setEnabled(true);
 
 		updateTimer = std::make_unique<Timer>();
 		updateTimerConnection = updateTimer->timeout.connect(boost::bind(&Private::update_timeout, this));
 		updateTimer->setSingleShot(true);
-
-		// socket notifier starts out ready. attempt to read events
-		if(processEvents())
-		{
-			// if there are events, queue them for processing
-			update();
-		}
 	}
 
 	~Private()
@@ -534,8 +527,6 @@ public:
 	bool processEvents()
 	{
 		int flags = get_events(sock);
-
-		sn_read->clearReadiness(SocketNotifier::Read);
 
 		bool canWriteOld = canWrite;
 		bool canReadOld = canRead;

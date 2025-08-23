@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2014 Fanout, Inc.
- * Copyright (C) 2025 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -24,13 +23,16 @@
 #ifndef ZROUTES_H
 #define ZROUTES_H
 
+#include <QObject>
 #include "zhttpmanager.h"
 #include "domainmap.h"
 
-class ZRoutes
+class ZRoutes : public QObject
 {
+	Q_OBJECT
+
 public:
-	ZRoutes();
+	ZRoutes(QObject *parent = 0);
 	~ZRoutes();
 
 	void setInstanceId(const QByteArray &id);

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014 Fanout, Inc.
- * Copyright (C) 2023-2025 Fastly, Inc.
+ * Copyright (C) 2023-2024 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -24,8 +24,7 @@
 #ifndef ZRPCMANAGER_H
 #define ZRPCMANAGER_H
 
-#include <QByteArray>
-#include <QList>
+#include <QObject>
 #include <boost/signals2.hpp>
 
 using Signal = boost::signals2::signal<void()>;
@@ -34,10 +33,12 @@ class ZrpcRequestPacket;
 class ZrpcResponsePacket;
 class ZrpcRequest;
 
-class ZrpcManager
+class ZrpcManager : public QObject
 {
+	Q_OBJECT
+
 public:
-	ZrpcManager();
+	ZrpcManager(QObject *parent = 0);
 	~ZrpcManager();
 
 	int timeout() const;

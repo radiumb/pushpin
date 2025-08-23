@@ -29,7 +29,6 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QUrl>
-#include <QUrlQuery>
 #include "processquit.h"
 #include "log.h"
 #include "settings.h"

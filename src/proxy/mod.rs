@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024-2025 Fastly, Inc.
+ * Copyright (C) 2024 Fastly, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,36 +16,27 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::core::test::{run_serial, TestException};
+    use crate::core::{call_c_main, qtest};
     use crate::ffi;
+    use std::ffi::OsStr;
 
-    fn websocketoverhttp_test(out_ex: &mut TestException) -> bool {
+    fn routesfile_test(args: &[&OsStr]) -> u8 {
         // SAFETY: safe to call
-        unsafe { ffi::websocketoverhttp_test(out_ex) == 0 }
+        unsafe { call_c_main(ffi::routesfile_test, args) as u8 }
     }
 
-    fn routesfile_test(out_ex: &mut TestException) -> bool {
+    fn proxyengine_test(args: &[&OsStr]) -> u8 {
         // SAFETY: safe to call
-        unsafe { ffi::routesfile_test(out_ex) == 0 }
-    }
-
-    fn proxyengine_test(out_ex: &mut TestException) -> bool {
-        // SAFETY: safe to call
-        unsafe { ffi::proxyengine_test(out_ex) == 0 }
-    }
-
-    #[test]
-    fn websocketoverhttp() {
-        run_serial(websocketoverhttp_test);
+        unsafe { call_c_main(ffi::proxyengine_test, args) as u8 }
     }
 
     #[test]
     fn routesfile() {
-        run_serial(routesfile_test);
+        assert!(qtest::run(routesfile_test));
     }
 
     #[test]
     fn proxyengine() {
-        run_serial(proxyengine_test);
+        assert!(qtest::run(proxyengine_test));
     }
 }

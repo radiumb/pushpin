@@ -23,13 +23,19 @@
 
 #include "deferred.h"
 
-Deferred::Deferred()
+Deferred::Deferred(QObject *parent) :
+	QObject(parent)
 {
 	qRegisterMetaType<DeferredResult>();
 }
 
 Deferred::~Deferred()
 {
+}
+
+void Deferred::cancel()
+{
+	delete this;
 }
 
 void Deferred::setFinished(bool ok, const QVariant &value)
@@ -43,4 +49,5 @@ void Deferred::setFinished(bool ok, const QVariant &value)
 void Deferred::doFinish()
 {
 	finished(result_);
+	delete this;
 }

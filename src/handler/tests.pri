@@ -1,3 +1,6 @@
+INCLUDES += \
+	$$PWD/handlertests.h
+
 SOURCES += \
 	$$PWD/filtertest.cpp \
 	$$PWD/jsonpatchtest.cpp \

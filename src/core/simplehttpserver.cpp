@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2015-2022 Fanout, Inc.
- * Copyright (C) 2025 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -26,16 +25,18 @@
 #include <assert.h>
 #include <QFile>
 #include <QFileInfo>
+#include <QTcpSocket>
+#include <QTcpServer>
+#include <QLocalSocket>
+#include <QLocalServer>
 #include "log.h"
 #include "defercall.h"
-#include "tcplistener.h"
-#include "tcpstream.h"
-#include "unixlistener.h"
-#include "unixstream.h"
 #include "httpheaders.h"
 
-class SimpleHttpRequest::Private
+class SimpleHttpRequest::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	enum State
 	{
@@ -43,32 +44,33 @@ public:
 		ReadBody,
 		WriteBody,
 		WaitForWritten,
-		Closed,
-		Finished,
+		Closing
 	};
 
 	SimpleHttpRequest *q;
-	std::unique_ptr<ReadWrite> stream;
+	QIODevice *sock;
 	State state;
 	QByteArray inBuf;
-	QByteArray outBuf;
 	bool version1dot0;
 	QString method;
 	QByteArray uri;
 	HttpHeaders reqHeaders;
 	QByteArray reqBody;
 	int contentLength;
-	int headersSizeMax;
-	int bodySizeMax;
-	DeferCall deferCall;
+	int pendingWritten;
+	int maxHeadersSize;
+	int maxBodySize;
 
-	Private(SimpleHttpRequest *_q, int headersSizeMax, int bodySizeMax) :
+	Private(SimpleHttpRequest *_q, int maxHeadersSize, int maxBodySize) :
+		QObject(_q),
 		q(_q),
+		sock(0),
 		state(ReadHeader),
 		version1dot0(false),
 		contentLength(0),
-		headersSizeMax(headersSizeMax),
-		bodySizeMax(bodySizeMax)
+		pendingWritten(0),
+		maxHeadersSize(maxHeadersSize),
+		maxBodySize(maxBodySize)
 	{
 	}
 
@@ -79,17 +81,49 @@ public:
 
 	void cleanup()
 	{
-		stream.reset();
+		if(sock)
+		{
+			sock->disconnect(this);
+			sock->setParent(0);
+			DeferCall::deleteLater(sock);
+			sock = 0;
+		}
 	}
 
-	void start(std::unique_ptr<ReadWrite> _stream)
+	void start(QTcpSocket *_sock)
 	{
-		stream = std::move(_stream);
+		QObject::connect(_sock, &QTcpSocket::readyRead, [this]() {
+			this->sock_readyRead();
+		});
+		QObject::connect(_sock, &QTcpSocket::bytesWritten, this, [this](qint64 bytes) {
+			this->sock_bytesWritten(bytes);
+		});
+		QObject::connect(_sock, &QTcpSocket::disconnected, [this]() {
+			this->sock_disconnected();
+		});
 
-		stream->readReady.connect(boost::bind(&Private::stream_readReady, this));
-		stream->writeReady.connect(boost::bind(&Private::stream_writeReady, this));
+		sock = _sock;
+		sock->setParent(this);
 
-		deferCall.defer([&] { process(); });
+		processIn();
+	}
+
+	void start(QLocalSocket *_sock)
+	{
+		QObject::connect(_sock, &QLocalSocket::readyRead, [this]() {
+			this->sock_readyRead();
+		});
+		QObject::connect(_sock, &QLocalSocket::bytesWritten, this, [this](qint64 bytes) {
+			this->sock_bytesWritten(bytes);
+		});
+		QObject::connect(_sock, &QLocalSocket::disconnected, [this]() {
+			this->sock_disconnected();
+		});
+
+		sock = _sock;
+		sock->setParent(this);
+
+		processIn();
 	}
 
 	void respond(int code, const QByteArray &reason, const HttpHeaders &headers, const QByteArray &body)
@@ -117,10 +151,8 @@ public:
 		respData += body;
 
 		state = WaitForWritten;
-
-		outBuf += respData;
-
-		deferCall.defer([&] { process(); });
+		pendingWritten += respData.size();
+		sock->write(respData);
 	}
 
 	void respond(int code, const QByteArray &reason, const QString &body)
@@ -216,43 +248,11 @@ private:
 		return true;
 	}
 
-	void error(const QString &msg)
-	{
-		log_debug("httpserver error: %s", qPrintable(msg));
-
-		doFinish();
-	}
-
-	void doFinish()
-	{
-		cleanup();
-		state = Closed;
-	}
-
-	// return false if more I/O needed to make progress
-	bool step()
+	void processIn()
 	{
 		if(state == ReadHeader)
 		{
-			QByteArray buf = stream->read(headersSizeMax - inBuf.size());
-
-			if(buf.isNull())
-			{
-				int e = stream->errorCondition();
-				if(e == EAGAIN)
-					return false;
-
-				error(QString("read error: %1").arg(e));
-				return true;
-			}
-
-			if(buf.isEmpty())
-			{
-				error("client closed unexpectedly");
-				return true;
-			}
-
-			inBuf += buf;
+			inBuf += sock->read(maxHeadersSize - inBuf.size());
 
 			// look for double newline
 			int at = -1;
@@ -282,14 +282,14 @@ private:
 				if(!processHeaderData(headerData))
 				{
 					respondBadRequest("Failed to parse request header.");
-					return true;
+					return;
 				}
 
 				bool methodAssumesBody = (method != "HEAD" && method != "GET" && method != "DELETE" && method != "OPTIONS");
 				if(!reqHeaders.contains("Content-Length") && (reqHeaders.contains("Transfer-Encoding") || methodAssumesBody))
 				{
 					respondLengthRequired("Request requires Content-Length.");
-					return true;
+					return;
 				}
 
 				if(reqHeaders.contains("Content-Length"))
@@ -299,13 +299,13 @@ private:
 					if(!ok)
 					{
 						respondBadRequest("Bad Content-Length.");
-						return true;
+						return;
 					}
 
-					if(contentLength > bodySizeMax)
+					if(contentLength > maxBodySize)
 					{
 						respondBadRequest("Request body too large.");
-						return true;
+						return;
 					}
 
 					if(reqHeaders.get("Expect") == "100-continue")
@@ -317,11 +317,12 @@ private:
 							respData += "1.1 ";
 						respData += "100 Continue\r\n\r\n";
 
-						outBuf += respData;
+						pendingWritten += respData.size();
+						sock->write(respData);
 					}
 
 					state = ReadBody;
-					return true;
+					processIn();
 				}
 				else
 				{
@@ -329,61 +330,21 @@ private:
 					ready();
 				}
 			}
-			else if(inBuf.size() >= headersSizeMax)
+			else if(inBuf.size() >= maxHeadersSize)
 			{
 				inBuf.clear();
 				respondBadRequest("Request header too large.");
-				return true;
+				return;
 			}
 		}
 		else if(state == ReadBody)
 		{
-			// write 100 continue
-			if(!outBuf.isEmpty())
-			{
-				int ret = stream->write(outBuf);
-
-				if(ret < 0)
-				{
-					int e = stream->errorCondition();
-					if(e == EAGAIN)
-						return false;
-
-					error(QString("write error: %1").arg(e));
-					return true;
-				}
-
-				outBuf = outBuf.mid(ret);
-				return true;
-			}
-
-			if(reqBody.size() < contentLength)
-			{
-				QByteArray buf = stream->read(bodySizeMax - reqBody.size() + 1);
-
-				if(buf.isNull())
-				{
-					int e = stream->errorCondition();
-					if(e == EAGAIN)
-						return false;
-
-					error(QString("read error: %1").arg(e));
-					return true;
-				}
-
-				if(buf.isEmpty())
-				{
-					error("client closed unexpectedly");
-					return true;
-				}
-
-				reqBody += buf;
-			}
+			reqBody += sock->read(maxBodySize - reqBody.size() + 1);
 
 			if(reqBody.size() > contentLength)
 			{
 				respondBadRequest("Request body exceeded Content-Length.");
-				return true;
+				return;
 			}
 
 			if(reqBody.size() == contentLength)
@@ -392,57 +353,41 @@ private:
 				ready();
 			}
 		}
-		else if(state == WaitForWritten)
-		{
-			if(outBuf.isEmpty())
-			{
-				doFinish();
-				return true;
-			}
-
-			int ret = stream->write(outBuf);
-
-			if(ret < 0)
-			{
-				int e = stream->errorCondition();
-				if(e == EAGAIN)
-					return false;
-
-				error(QString("write error: %1").arg(e));
-				return true;
-			}
-
-			outBuf = outBuf.mid(ret);
-		}
-
-		return true;
 	}
 
-	void process()
+	void sock_readyRead()
 	{
-		while((state == ReadHeader || state == ReadBody || state == WaitForWritten) && step()) {}
+		if(state == ReadHeader || state == ReadBody)
+			processIn();
+	}
 
-		if(state == Closed)
+	void sock_bytesWritten(qint64 bytes)
+	{
+		pendingWritten -= (int)bytes;
+		assert(pendingWritten >= 0);
+
+		if(state != WaitForWritten)
+			return;
+
+		if(pendingWritten == 0)
 		{
-			state = Finished;
-			q->finished();
+			state = Closing;
+			sock->close();
 		}
 	}
 
-	void stream_readReady()
+	void sock_disconnected()
 	{
-		process();
-	}
+		cleanup();
 
-	void stream_writeReady()
-	{
-		process();
+		q->finished();
 	}
 };
 
-SimpleHttpRequest::SimpleHttpRequest(int headersSizeMax, int bodySizeMax)
+SimpleHttpRequest::SimpleHttpRequest(int maxHeadersSize, int maxBodySize,QObject *parent) :
+	QObject(parent)
 {
-	d = new Private(this, headersSizeMax, bodySizeMax);
+	d = new Private(this, maxHeadersSize, maxBodySize);
 }
 
 SimpleHttpRequest::~SimpleHttpRequest()
@@ -480,29 +425,28 @@ void SimpleHttpRequest::respond(int code, const QByteArray &reason, const QStrin
 	d->respond(code, reason, body);
 }
 
-class SimpleHttpServerPrivate
+class SimpleHttpServerPrivate : public QObject
 {
+	Q_OBJECT
+
 public:
 	SimpleHttpServer *q;
-	void *listener;
+	void *server;
 	bool local;
 	QSet<SimpleHttpRequest*> accepting;
 	QList<SimpleHttpRequest*> pending;
-	QSet<SimpleHttpRequest*> active;
-	int connectionsMax;
-	int headersSizeMax;
-	int bodySizeMax;
+	int maxHeadersSize;
+	int maxBodySize;
 	map<SimpleHttpRequest*, Connection> finishedConnections;
 	map<SimpleHttpRequest*, Connection> readyConnections;
-	DeferCall deferCall;
 
-	SimpleHttpServerPrivate(int connectionsMax, int headersSizeMax, int bodySizeMax, SimpleHttpServer *_q) :
+	SimpleHttpServerPrivate(int maxHeadersSize, int maxBodySize, SimpleHttpServer *_q) :
+		QObject(_q),
 		q(_q),
-		listener(nullptr),
+		server(0),
 		local(false),
-		connectionsMax(connectionsMax),
-		headersSizeMax(headersSizeMax),
-		bodySizeMax(bodySizeMax)
+		maxHeadersSize(maxHeadersSize),
+		maxBodySize(maxBodySize)
 	{
 	}
 
@@ -510,97 +454,71 @@ public:
 	{
 		qDeleteAll(pending);
 		qDeleteAll(accepting);
-
-		if(listener)
-		{
-			if(local)
-				delete ((UnixListener *)listener);
-			else
-				delete ((TcpListener *)listener);
-		}
-	}
-
-	bool canAccept() const
-	{
-		return (accepting.count() + pending.count() + active.count() < connectionsMax);
 	}
 
 	bool listen(const QHostAddress &addr, int port)
 	{
-		assert(!listener);
+		assert(!server);
 
-		TcpListener *l = new TcpListener;
-		l->streamsReady.connect(boost::bind(&SimpleHttpServerPrivate::listener_streamsReady, this));
-		if(!l->bind(addr, port))
+		QTcpServer *s = new QTcpServer(this);
+		connect(s, &QTcpServer::newConnection, this, &SimpleHttpServerPrivate::server_newConnection);
+		if(!s->listen(addr, port))
 		{
-			delete l;
+			delete s;
 
 			return false;
 		}
 
-		listener = l;
+		server = s;
 		local = false;
-
-		deferCall.defer([&] { listener_streamsReady(); });
 
 		return true;
 	}
 
 	bool listenLocal(const QString &name)
 	{
-		assert(!listener);
+		assert(!server);
 
 		QFileInfo fi(name);
 		QString filePath = fi.absoluteFilePath();
 
 		QFile::remove(filePath);
 
-		UnixListener *l = new UnixListener;
-		l->streamsReady.connect(boost::bind(&SimpleHttpServerPrivate::listener_streamsReady, this));
-		if(!l->bind(name))
+		QLocalServer *s = new QLocalServer(this);
+		connect(s, &QLocalServer::newConnection, this, &SimpleHttpServerPrivate::server_newConnection);
+		if(!s->listen(filePath))
 		{
-			delete l;
+			delete s;
 
 			return false;
 		}
 
-		listener = l;
+		server = s;
 		local = true;
-
-		deferCall.defer([&] { listener_streamsReady(); });
 
 		return true;
 	}
 
-	void listener_streamsReady()
+private:
+	void server_newConnection()
 	{
-		while(canAccept())
+		if(local)
 		{
-			std::unique_ptr<ReadWrite> s;
-
-			if(local)
-			{
-				UnixListener *l = (UnixListener *)listener;
-				s = l->accept();
-				if(!s && l->errorCondition() == EAGAIN)
-					break;
-			}
-			else
-			{
-				TcpListener *l = (TcpListener *)listener;
-				s = l->accept();
-				if(!s && l->errorCondition() == EAGAIN)
-					break;
-			}
-
-			if(s)
-			{
-				SimpleHttpRequest *req = new SimpleHttpRequest(headersSizeMax, bodySizeMax);
-				readyConnections[req] = req->d->ready.connect(boost::bind(&SimpleHttpServerPrivate::req_ready, this, req->d->q));
-				finishedConnections[req] = req->finished.connect(boost::bind(&SimpleHttpServerPrivate::req_finished, this, req));
-				accepting += req;
-				req->d->start(std::move(s));
-			}
+			QLocalSocket *sock = ((QLocalServer *)server)->nextPendingConnection();
+			SimpleHttpRequest *req = new SimpleHttpRequest(maxHeadersSize, maxBodySize);
+			readyConnections[req] = req->d->ready.connect(boost::bind(&SimpleHttpServerPrivate::req_ready, this, req->d->q));
+			finishedConnections[req] = req->finished.connect(boost::bind(&SimpleHttpServerPrivate::req_finished, this, req));
+			accepting += req;
+			req->d->start(sock);
+		}
+		else
+		{
+			QTcpSocket *sock = ((QTcpServer *)server)->nextPendingConnection();
+			SimpleHttpRequest *req = new SimpleHttpRequest(maxHeadersSize, maxBodySize);
+			readyConnections[req] = req->d->ready.connect(boost::bind(&SimpleHttpServerPrivate::req_ready, this, req->d->q));
+			finishedConnections[req] = req->finished.connect(boost::bind(&SimpleHttpServerPrivate::req_finished, this, req));
+			accepting += req;
+			req->d->start(sock);
 		}
 	}
 
@@ -608,39 +526,21 @@ public:
 	{
 		accepting.remove(req);
 		pending += req;
-
 		q->requestReady();
 	}
 
 	void req_finished(SimpleHttpRequest *req)
 	{
-		bool del = false;
-
-		if(active.contains(req))
-		{
-			active.remove(req);
-		}
-		else
-		{
-			pending.removeAll(req);
-			accepting.remove(req);
-			del = true;
-		}
-
-		readyConnections.erase(req);
-		finishedConnections.erase(req);
-
-		if(del)
-			delete req;
-
-		// try to accept more
-		listener_streamsReady();
+		accepting.remove(req);
+		pending.removeAll(req);
+		delete req;
 	}
 };
 
-SimpleHttpServer::SimpleHttpServer(int connectionsMax, int headersSizeMax, int bodySizeMax)
+SimpleHttpServer::SimpleHttpServer(int maxHeadersSize, int maxBodySize, QObject *parent) :
+	QObject(parent)
 {
-	d = new SimpleHttpServerPrivate(connectionsMax, headersSizeMax, bodySizeMax, this);
+	d = new SimpleHttpServerPrivate(maxHeadersSize, maxBodySize, this);
 }
 
 SimpleHttpServer::~SimpleHttpServer()
@@ -663,10 +563,12 @@ SimpleHttpRequest *SimpleHttpServer::takeNext()
 	if(!d->pending.isEmpty())
 	{
 		SimpleHttpRequest *req = d->pending.takeFirst();
-		d->active += req;
-
+		d->finishedConnections.erase(req);
+		
 		return req;
 	}
 	else
-		return nullptr;
+		return 0;
 }
+
+#include "simplehttpserver.moc"

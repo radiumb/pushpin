@@ -24,6 +24,7 @@
 #ifndef TIMER_H
 #define TIMER_H
 
+#include <qobject.h>
 #include <boost/signals2.hpp>
 
 using Signal = boost::signals2::signal<void()>;
@@ -31,8 +32,10 @@ using Signal = boost::signals2::signal<void()>;
 class EventLoop;
 class TimerManager;
 
-class Timer
+class Timer : public QObject
 {
+	Q_OBJECT
+
 public:
 	Timer();
 	~Timer();
@@ -61,7 +64,7 @@ private:
 	int interval_;
 	int timerId_;
 
-	static void cb_timer_activated(void *ctx, uint8_t readiness);
+	static void cb_timer_activated(void *ctx);
 	void timerReady();
 };
 

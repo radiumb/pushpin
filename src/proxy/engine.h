@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012-2023 Fanout, Inc.
- * Copyright (C) 2023-2025 Fastly, Inc.
+ * Copyright (C) 2023-2024 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -24,26 +24,13 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
+#include <QObject>
 #include <QStringList>
 #include <QHostAddress>
-#include <boost/signals2.hpp>
-#include <map>
 #include "jwt.h"
 #include "xffrule.h"
-
-// each session can have a bunch of timers:
-// 2 per incoming zhttprequest/zwebsocket
-// 2 per outgoing zhttprequest/zwebsocket
-// 1 per wsproxysession
-// 2 per websocketoverhttp
-// 1 per inspect/accept request
-#define TIMERS_PER_SESSION 10
-
-// each zroute has a zhttpmanager, which has up to 8 timers
-#define TIMERS_PER_ZROUTE 10
-
-#define PROMETHEUS_CONNECTIONS_MAX 16
-#define ZROUTES_MAX 100
+#include <boost/signals2.hpp>
+#include <map>
 
 using std::map;
 using Connection = boost::signals2::scoped_connection;
@@ -51,8 +38,10 @@ using Connection = boost::signals2::scoped_connection;
 class StatsManager;
 class DomainMap;
 
-class Engine
+class Engine : public QObject
 {
+	Q_OBJECT
+
 public:
 	class Configuration
 	{
@@ -106,6 +95,34 @@ public:
 		QString prometheusPort;
 		QString prometheusPrefix;
 
+		bool cacheEnable;
+		QStringList httpBackendUrlList;
+		QStringList wsBackendUrlList;
+		QStringList cacheMethodList;
+		QStringList subscribeMethodList;
+		QStringList neverTimeoutMethodList;
+		QStringList refreshShorterMethodList;
+		QStringList refreshLongerMethodList;
+		QStringList refreshUneraseMethodList;
+		QStringList refreshExcludeMethodList;
+		QStringList refreshPassthroughMethodList;
+		QStringList nullResponseMethodList;
+		QStringList cacheKeyItemList;
+		QString msgIdFieldName;
+		QString msgMethodFieldName;
+		QString msgParamsFieldName;
+		QStringList msgErrorFieldList;
+		int backendSwitchIntervalSeconds;
+		int prometheusRestoreAllowSeconds;
+		bool redisEnable;
+		QString redisHostAddr;
+		int redisPort;
+		int redisPoolCount;
+		QString redisKeyHeader;
+		QString replicaMasterAddr;
+		int replicaMasterPort;
+		QMap<QString, QStringList> countMethodGroupMap;
+
 		Configuration() :
 			id(0),
 			ipcFileMode(-1),
@@ -125,12 +142,22 @@ public:
 			statsConnectionSend(false),
 			statsConnectionTtl(-1),
 			statsConnectionsMaxTtl(-1),
-			statsReportInterval(-1)
+			statsReportInterval(-1),
+			cacheEnable(false),
+			backendSwitchIntervalSeconds(10),
+			prometheusRestoreAllowSeconds(300),
+			redisEnable(false),
+			redisHostAddr("127.0.0.1"),
+			redisPort(6379),
+			redisPoolCount(10),
+			redisKeyHeader(""),
+			replicaMasterAddr(""),
+			replicaMasterPort(6379)
 		{
 		}
 	};
 
-	Engine(DomainMap *domainMap);
+	Engine(DomainMap *domainMap, QObject *parent = 0);
 	~Engine();
 
 	StatsManager *statsManager() const;

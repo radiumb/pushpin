@@ -28,8 +28,10 @@
 #include "defercall.h"
 #include "httpsession.h"
 
-class HttpSessionUpdateManager::Private
+class HttpSessionUpdateManager::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	class Bucket
 	{
@@ -37,7 +39,7 @@ public:
 		QPair<int, QUrl> key;
 		QSet<HttpSession*> sessions;
 		QSet<HttpSession*> deferredSessions;
-		std::unique_ptr<Timer> timer;
+		Timer *timer;
 	};
 
 	HttpSessionUpdateManager *q;
@@ -46,13 +48,24 @@ public:
 	QHash<HttpSession*, Bucket*> bucketsBySession;
 
 	Private(HttpSessionUpdateManager *_q) :
+		QObject(_q),
 		q(_q)
 	{
 	}
 
 	~Private()
 	{
-		qDeleteAll(buckets);
+		QHashIterator<QPair<int, QUrl>, Bucket*> it(buckets);
+		while(it.hasNext())
+		{
+			it.next();
+			Bucket *bucket = it.value();
+
+			bucket->timer->disconnect(this);
+			bucket->timer->setParent(0);
+			DeferCall::deleteLater(bucket->timer);
+			delete bucket;
+		}
 	}
 
 	void removeBucket(Bucket *bucket)
@@ -60,8 +73,12 @@ public:
 		foreach(HttpSession *hs, bucket->sessions)
 			bucketsBySession.remove(hs);
 
-		bucketsByTimer.remove(bucket->timer.get());
+		bucketsByTimer.remove(bucket->timer);
 		buckets.remove(bucket->key);
+
+		bucket->timer->disconnect(this);
+		bucket->timer->setParent(0);
+		DeferCall::deleteLater(bucket->timer);
 		delete bucket;
 	}
 
@@ -99,11 +116,11 @@ public:
 			bucket = new Bucket;
 			bucket->key = key;
 			bucket->sessions += hs;
-			bucket->timer = std::make_unique<Timer>();
-			bucket->timer->timeout.connect(boost::bind(&Private::timer_timeout, this, bucket->timer.get()));
+			bucket->timer = new Timer;
+			bucket->timer->timeout.connect(boost::bind(&Private::timer_timeout, this, bucket->timer));
 
 			buckets[key] = bucket;
-			bucketsByTimer[bucket->timer.get()] = bucket;
+			bucketsByTimer[bucket->timer] = bucket;
 			bucketsBySession[hs] = bucket;
 
 			bucket->timer->start(timeout * 1000);
@@ -159,7 +176,8 @@ private:
 	}
 };
 
-HttpSessionUpdateManager::HttpSessionUpdateManager()
+HttpSessionUpdateManager::HttpSessionUpdateManager(QObject *parent) :
+	QObject(parent)
 {
 	d = new Private(this);
 }
@@ -178,3 +196,5 @@ void HttpSessionUpdateManager::unregisterSession(HttpSession *hs)
 {
 	d->unregisterSession(hs);
 }
+
+#include "httpsessionupdatemanager.moc"

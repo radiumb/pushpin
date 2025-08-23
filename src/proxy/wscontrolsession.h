@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014-2022 Fanout, Inc.
- * Copyright (C) 2024-2025 Fastly, Inc.
+ * Copyright (C) 2024 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -25,17 +25,20 @@
 #define WSCONTROLSESSION_H
 
 #include <QByteArray>
-#include <boost/signals2.hpp>
+#include <QObject>
 #include "websocket.h"
 #include "wscontrol.h"
 #include "packet/wscontrolpacket.h"
+#include <boost/signals2.hpp>
 
 using Signal = boost::signals2::signal<void()>;
 
 class WsControlManager;
 
-class WsControlSession
+class WsControlSession : public QObject
 {
+	Q_OBJECT
+
 public:
 	~WsControlSession();
 

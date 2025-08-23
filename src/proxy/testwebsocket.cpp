@@ -34,8 +34,10 @@
 
 #define BUFFER_SIZE 200000
 
-class TestWebSocket::Private
+class TestWebSocket::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	enum State
 	{
@@ -57,6 +59,7 @@ public:
 	DeferCall deferCall;
 
 	Private(TestWebSocket *_q) :
+		QObject(_q),
 		q(_q),
 		state(Idle),
 		gripEnabled(false),
@@ -152,7 +155,8 @@ public:
 	}
 };
 
-TestWebSocket::TestWebSocket()
+TestWebSocket::TestWebSocket(QObject *parent) :
+	WebSocket(parent)
 {
 	d = new Private(this);
 }
@@ -328,3 +332,5 @@ void TestWebSocket::close(int code, const QString &reason)
 
 	d->deferCall.defer([=] { d->handleClose(); });
 }
+
+#include "testwebsocket.moc"

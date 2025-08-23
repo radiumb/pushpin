@@ -50,6 +50,25 @@
 
 #define TICK_DURATION_MS 10
 
+extern QStringList gHttpBackendUrlList;
+extern QStringList gWsBackendUrlList;
+
+extern quint32 numRequestReceived, numMessageSent, numWsConnect;
+extern quint32 numClientCount, numHttpClientCount, numWsClientCount;
+extern quint32 numRpcAuthor, numRpcBabe, numRpcBeefy, numRpcChain, numRpcChildState;
+extern quint32 numRpcContracts, numRpcDev, numRpcEngine, numRpcEth, numRpcNet;
+extern quint32 numRpcWeb3, numRpcGrandpa, numRpcMmr, numRpcOffchain, numRpcPayment;
+extern quint32 numRpcRpc, numRpcState, numRpcSyncstate, numRpcSystem, numRpcSubscribe;
+extern quint32 numCacheInsert, numCacheHit, numNeverTimeoutCacheInsert, numNeverTimeoutCacheHit;
+extern quint32 numCacheLookup, numCacheExpiry, numRequestMultiPart;
+extern quint32 numSubscriptionInsert, numSubscriptionHit, numSubscriptionLookup, numSubscriptionExpiry, numResponseMultiPart;
+extern quint32 numCacheItem, numAutoRefreshItem, numAREItemCount, numSubscriptionItem, numNeverTimeoutCacheItem;
+extern QHash<QString, int> groupMethodCountMap;
+extern QHash<QString, int> httpCacheClientConnectFailedCountMap;
+extern QHash<QString, int> httpCacheClientInvalidResponseCountMap;
+extern QHash<QString, int> wsCacheClientConnectFailedCountMap;
+extern QHash<QString, int> wsCacheClientInvalidResponseCountMap;
+
 static qint64 durationToTicksRoundDown(qint64 msec)
 {
 	return msec / TICK_DURATION_MS;
@@ -60,8 +79,10 @@ static qint64 durationToTicksRoundUp(qint64 msec)
 	return (msec + TICK_DURATION_MS - 1) / TICK_DURATION_MS;
 }
 
-class StatsManager::Private
+class StatsManager::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	class TimerBase
 	{
@@ -363,11 +384,54 @@ public:
 	public:
 		enum Type
 		{
-			RequestReceived,
+			RequestReceived,		// 0
 			ConnectionConnected,
 			ConnectionMinute,
 			MessageReceived,
-			MessageSent
+			MessageSent,
+			numRequestReceived,
+			numMessageSent,
+			numWsConnect,
+			numClientCount,
+			numHttpClientCount,
+			numWsClientCount,		// 10
+			numRpcAuthor,
+			numRpcBabe, 
+			numRpcBeefy, 
+			numRpcChain, 
+			numRpcChildState,
+			numRpcContracts, 
+			numRpcDev, 
+			numRpcEngine, 
+			numRpcEth, 
+			numRpcNet,				// 20
+			numRpcWeb3,
+			numRpcGrandpa, 
+			numRpcMmr, 
+			numRpcOffchain, 
+			numRpcPayment,
+			numRpcRpc, 
+			numRpcState, 
+			numRpcSyncstate, 
+			numRpcSystem,
+			numRpcSubscribe,		// 30
+			numCacheInsert,
+			numCacheHit, 
+			numNeverTimeoutCacheInsert,
+			numNeverTimeoutCacheHit, 
+			numCacheLookup,
+			numCacheExpiry,
+			numRequestMultiPart,
+			numSubscriptionInsert, 
+			numSubscriptionHit,
+			numSubscriptionLookup,	// 40
+			numSubscriptionExpiry,
+			numResponseMultiPart,
+			numCacheItem,			
+			numSubscriptionItem,
+			numNeverTimeoutCacheItem,
+			numAutoRefreshItem,
+			numAREItemCount			// 47
 		};
 
 		Type mtype;
@@ -402,8 +466,7 @@ public:
 	int subscriptionLinger;
 	int reportInterval;
 	std::unique_ptr<QZmq::Socket> sock;
-	std::unique_ptr<SimpleHttpServer> prometheusServer;
-	int prometheusConnectionsMax;
+	SimpleHttpServer *prometheusServer;
 	QString prometheusPrefix;
 	QList<PrometheusMetric> prometheusMetrics;
 	QHash<QByteArray, quint32> routeActivity;
@@ -434,7 +497,8 @@ public:
 	Connection externalConnectionsMaxTimerConnection;
 	Connection promServerConnection;
 
-	Private(StatsManager *_q, int _connectionsMax, int _subscriptionsMax, int _prometheusConnectionsMax) :
+	Private(StatsManager *_q, int _connectionsMax, int _subscriptionsMax) :
+		QObject(_q),
 		q(_q),
 		connectionsMax(_connectionsMax),
 		subscriptionsMax(_subscriptionsMax),
@@ -448,7 +512,7 @@ public:
 		subscriptionTtl(60 * 1000),
 		subscriptionLinger(60 * 1000),
 		reportInterval(10 * 1000),
-		prometheusConnectionsMax(_prometheusConnectionsMax),
+		prometheusServer(0),
 		currentConnectionInfoRefreshBucket(0),
 		currentSubscriptionRefreshBucket(0),
 		wheel(TimerWheel((_connectionsMax * 2) + _subscriptionsMax))
@@ -473,6 +537,77 @@ public:
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::ConnectionMinute, "connection_minute", "counter", "Number of minutes clients have been connected");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::MessageReceived, "message_received", "counter", "Number of messages received by the publish API");
 		prometheusMetrics += PrometheusMetric(PrometheusMetric::MessageSent,"message_sent", "counter", "Number of messages sent to clients");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRequestReceived, "number_of_ws_request_received", "counter", "Number of ws requests received");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numMessageSent, "number_of_ws_message_sent", "counter", "Number of ws message sent");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numWsConnect, "number_of_ws_connection_received", "counter", "Number of ws sconcurrent connections");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numClientCount, "number_of_client_count", "counter", "Number of connecting clients");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numHttpClientCount, "number_of_client_count_http", "counter", "Number of http connecting clients");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numWsClientCount, "number_of_client_count_ws", "counter", "Number of ws connecting clients");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcAuthor, "number_of_group_author", "counter", "Number of ws JSON-RPC author method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcBabe, "number_of_group_babe", "counter", "Number of ws JSON-RPC babe method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcBeefy, "number_of_group_beefy", "counter", "Number of ws JSON-RPC beefy method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcChain, "number_of_group_chain", "counter", "Number of ws JSON-RPC chain method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcChildState, "number_of_group_childstate", "counter", "Number of ws JSON-RPC childstate method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcContracts, "number_of_group_contracts", "counter", "Number of ws JSON-RPC contracts method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcDev, "number_of_group_dev", "counter", "Number of ws JSON-RPC dev method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcEngine, "number_of_group_engine", "counter", "Number of ws JSON-RPC engine method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcEth, "number_of_group_eth", "counter", "Number of ws JSON-RPC eth method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcNet, "number_of_group_net_eth", "counter", "Number of ws JSON-RPC net_eth method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcWeb3, "number_of_group_web3_eth", "counter", "Number of ws JSON-RPC web3_eth method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcGrandpa, "number_of_group_grandpa", "counter", "Number of ws JSON-RPC grandpa method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcMmr, "number_of_group_mmr", "counter", "Number of ws JSON-RPC mmr method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcOffchain, "number_of_group_offchain", "counter", "Number of ws JSON-RPC offchain method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcPayment, "number_of_group_paymenet", "counter", "Number of ws JSON-RPC payment method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcRpc, "number_of_group_rpc", "counter", "Number of ws JSON-RPC rpc method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcState, "number_of_group_state", "counter", "Number of ws JSON-RPC state method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcSyncstate, "number_of_group_syncstate", "counter", "Number of ws JSON-RPC syncstate method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcSystem, "number_of_group_system", "counter", "Number of ws JSON-RPC system method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRpcSubscribe, "number_of_group_subscribe", "counter", "Number of ws JSON-RPC subscribe method group");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numCacheInsert, "number_of_cache_insert", "counter", "Number of ws Cache insert event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numCacheHit, "number_of_cache_hit", "counter", "Number of ws Cache hit event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numNeverTimeoutCacheInsert, "number_of_never_timeout_cache_insert", "counter", "Number of ws Never Timeout Cache insert event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numNeverTimeoutCacheHit, "number_of_never_timeout_cache_hit", "counter", "Number of ws Never Timeout Cache hit event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numCacheLookup, "number_of_cache_lookup", "counter", "Number of ws Cache lookup event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numCacheExpiry, "number_of_cache_expiry", "counter", "Number of ws Cache expiry event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numRequestMultiPart, "number_of_cache_request_multi_part", "counter", "Number of ws Cache multi-part request");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numSubscriptionInsert, "number_of_subscription_insert", "counter", "Number of ws Subscripion insert event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numSubscriptionHit, "number_of_subscription_hit", "counter", "Number of ws Subscripion hit event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numSubscriptionLookup, "number_of_subscription_lookup", "counter", "Number of ws Subscripion lookup event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numSubscriptionExpiry, "number_of_subscription_expiry", "counter", "Number of ws Subscripion expiry event");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numResponseMultiPart, "number_of_cache_response_multi_part", "counter", "Number of ws Subscripion multi-part response");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numCacheItem, "number_of_cache_item", "counter", "Number of ws Cache items");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numSubscriptionItem, "number_of_subscription_item", "counter", "Number of ws Subscription items");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numNeverTimeoutCacheItem, "number_of_never_timeout_cache_item", "counter", "Number of ws Never Timeout Cache items");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numAutoRefreshItem, "number_of_cache_auto_refresh_item", "counter", "Number of ws Auto-Refresh items");
+		prometheusMetrics += PrometheusMetric(PrometheusMetric::numAREItemCount, "number_of_cache_auto_refresh_exception_item", "counter", "Number of ws Auto-Refresh Exception items");
+
+		// user-defined method group count
+		int mapCnt = 48;
+		foreach(QString groupKey, groupMethodCountMap.keys())
+		{
+			prometheusMetrics += PrometheusMetric((PrometheusMetric::Type)(mapCnt), "number_of_" + groupKey, "counter", "Number of ws "+groupKey);
+			mapCnt++;
+		}
+		for (int i=0; i<gHttpBackendUrlList.count(); i++)
+		{
+			prometheusMetrics += PrometheusMetric((PrometheusMetric::Type)(mapCnt), "number_of_connect_failed_to_http"+QString::number(i+1), "counter", gHttpBackendUrlList[i]);
+			mapCnt++;
+		}
+		for (int i=0; i<gHttpBackendUrlList.count(); i++)
+		{
+			prometheusMetrics += PrometheusMetric((PrometheusMetric::Type)(mapCnt), "number_of_invalid_response_from_http"+QString::number(i+1), "counter", gHttpBackendUrlList[i]);
+			mapCnt++;
+		}
+		for (int i=0; i<gWsBackendUrlList.count(); i++)
+		{
+			prometheusMetrics += PrometheusMetric((PrometheusMetric::Type)(mapCnt), "number_of_connect_failed_to_ws"+QString::number(i+1), "counter", gWsBackendUrlList[i]);
+			mapCnt++;
+		}
+		for (int i=0; i<gWsBackendUrlList.count(); i++)
+		{
+			prometheusMetrics += PrometheusMetric((PrometheusMetric::Type)(mapCnt), "number_of_invalid_response_from_ws"+QString::number(i+1), "counter", gWsBackendUrlList[i]);
+			mapCnt++;
+		}
 
 		startTime = QDateTime::currentMSecsSinceEpoch();
 
@@ -517,9 +652,7 @@ public:
 
 	bool setPrometheusPort(const QString &portStr)
 	{
-		assert(!prometheusServer);
-
-		prometheusServer = std::make_unique<SimpleHttpServer>(prometheusConnectionsMax, 8192, 8192);
+		prometheusServer = new SimpleHttpServer(8192, 8192, this);
 		promServerConnection = prometheusServer->requestReady.connect(boost::bind(&Private::prometheus_requestReady, this));
 
 		if(portStr.startsWith("ipc://"))
@@ -527,7 +660,7 @@ public:
 			if(!prometheusServer->listenLocal(portStr.mid(6)))
 			{
 				promServerConnection.disconnect();
-				prometheusServer.reset();
+				delete prometheusServer;
 
 				return false;
 			}
@@ -551,7 +684,7 @@ public:
 			if(!prometheusServer->listen(addr, port))
 			{
 				promServerConnection.disconnect();
-				prometheusServer.reset();
+				delete prometheusServer;
 
 				return false;
 			}
@@ -1331,10 +1464,7 @@ public:
 
 			Report &r = report->externalReports[packet.from];
 
-			int mins = qMax(packet.connectionsMinutes, 0);
-
-			r.connectionsMinutes += mins;
-			combinedReport.addConnectionsMinutes(mins, now);
+			r.connectionsMinutes += qMax(packet.connectionsMinutes, 0);
 		}
 	}
 
@@ -1550,6 +1680,86 @@ private:
 				case PrometheusMetric::ConnectionMinute: value = QVariant(combinedReport.connectionsMinutes); break;
 				case PrometheusMetric::MessageReceived: value = QVariant(combinedReport.messagesReceived); break;
 				case PrometheusMetric::MessageSent: value = QVariant(combinedReport.messagesSent); break;
+				case PrometheusMetric::numRequestReceived: value = QVariant(numRequestReceived); break;
+				case PrometheusMetric::numMessageSent: value = QVariant(numMessageSent); break;
+				case PrometheusMetric::numWsConnect: value = QVariant(numWsConnect); break;
+				case PrometheusMetric::numClientCount: value = QVariant(numClientCount); break;
+				case PrometheusMetric::numHttpClientCount: value = QVariant(numHttpClientCount); break;
+				case PrometheusMetric::numWsClientCount: value = QVariant(numWsClientCount); break;
+				case PrometheusMetric::numRpcAuthor: value = QVariant(numRpcAuthor); break;
+				case PrometheusMetric::numRpcBabe: value = QVariant(numRpcBabe); break;
+				case PrometheusMetric::numRpcBeefy: value = QVariant(numRpcBeefy); break;
+				case PrometheusMetric::numRpcChain: value = QVariant(numRpcChain); break;
+				case PrometheusMetric::numRpcChildState: value = QVariant(numRpcChildState); break;
+				case PrometheusMetric::numRpcContracts: value = QVariant(numRpcContracts); break;
+				case PrometheusMetric::numRpcDev: value = QVariant(numRpcDev); break;
+				case PrometheusMetric::numRpcEngine: value = QVariant(numRpcEngine); break;
+				case PrometheusMetric::numRpcEth: value = QVariant(numRpcEth); break;
+				case PrometheusMetric::numRpcNet: value = QVariant(numRpcNet); break;
+				case PrometheusMetric::numRpcWeb3: value = QVariant(numRpcWeb3); break;
+				case PrometheusMetric::numRpcGrandpa: value = QVariant(numRpcGrandpa); break;
+				case PrometheusMetric::numRpcMmr: value = QVariant(numRpcMmr); break;
+				case PrometheusMetric::numRpcOffchain: value = QVariant(numRpcOffchain); break;
+				case PrometheusMetric::numRpcPayment: value = QVariant(numRpcPayment); break;
+				case PrometheusMetric::numRpcRpc: value = QVariant(numRpcRpc); break;
+				case PrometheusMetric::numRpcState: value = QVariant(numRpcState); break;
+				case PrometheusMetric::numRpcSyncstate: value = QVariant(numRpcSyncstate); break;
+				case PrometheusMetric::numRpcSystem: value = QVariant(numRpcSystem); break;
+				case PrometheusMetric::numRpcSubscribe: value = QVariant(numRpcSubscribe); break;
+				case PrometheusMetric::numCacheInsert: value = QVariant(numCacheInsert); break;
+				case PrometheusMetric::numCacheHit: value = QVariant(numCacheHit); break;
+				case PrometheusMetric::numNeverTimeoutCacheInsert: value = QVariant(numNeverTimeoutCacheInsert); break;
+				case PrometheusMetric::numNeverTimeoutCacheHit: value = QVariant(numNeverTimeoutCacheHit); break;
+				case PrometheusMetric::numCacheLookup: value = QVariant(numCacheLookup); break;
+				case PrometheusMetric::numCacheExpiry: value = QVariant(numCacheExpiry); break;
+				case PrometheusMetric::numRequestMultiPart: value = QVariant(numRequestMultiPart); break;
+				case PrometheusMetric::numSubscriptionInsert: value = QVariant(numSubscriptionInsert); break;
+				case PrometheusMetric::numSubscriptionHit: value = QVariant(numSubscriptionHit); break;
+				case PrometheusMetric::numSubscriptionLookup: value = QVariant(numSubscriptionLookup); break;
+				case PrometheusMetric::numSubscriptionExpiry: value = QVariant(numSubscriptionExpiry); break;
+				case PrometheusMetric::numResponseMultiPart: value = QVariant(numResponseMultiPart); break;
+				case PrometheusMetric::numCacheItem: value = QVariant(numCacheItem); break;
+				case PrometheusMetric::numSubscriptionItem: value = QVariant(numSubscriptionItem); break;
+				case PrometheusMetric::numNeverTimeoutCacheItem: value = QVariant(numNeverTimeoutCacheItem); break;
+				case PrometheusMetric::numAutoRefreshItem: value = QVariant(numAutoRefreshItem); break;
+				case PrometheusMetric::numAREItemCount: value = QVariant(numAREItemCount); break;
+				default:
+					int currCnt = 48;
+					if (m.mtype >= currCnt && m.mtype < (currCnt+groupMethodCountMap.size()))
+					{
+						int typeNum = m.mtype - currCnt;
+						value = QVariant(groupMethodCountMap.values()[typeNum]); 
+					}
+					currCnt += groupMethodCountMap.size();
+					if (m.mtype >= currCnt && m.mtype < (currCnt+httpCacheClientConnectFailedCountMap.size()))
+					{
+						int typeNum = m.mtype - currCnt;
+						QString key = gHttpBackendUrlList[typeNum];
+						value = QVariant(httpCacheClientConnectFailedCountMap[key]); 
+					}
+					currCnt += httpCacheClientConnectFailedCountMap.size();
+					if (m.mtype >= currCnt && m.mtype < (currCnt+httpCacheClientInvalidResponseCountMap.size()))
+					{
+						int typeNum = m.mtype - currCnt;
+						QString key = gHttpBackendUrlList[typeNum];
+						value = QVariant(httpCacheClientInvalidResponseCountMap[key]); 
+					}
+					currCnt += httpCacheClientInvalidResponseCountMap.size();
+					if (m.mtype >= currCnt && m.mtype < (currCnt+wsCacheClientConnectFailedCountMap.size()))
+					{
+						int typeNum = m.mtype - currCnt;
+						QString key = gWsBackendUrlList[typeNum];
+						value = QVariant(wsCacheClientConnectFailedCountMap[key]); 
+					}
+					currCnt += wsCacheClientConnectFailedCountMap.size();
+					if (m.mtype >= currCnt && m.mtype < (currCnt+wsCacheClientInvalidResponseCountMap.size()))
+					{
+						int typeNum = m.mtype - currCnt;
+						QString key = gWsBackendUrlList[typeNum];
+						value = QVariant(wsCacheClientInvalidResponseCountMap[key]); 
+					}
+					currCnt += wsCacheClientInvalidResponseCountMap.size();
+					break;
 			}
 
 			if(value.isNull())
@@ -1570,9 +1780,10 @@ private:
 	}
 };
 
-StatsManager::StatsManager(int connectionsMax, int subscriptionsMax, int prometheusConnectionsMax)
+StatsManager::StatsManager(int connectionsMax, int subscriptionsMax, QObject *parent) :
+	QObject(parent)
 {
-	d = new Private(this, connectionsMax, subscriptionsMax, prometheusConnectionsMax);
+	d = new Private(this, connectionsMax, subscriptionsMax);
 }
 
 StatsManager::~StatsManager()
@@ -2122,3 +2333,5 @@ void StatsManager::setRetrySeq(const QByteArray &routeId, int value)
 
 	cm.retrySeq = value;
 }
+
+#include "statsmanager.moc"

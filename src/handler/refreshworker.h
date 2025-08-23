@@ -27,12 +27,12 @@
 #include <QByteArray>
 #include <QHash>
 #include <QSet>
-#include <boost/signals2.hpp>
 #include "deferred.h"
-#include "zrpcrequest.h"
+#include <boost/signals2.hpp>
 
 using Connection = boost::signals2::scoped_connection;
 
+class ZrpcRequest;
 class ZrpcManager;
 class StatsManager;
 class WsSession;
@@ -46,8 +46,7 @@ private:
 	QStringList cids_;
 	bool ignoreErrors_;
 	ZrpcManager *proxyControlClient_;
-	std::unique_ptr<ZrpcRequest> req_;
-	std::unique_ptr<Deferred> refresh_;
+	ZrpcRequest *req_;
 	Connection finishedConnection_;
 
 	void refreshNextCid();

@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 Fanout, Inc.
- * Copyright (C) 2025 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -25,26 +24,27 @@
 #define CONNCHECKWORKER_H
 
 #include <QByteArray>
-#include <boost/signals2.hpp>
-#include "zrpcrequest.h"
 #include "deferred.h"
 #include "cidset.h"
+#include <boost/signals2.hpp>
 
 using Connection = boost::signals2::scoped_connection;
 
+class ZrpcRequest;
 class ZrpcManager;
 class StatsManager;
 
 class ConnCheckWorker : public Deferred
 {
+	Q_OBJECT
+
 public:
 	ConnCheckWorker(ZrpcRequest *req, ZrpcManager *proxyControlClient, StatsManager *stats);
 
 private:
-	std::unique_ptr<ZrpcRequest> req_;
+	ZrpcRequest *req_;
 	CidSet cids_;
 	CidSet missing_;
-	std::unique_ptr<Deferred> connCheck_;
 	Connection finishedConnection_;
 
 	void respondError(const QByteArray &condition);

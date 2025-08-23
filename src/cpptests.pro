@@ -14,8 +14,13 @@ include($$cpp_build_dir/conf.pri)
 
 SRC_DIR = $$PWD
 
+DEFINES += NO_IRISNET
+
 INCLUDEPATH += $$SRC_DIR/../target/include
 INCLUDEPATH += $$SRC_DIR/core
+INCLUDEPATH += /usr/include/hiredis
+
+LIBS += -lhiredis
 
 include(core/tests.pri)
 include(proxy/tests.pri)

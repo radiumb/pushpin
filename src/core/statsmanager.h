@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014-2023 Fanout, Inc.
- * Copyright (C) 2023-2025 Fastly, Inc.
+ * Copyright (C) 2023-2024 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -24,14 +24,17 @@
 #ifndef STATSMANAGER_H
 #define STATSMANAGER_H
 
+#include <QObject>
 #include "packet/statspacket.h"
 #include "stats.h"
 #include <boost/signals2.hpp>
 
 class QHostAddress;
 
-class StatsManager
+class StatsManager : public QObject
 {
+	Q_OBJECT
+
 public:
 	enum ConnectionType
 	{
@@ -45,7 +48,7 @@ public:
 		JsonFormat
 	};
 
-	StatsManager(int connectionsMax, int subscriptionsMax, int prometheusConnectionsMax);
+	StatsManager(int connectionsMax, int subscriptionsMax, QObject *parent = 0);
 	~StatsManager();
 
 	bool connectionSendEnabled() const;

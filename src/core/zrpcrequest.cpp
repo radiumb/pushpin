@@ -35,8 +35,10 @@
 
 using Connection = boost::signals2::scoped_connection;
 
-class ZrpcRequest::Private
+class ZrpcRequest::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	ZrpcRequest *q;
 	ZrpcManager *manager;
@@ -54,6 +56,7 @@ public:
 	DeferCall deferCall;
 
 	Private(ZrpcRequest *_q) :
+		QObject(_q),
 		q(_q),
 		manager(0),
 		success(false),
@@ -173,12 +176,14 @@ public:
 	}
 };
 
-ZrpcRequest::ZrpcRequest()
+ZrpcRequest::ZrpcRequest(QObject *parent) :
+	QObject(parent)
 {
 	d = new Private(this);
 }
 
-ZrpcRequest::ZrpcRequest(ZrpcManager *manager)
+ZrpcRequest::ZrpcRequest(ZrpcManager *manager, QObject *parent) :
+	QObject(parent)
 {
 	d = new Private(this);
 	setupClient(manager);
@@ -289,3 +294,5 @@ void ZrpcRequest::handle(const ZrpcResponsePacket &packet)
 
 	d->handle(packet);
 }
+
+#include "zrpcrequest.moc"

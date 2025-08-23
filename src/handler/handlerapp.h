@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 Fanout, Inc.
- * Copyright (C) 2025 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -24,16 +23,28 @@
 #ifndef HANDLERAPP_H
 #define HANDLERAPP_H
 
-class HandlerApp
+#include <QObject>
+#include <boost/signals2.hpp>
+
+using SignalInt = boost::signals2::signal<void(int)>;
+using Connection = boost::signals2::scoped_connection;
+
+class HandlerApp : public QObject
 {
+	Q_OBJECT
+
 public:
-	HandlerApp();
+	HandlerApp(QObject *parent = 0);
 	~HandlerApp();
 
-	int run();
+	void start();
+
+	SignalInt quit;
 
 private:
 	class Private;
+	friend class Private;
+	Private *d;
 };
 
 #endif

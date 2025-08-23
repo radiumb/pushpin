@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2015 Fanout, Inc.
- * Copyright (C) 2025 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -24,16 +23,17 @@
 #ifndef UPDATER_H
 #define UPDATER_H
 
+#include <QObject>
 #include <boost/signals2.hpp>
 
 using Connection = boost::signals2::scoped_connection;
 
-class QString;
-
 class ZhttpManager;
 
-class Updater
+class Updater : public QObject
 {
+	Q_OBJECT
+
 public:
 	enum Mode
 	{
@@ -60,7 +60,7 @@ public:
 		}
 	};
 
-	Updater(Mode mode, bool quiet, const QString &currentVersion, const QString &org, ZhttpManager *zhttp);
+	Updater(Mode mode, bool quiet, const QString &currentVersion, const QString &org, ZhttpManager *zhttp, QObject *parent = 0);
 	~Updater();
 
 	void setReport(const Report &report);

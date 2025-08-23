@@ -22,7 +22,28 @@
  */
 
 #include <QCoreApplication>
+#include "timer.h"
+#include "defercall.h"
 #include "handlerapp.h"
+
+class HandlerAppMain
+{
+public:
+	HandlerApp *app;
+
+	void start()
+	{
+		app = new HandlerApp;
+		app->quit.connect(boost::bind(&HandlerAppMain::app_quit, this, boost::placeholders::_1));
+		app->start();
+	}
+
+	void app_quit(int returnCode)
+	{
+		delete app;
+		QCoreApplication::exit(returnCode);
+	}
+};
 
 extern "C" {
 
@@ -30,8 +51,19 @@ int handler_main(int argc, char **argv)
 {
 	QCoreApplication qapp(argc, argv);
 
-	HandlerApp app;
-	return app.run();
+	HandlerAppMain appMain;
+	DeferCall deferCall;
+	deferCall.defer([&] { appMain.start(); });
+	int ret = qapp.exec();
+
+	// ensure deferred deletes are processed
+	QCoreApplication::instance()->sendPostedEvents();
+
+	// deinit here, after all event loop activity has completed
+	Timer::deinit();
+	DeferCall::cleanup();
+
+	return ret;
 }
 
 }

@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2012-2015 Fanout, Inc.
- * Copyright (C) 2025 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -24,6 +23,7 @@
 #ifndef INSPECTREQUEST_H
 #define INSPECTREQUEST_H
 
+#include <QObject>
 #include "zrpcrequest.h"
 
 class HttpRequestData;
@@ -32,8 +32,10 @@ class ZrpcManager;
 
 class InspectRequest : public ZrpcRequest
 {
+	Q_OBJECT
+
 public:
-	InspectRequest(ZrpcManager *manager);
+	InspectRequest(ZrpcManager *manager, QObject *parent = 0);
 	~InspectRequest();
 
 	InspectData result() const;

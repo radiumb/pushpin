@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 Fanout, Inc.
- * Copyright (C) 2025 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -24,16 +23,28 @@
 #ifndef APP_H
 #define APP_H
 
-class App
+#include <QObject>
+#include <boost/signals2.hpp>
+
+using SignalInt = boost::signals2::signal<void(int)>;
+using Connection = boost::signals2::scoped_connection;
+
+class App : public QObject
 {
+	Q_OBJECT
+
 public:
-	App();
+	App(QObject *parent = 0);
 	~App();
 
-	int run();
+	void start();
+
+	SignalInt quit;
 
 private:
 	class Private;
+	friend class Private;
+	Private *d;
 };
 
 #endif

@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2015-2022 Fanout, Inc.
- * Copyright (C) 2025 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -22,13 +21,11 @@
  */
 
 #ifndef SIMPLEHTTPSERVER_H
-#define SIMPLEHTTPSERVER_H
 
+#include <QObject>
 #include <QHostAddress>
 #include <boost/signals2.hpp>
 #include <map>
-
-#define SOCKETNOTIFIERS_PER_SIMPLEHTTPREQUEST 1
 
 using std::map;
 using Signal = boost::signals2::signal<void()>;
@@ -38,9 +35,12 @@ class HttpHeaders;
 
 class SimpleHttpServerPrivate;
 
-class SimpleHttpRequest
+class SimpleHttpRequest : public QObject
 {
+	Q_OBJECT
+
 public:
+	SimpleHttpRequest(int maxHeadersSize, int maxBodySize, QObject* parent = 0);
 	~SimpleHttpRequest();
 
 	QString requestMethod() const;
@@ -59,13 +59,15 @@ private:
 	friend class SimpleHttpServerPrivate;
 	Private *d;
 
-	SimpleHttpRequest(int headersSizeMax, int bodySizeMax);
+	SimpleHttpRequest(QObject *parent = 0);
 };
 
-class SimpleHttpServer
+class SimpleHttpServer : public QObject
 {
+	Q_OBJECT
+
 public:
-	SimpleHttpServer(int connectionsMax, int headersSizeMax, int bodySizeMax);
+	SimpleHttpServer(int maxHeadersSize, int maxBodySize, QObject *parent = 0);
 	~SimpleHttpServer();
 
 	bool listen(const QHostAddress &addr, int port);

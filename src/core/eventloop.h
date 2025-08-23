@@ -17,28 +17,25 @@
 #ifndef EVENTLOOP_H
 #define EVENTLOOP_H
 
-#include <memory>
-#include <optional>
-#include "event.h"
 #include "rust/bindings.h"
 
 class EventLoop
 {
 public:
+	enum Interest
+	{
+		Readable = ffi::READABLE,
+		Writable = ffi::WRITABLE,
+	};
+
 	EventLoop(int capacity);
 	~EventLoop();
 
-	// disable copying
-	EventLoop(const EventLoop &) = delete;
-	EventLoop & operator=(const EventLoop &) = delete;
-
-	std::optional<int> step();
 	int exec();
 	void exit(int code);
 
-	int registerFd(int fd, uint8_t interest, void (*cb)(void *, uint8_t), void *ctx);
-	int registerTimer(int timeout, void (*cb)(void *, uint8_t), void *ctx);
-	std::tuple<int, std::unique_ptr<Event::SetReadiness>> registerCustom(void (*cb)(void *, uint8_t), void *ctx);
+	int registerFd(int fd, unsigned char interest, void (*cb)(void *), void *ctx);
+	int registerTimer(int timeout, void (*cb)(void *), void *ctx);
 	void deregister(int id);
 
 	static EventLoop *instance();

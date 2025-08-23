@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2015-2023 Fanout, Inc.
- * Copyright (C) 2024-2025 Fastly, Inc.
+ * Copyright (C) 2024 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -24,22 +24,20 @@
 #ifndef HANDLERENGINE_H
 #define HANDLERENGINE_H
 
+#include <QObject>
 #include <QStringList>
 #include <QHostAddress>
 #include <boost/signals2.hpp>
 #include <map>
 
-#define TIMERS_PER_SUBSCRIPTION 1
-
-#define CONTROL_CONNECTIONS_MAX 128
-#define PROMETHEUS_CONNECTIONS_MAX 16
-
 using std::map;
 using Signal = boost::signals2::signal<void()>;
 using Connection = boost::signals2::scoped_connection;
 
-class HandlerEngine
+class HandlerEngine : public QObject
 {
+	Q_OBJECT
+
 public:
 	class Configuration
 	{
@@ -109,7 +107,7 @@ public:
 		}
 	};
 
-	HandlerEngine();
+	HandlerEngine(QObject *parent = 0);
 	~HandlerEngine();
 
 	bool start(const Configuration &config);

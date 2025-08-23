@@ -44,8 +44,10 @@
 
 #define PENDING_MAX 100
 
-class ZrpcManager::Private
+class ZrpcManager::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	class PendingItem
 	{
@@ -71,6 +73,7 @@ public:
 	Connection serverValveConnection;
 
 	Private(ZrpcManager *_q) :
+		QObject(_q),
 		q(_q),
 		ipcFileMode(-1),
 		doBind(false),
@@ -248,7 +251,8 @@ public:
 	}
 };
 
-ZrpcManager::ZrpcManager()
+ZrpcManager::ZrpcManager(QObject *parent) :
+	QObject(parent)
 {
 	d = new Private(this);
 }
@@ -336,3 +340,5 @@ void ZrpcManager::write(const QList<QByteArray> &headers, const ZrpcResponsePack
 {
 	d->write(headers, packet);
 }
+
+#include "zrpcmanager.moc"

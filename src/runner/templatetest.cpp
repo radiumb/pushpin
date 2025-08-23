@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2016 Fanout, Inc.
- * Copyright (C) 2025 Fastly, Inc.
  *
  * This file is part of Pushpin.
  *
@@ -21,43 +20,59 @@
  * $FANOUT_END_LICENSE$
  */
 
-#include "test.h"
+#include <QtTest/QtTest>
 #include "template.h"
 
-static void render()
+class TemplateTest : public QObject
 {
-	QVariantMap context;
-	context["place"] = "world";
+	Q_OBJECT
 
-	QVariantMap user;
-	user["first"] = "john";
-	user["last"] = "smith";
-	context["user"] = user;
+private slots:
+	void render()
+	{
+		QVariantMap context;
+		context["place"] = "world";
 
-	QVariantList fruits;
-	fruits.append("apple");
-	fruits.append("banana");
-	context["fruits"] = fruits;
+		QVariantMap user;
+		user["first"] = "john";
+		user["last"] = "smith";
+		context["user"] = user;
 
-	QString content("hello {{ place }}!");
-	QString output = Template::render(content, context);
-	TEST_ASSERT_EQ(output, QString("hello world!"));
+		QVariantList fruits;
+		fruits.append("apple");
+		fruits.append("banana");
+		context["fruits"] = fruits;
 
-	content = QString("hello {% if formal %}{{ user.last }}{% endif %}{% if not formal %}{{ user.first }}{% endif %}!");
-	output = Template::render(content, context);
-	TEST_ASSERT_EQ(output, QString("hello john!"));
-	context["formal"] = true;
-	output = Template::render(content, context);
-	TEST_ASSERT_EQ(output, QString("hello smith!"));
+		QString content("hello {{ place }}!");
+		QString output = Template::render(content, context);
+		QCOMPARE(output, QString("hello world!"));
 
-	content = QString("please eat {% for f in fruits %}{% if not loop.first %} and {% endif %}fresh {{ f }}s{% endfor %}.");
-	output = Template::render(content, context);
-	TEST_ASSERT_EQ(output, QString("please eat fresh apples and fresh bananas."));
+		content = QString("hello {% if formal %}{{ user.last }}{% endif %}{% if not formal %}{{ user.first }}{% endif %}!");
+		output = Template::render(content, context);
+		QCOMPARE(output, QString("hello john!"));
+		context["formal"] = true;
+		output = Template::render(content, context);
+		QCOMPARE(output, QString("hello smith!"));
+
+		content = QString("please eat {% for f in fruits %}{% if not loop.first %} and {% endif %}fresh {{ f }}s{% endfor %}.");
+		output = Template::render(content, context);
+		QCOMPARE(output, QString("please eat fresh apples and fresh bananas."));
+	}
+};
+
+namespace {
+namespace Main {
+QTEST_MAIN(TemplateTest)
+}
 }
 
-extern "C" int template_test(ffi::TestException *out_ex)
-{
-	TEST_CATCH(render());
+extern "C" {
 
-	return 0;
+int template_test(int argc, char **argv)
+{
+	return Main::main(argc, argv);
 }
+
+}
+
+#include "templatetest.moc"

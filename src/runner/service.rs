@@ -435,6 +435,41 @@ fn start_log_handler(
 }
 
 fn log_message(name: &str, level: log::Level, msg: &str) {
+    const MAX_MSG_LEN: usize = 2048; // Set your desired message length limit
+
+    // Find the position of the 3rd space (' ') in the string
+    let index = msg
+        .char_indices()
+        .filter(|&(_, c)| c == ' ')
+        .nth(2)
+        .map(|(i, _)| i)
+        .unwrap_or_else(|| 0);
+
+	// Truncate the message to MAX_MSG_LEN
+    let truncated_msg = if msg.len() > MAX_MSG_LEN {
+		let split_len = MAX_MSG_LEN / 2;
+		let head: String = msg.chars().take(split_len).collect();
+		let tail: String = msg.chars().rev().take(split_len).collect::<String>().chars().rev().collect();
+        format!("{}...{}", head, tail)
+    } else {
+        msg.to_string()
+    };
+
+    log::logger().log(
+        &log::Record::builder()
+            .level(level)
+            .target(name)
+            .args(format_args!(
+                "{} [{}]{}",
+                &truncated_msg[..index.min(truncated_msg.len())], // Prevent out-of-bounds access
+                name,
+                &truncated_msg[index.min(truncated_msg.len())..]
+            ))
+            .build(),
+    );
+}
+/*
+fn log_message(name: &str, level: log::Level, msg: &str) {
     // Find the position of the 3rd space (' ') in the string
     let index = msg
         .char_indices()
@@ -456,3 +491,4 @@ fn log_message(name: &str, level: log::Level, msg: &str) {
             .build(),
     );
 }
+*/

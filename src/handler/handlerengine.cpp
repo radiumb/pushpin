@@ -113,8 +113,10 @@ static QList<PublishItem> parseItems(const QVariantList &vitems, bool *ok = 0, Q
 
 class InspectWorker : public Deferred
 {
+	Q_OBJECT
+
 public:
-	std::unique_ptr<ZrpcRequest> req;
+	ZrpcRequest *req;
 	ZrpcManager *stateClient;
 	bool shareAll;
 	HttpRequestData requestData;
@@ -122,15 +124,18 @@ public:
 	bool autoShare;
 	QString sid;
 	LastIds lastIds;
-	std::map<Deferred*, std::unique_ptr<Deferred>> deferreds;
+	map<Deferred*, Connection> finishedConnection;
 
-	InspectWorker(ZrpcRequest *_req, ZrpcManager *_stateClient, bool _shareAll) :
+	InspectWorker(ZrpcRequest *_req, ZrpcManager *_stateClient, bool _shareAll, QObject *parent = 0) :
+		Deferred(parent),
 		req(_req),
 		stateClient(_stateClient),
 		shareAll(_shareAll),
 		truncated(false),
 		autoShare(false)
 	{
+		req->setParent(this);
+
 		if(req->method() == "inspect")
 		{
 			QVariantHash args = req->args();
@@ -227,13 +232,8 @@ public:
 			if(getSession && stateClient)
 			{
 				// determine session info
-
-				auto d = std::unique_ptr<Deferred>(SessionRequest::detectRulesGet(stateClient, requestData.uri.host().toUtf8(), requestData.uri.path(QUrl::FullyEncoded).toUtf8()));
-
-				// safe to not track, since d can't outlive this
-				d->finished.connect(boost::bind(&InspectWorker::sessionDetectRulesGet_finished, this, d.get(), boost::placeholders::_1));
-
-				deferreds[d.get()] = std::move(d);
+				Deferred *d = SessionRequest::detectRulesGet(stateClient, requestData.uri.host().toUtf8(), requestData.uri.path(QUrl::FullyEncoded).toUtf8(), this);
+				finishedConnection[d] = d->finished.connect(boost::bind(&InspectWorker::sessionDetectRulesGet_finished, this, boost::placeholders::_1));
 				return;
 			}
 
@@ -302,10 +302,9 @@ private:
 		setFinished(true);
 	}
 
-	void sessionDetectRulesGet_finished(Deferred *d, const DeferredResult &result)
+private:
+	void sessionDetectRulesGet_finished(const DeferredResult &result)
 	{
-		deferreds.erase(d);
-
 		if(result.success)
 		{
 			QList<DetectRule> rules = result.value.value<DetectRuleList>();
@@ -352,12 +351,8 @@ private:
 
 			if(!sid.isEmpty())
 			{
-				auto d = std::unique_ptr<Deferred>(SessionRequest::getLastIds(stateClient, sid));
-
-				// safe to not track, since d can't outlive this
-				d->finished.connect(boost::bind(&InspectWorker::sessionGetLastIds_finished, this, d.get(), boost::placeholders::_1));
-
-				deferreds[d.get()] = std::move(d);
+				Deferred *d = SessionRequest::getLastIds(stateClient, sid, this);
+				finishedConnection[d] = d->finished.connect(boost::bind(&InspectWorker::sessionGetLastIds_finished, this, boost::placeholders::_1));
 				return;
 			}
 		}
@@ -370,10 +365,9 @@ private:
 		doFinish();
 	}
 
-	void sessionGetLastIds_finished(Deferred *d, const DeferredResult &result)
+private:
+	void sessionGetLastIds_finished(const DeferredResult &result)
 	{
-		deferreds.erase(d);
-
 		if(result.success)
 		{
 			lastIds = result.value.value<LastIds>();
@@ -414,8 +408,10 @@ public:
 
 class AcceptWorker : public Deferred
 {
+	Q_OBJECT
+
 public:
-	std::unique_ptr<ZrpcRequest> req;
+	ZrpcRequest *req;
 	ZrpcManager *stateClient;
 	CommonState *cs;
 	ZhttpManager *zhttpIn;
@@ -423,7 +419,7 @@ public:
 	StatsManager *stats;
 	RateLimiter *updateLimiter;
 	std::shared_ptr<RateLimiter> filterLimiter;
-	std::shared_ptr<HttpSessionUpdateManager> httpSessionUpdateManager;
+	HttpSessionUpdateManager *httpSessionUpdateManager;
 	QString route;
 	QString statsRoute;
 	QString channelPrefix;
@@ -442,9 +438,10 @@ public:
 	QList<std::shared_ptr<HttpSession>> sessions;
 	int connectionSubscriptionMax;
 	QSet<QByteArray> needRemoveFromStats;
-	std::map<Deferred*, std::unique_ptr<Deferred>> deferreds;
+	map<Deferred*, Connection> finishedConnection;
 
-	AcceptWorker(ZrpcRequest *_req, ZrpcManager *_stateClient, CommonState *_cs, ZhttpManager *_zhttpIn, ZhttpManager *_zhttpOut, StatsManager *_stats, RateLimiter *_updateLimiter, const std::shared_ptr<RateLimiter> &_filterLimiter, const std::shared_ptr<HttpSessionUpdateManager> &_httpSessionUpdateManager, int _connectionSubscriptionMax) :
+	AcceptWorker(ZrpcRequest *_req, ZrpcManager *_stateClient, CommonState *_cs, ZhttpManager *_zhttpIn, ZhttpManager *_zhttpOut, StatsManager *_stats, RateLimiter *_updateLimiter, const std::shared_ptr<RateLimiter> &_filterLimiter, HttpSessionUpdateManager *_httpSessionUpdateManager, int _connectionSubscriptionMax, QObject *parent = 0) :
+		Deferred(parent),
 		req(_req),
 		stateClient(_stateClient),
 		cs(_cs),
@@ -460,6 +457,7 @@ public:
 		responseSent(false),
 		connectionSubscriptionMax(_connectionSubscriptionMax)
 	{
+		req->setParent(this);
 	}
 
 	~AcceptWorker()
@@ -812,12 +810,8 @@ public:
 		{
 			if(!rules.isEmpty())
 			{
-				auto d = std::unique_ptr<Deferred>(SessionRequest::detectRulesSet(stateClient, rules));
-
-				// safe to not track, since d can't outlive this
-				d->finished.connect(boost::bind(&AcceptWorker::sessionDetectRulesSet_finished, this, d.get(), boost::placeholders::_1));
-
-				deferreds[d.get()] = std::move(d);
+				Deferred *d = SessionRequest::detectRulesSet(stateClient, rules, this);
+				finishedConnection[d] = d->finished.connect(boost::bind(&AcceptWorker::sessionDetectRulesSet_finished, this, boost::placeholders::_1));
 			}
 			else
 			{
@@ -832,9 +826,12 @@ public:
 
 	QList<std::shared_ptr<HttpSession>> takeSessions()
 	{
-		// swap instead of std::move since sessions is a member and should have a known state
-		QList<std::shared_ptr<HttpSession>> out;
-		out.swap(sessions);
+		QList<std::shared_ptr<HttpSession>> out = sessions;
+		sessions.clear();
+
+		foreach(const std::shared_ptr<HttpSession> &hs, out)
+			hs->setParent(0);
+
 		return out;
 	}
 
@@ -895,12 +892,8 @@ private:
 	{
 		if(!sid.isEmpty())
 		{
-			auto d = std::unique_ptr<Deferred>(SessionRequest::createOrUpdate(stateClient, sid, lastIds));
-
-			// safe to not track, since d can't outlive this
-			d->finished.connect(boost::bind(&AcceptWorker::sessionCreateOrUpdate_finished, this, d.get(), boost::placeholders::_1));
-
-			deferreds[d.get()] = std::move(d);
+			Deferred *d = SessionRequest::createOrUpdate(stateClient, sid, lastIds, this);
+			finishedConnection[d] = d->finished.connect(boost::bind(&AcceptWorker::sessionCreateOrUpdate_finished, this, boost::placeholders::_1));
 		}
 		else
 		{
@@ -1144,20 +1137,17 @@ private:
 		setFinished(true);
 	}
 
-	void sessionDetectRulesSet_finished(Deferred *d, const DeferredResult &result)
+private:
+	void sessionDetectRulesSet_finished(const DeferredResult &result)
 	{
-		deferreds.erase(d);
-
 		if(!result.success)
 			log_error("couldn't store detection rules: condition=%d", result.value.toInt());
 
 		afterSetRules();
 	}
 
-	void sessionCreateOrUpdate_finished(Deferred *d, const DeferredResult &result)
+	void sessionCreateOrUpdate_finished(const DeferredResult &result)
 	{
-		deferreds.erase(d);
-
 		if(!result.success)
 			log_error("couldn't create/update session: condition=%d", result.value.toInt());
 
@@ -1165,12 +1155,28 @@ private:
 	}
 };
 
-class Subscription
+#define TIMERS_PER_SUBSCRIPTION 1
+
+class Subscription : public QObject
 {
+	Q_OBJECT
+
 public:
 	Subscription(const QString &channel) :
-		channel_(channel)
+		channel_(channel),
+		timer_(0)
 	{
+	}
+
+	~Subscription()
+	{
+		if(timer_)
+		{
+			timer_->stop();
+			timer_->disconnect(this);
+			timer_->setParent(0);
+			DeferCall::deleteLater(timer_);
+		}
 	}
 
 	const QString & channel() const
@@ -1180,7 +1186,7 @@ public:
 
 	void start()
 	{
-		timer_ = std::make_unique<Timer>();
+		timer_ = new Timer;
 		timer_->timeout.connect(boost::bind(&Subscription::timer_timeout, this));
 		timer_->setSingleShot(true);
 		timer_->start(SUBSCRIBED_DELAY);
@@ -1190,7 +1196,7 @@ public:
 
 private:
 	QString channel_;
-	std::unique_ptr<Timer> timer_;
+	Timer *timer_;
 
 	void timer_timeout()
 	{
@@ -1198,18 +1204,20 @@ private:
 	}
 };
 
-class HandlerEngine::Private
+class HandlerEngine::Private : public QObject
 {
+	Q_OBJECT
+
 public:
 	class PublishAction : public RateLimiter::Action
 	{
 	public:
 		std::weak_ptr<HandlerEngine::Private> ep;
-		std::weak_ptr<ClientSession> target;
+		std::weak_ptr<QObject> target;
 		PublishItem item;
 		QList<QByteArray> exposeHeaders;
 
-		PublishAction(const std::weak_ptr<HandlerEngine::Private> _ep, const std::weak_ptr<ClientSession> _target, const PublishItem &_item, const QList<QByteArray> &_exposeHeaders = QList<QByteArray>()) :
+		PublishAction(const std::weak_ptr<HandlerEngine::Private> _ep, const std::weak_ptr<QObject> _target, const PublishItem &_item, const QList<QByteArray> &_exposeHeaders = QList<QByteArray>()) :
 			ep(_ep),
 			target(_target),
 			item(_item),
@@ -1240,13 +1248,13 @@ public:
 
 	HandlerEngine *q;
 	Configuration config;
-	std::unique_ptr<ZhttpManager> zhttpIn;
-	std::unique_ptr<ZhttpManager> zhttpOut;
-	std::unique_ptr<ZrpcManager> inspectServer;
-	std::unique_ptr<ZrpcManager> acceptServer;
-	std::unique_ptr<ZrpcManager> stateClient;
-	std::unique_ptr<ZrpcManager> controlServer;
-	std::unique_ptr<ZrpcManager> proxyControlClient;
+	ZhttpManager *zhttpIn;
+	ZhttpManager *zhttpOut;
+	ZrpcManager *inspectServer;
+	ZrpcManager *acceptServer;
+	ZrpcManager *stateClient;
+	ZrpcManager *controlServer;
+	ZrpcManager *proxyControlClient;
 	std::unique_ptr<QZmq::Socket> inPullSock;
 	std::unique_ptr<QZmq::Valve> inPullValve;
 	std::unique_ptr<QZmq::Socket> inSubSock;
@@ -1259,24 +1267,28 @@ public:
 	std::unique_ptr<QZmq::Socket> statsSock;
 	std::unique_ptr<QZmq::Socket> proxyStatsSock;
 	std::unique_ptr<QZmq::Valve> proxyStatsValve;
-	std::unique_ptr<SimpleHttpServer> controlHttpServer;
-	std::unique_ptr<StatsManager> stats;
+	SimpleHttpServer *controlHttpServer;
+	StatsManager *stats;
 	std::unique_ptr<RateLimiter> publishLimiter;
 	std::unique_ptr<RateLimiter> updateLimiter;
 	std::shared_ptr<RateLimiter> filterLimiter;
-	std::shared_ptr<HttpSessionUpdateManager> httpSessionUpdateManager;
-	std::unique_ptr<Sequencer> sequencer;
+	HttpSessionUpdateManager *httpSessionUpdateManager;
+	Sequencer *sequencer;
 	CommonState cs;
 	QSet<InspectWorker*> inspectWorkers;
 	QSet<AcceptWorker*> acceptWorkers;
-	std::unique_ptr<Deferred> report;
-	std::map<Deferred*, std::unique_ptr<Deferred>> deferreds;
+	QSet<Deferred*> deferreds;
+	std::map<Deferred*, std::unique_ptr<Deferred>> deferredMap;
+	Deferred *report;
 	Connection inspectReqReadyConnection;
 	Connection acceptReqReadyConnection;
 	Connection controlReqReadyConnection;
 	Connection controlServerConnection;
 	Connection itemReadyConnection;
+	map<Deferred*, Connection> finishedConnection;
 	map<Subscription*, Connection> subscribedConnection;
+	map<AcceptWorker*, Connection> retryPacketReadyConnection;
+	map<AcceptWorker*, Connection> sessionsReadyConnection;
 	Connection connectionsRefreshedConnection;
 	Connection unsubscribedConnection;
 	Connection reportedConnection;
@@ -1288,7 +1300,18 @@ public:
 	Connection proxyStatConnection;
 
 	Private(HandlerEngine *_q) :
-		q(_q)
+		QObject(_q),
+		q(_q),
+		zhttpIn(0),
+		zhttpOut(0),
+		inspectServer(0),
+		acceptServer(0),
+		stateClient(0),
+		controlServer(0),
+		proxyControlClient(0),
+		controlHttpServer(0),
+		stats(0),
+		report(0)
 	{
 		qRegisterMetaType<DetectRuleList>();
 
@@ -1296,9 +1319,9 @@ public:
 		updateLimiter = std::make_unique<RateLimiter>();
 		filterLimiter = std::make_shared<RateLimiter>();
 
-		httpSessionUpdateManager = std::make_shared<HttpSessionUpdateManager>();
+		httpSessionUpdateManager = new HttpSessionUpdateManager(this);
 
-		sequencer = std::make_unique<Sequencer>(&cs.publishLastIds);
+		sequencer = new Sequencer(&cs.publishLastIds, this);
 		itemReadyConnection = sequencer->itemReady.connect(boost::bind(&Private::sequencer_itemReady, this, boost::placeholders::_1));
 	}
 
@@ -1306,7 +1329,7 @@ public:
 	{
 		qDeleteAll(inspectWorkers);
 		qDeleteAll(acceptWorkers);
-		deferreds.clear();
+		qDeleteAll(deferreds);
 		cs.wsSessions.clear();
 		cs.httpSessions.clear();
 		qDeleteAll(cs.subs);
@@ -1315,6 +1338,14 @@ public:
 	bool start(const Configuration &_config)
 	{
 		config = _config;
+
+		// includes worst-case subscriptions and update registrations
+		int timersPerSession = qMax(TIMERS_PER_HTTPSESSION, TIMERS_PER_WSSESSION) +
+			(config.connectionSubscriptionMax * TIMERS_PER_SUBSCRIPTION) +
+			TIMERS_PER_UNIQUE_UPDATE_REGISTRATION;
+
+		// enough timers for sessions, plus an extra 100 for misc
+		Timer::init((config.connectionsMax * timersPerSession) + 100);
 
 		publishLimiter->setRate(config.messageRate);
 		publishLimiter->setHwm(config.messageHwm);
@@ -1327,12 +1358,12 @@ public:
 		sequencer->setWaitMax(config.messageWait);
 		sequencer->setIdCacheTtl(config.idCacheTtl);
 
-		zhttpIn = std::make_unique<ZhttpManager>();
+		zhttpIn = new ZhttpManager(this);
 		zhttpIn->setInstanceId(config.instanceId);
 		zhttpIn->setServerInStreamSpecs(config.serverInStreamSpecs);
 		zhttpIn->setServerOutSpecs(config.serverOutSpecs);
 
-		zhttpOut = std::make_unique<ZhttpManager>();
+		zhttpOut = new ZhttpManager(this);
 		zhttpOut->setInstanceId(config.instanceId);
 		zhttpOut->setClientOutSpecs(config.clientOutSpecs);
 		zhttpOut->setClientOutStreamSpecs(config.clientOutStreamSpecs);
@@ -1343,7 +1374,7 @@ public:
 
 		if(!config.inspectSpecs.isEmpty())
 		{
-			inspectServer = std::make_unique<ZrpcManager>();
+			inspectServer = new ZrpcManager(this);
 			inspectServer->setBind(false);
 			inspectServer->setIpcFileMode(config.ipcFileMode);
 			inspectReqReadyConnection = inspectServer->requestReady.connect(boost::bind(&Private::inspectServer_requestReady, this));
@@ -1359,7 +1390,7 @@ public:
 
 		if(!config.acceptSpecs.isEmpty())
 		{
-			acceptServer = std::make_unique<ZrpcManager>();
+			acceptServer = new ZrpcManager(this);
 			acceptServer->setBind(false);
 			acceptServer->setIpcFileMode(config.ipcFileMode);
 			acceptReqReadyConnection = acceptServer->requestReady.connect(boost::bind(&Private::acceptServer_requestReady, this));
@@ -1375,7 +1406,7 @@ public:
 
 		if(!config.stateSpec.isEmpty())
 		{
-			stateClient = std::make_unique<ZrpcManager>();
+			stateClient = new ZrpcManager(this);
 			stateClient->setBind(true);
 			stateClient->setIpcFileMode(config.ipcFileMode);
 			stateClient->setTimeout(STATE_RPC_TIMEOUT);
@@ -1391,7 +1422,7 @@ public:
 
 		if(!config.commandSpec.isEmpty())
 		{
-			controlServer = std::make_unique<ZrpcManager>();
+			controlServer = new ZrpcManager(this);
 			controlServer->setBind(true);
 			controlServer->setIpcFileMode(config.ipcFileMode);
 			controlReqReadyConnection = controlServer->requestReady.connect(boost::bind(&Private::controlServer_requestReady, this));
@@ -1513,7 +1544,7 @@ public:
 			log_debug("ws control stream: %s", qPrintable(config.wsControlStreamSpecs.join(", ")));
 		}
 
-		stats = std::make_unique<StatsManager>(config.connectionsMax, config.connectionsMax * config.connectionSubscriptionMax, PROMETHEUS_CONNECTIONS_MAX);
+		stats = new StatsManager(config.connectionsMax, config.connectionsMax * config.connectionSubscriptionMax, this);
 		connectionsRefreshedConnection = stats->connectionsRefreshed.connect(boost::bind(&Private::stats_connectionsRefreshed, this, boost::placeholders::_1));
 		unsubscribedConnection = stats->unsubscribed.connect(boost::bind(&Private::stats_unsubscribed, this, boost::placeholders::_1, boost::placeholders::_2));
 		reportedConnection = stats->reported.connect(boost::bind(&Private::stats_reported, this, boost::placeholders::_1));
@@ -1583,7 +1614,7 @@ public:
 
 		if(!config.proxyCommandSpec.isEmpty())
 		{
-			proxyControlClient = std::make_unique<ZrpcManager>();
+			proxyControlClient = new ZrpcManager(this);
 			proxyControlClient->setIpcFileMode(config.ipcFileMode);
 			proxyControlClient->setTimeout(PROXY_RPC_TIMEOUT);
 
@@ -1598,7 +1629,7 @@ public:
 
 		if(config.pushInHttpPort != -1)
 		{
-			controlHttpServer = std::make_unique<SimpleHttpServer>(CONTROL_CONNECTIONS_MAX, config.pushInHttpMaxHeadersSize, config.pushInHttpMaxBodySize);
+			controlHttpServer = new SimpleHttpServer(config.pushInHttpMaxHeadersSize, config.pushInHttpMaxBodySize, this);
 			controlServerConnection = controlHttpServer->requestReady.connect(boost::bind(&Private::controlHttpServer_requestReady, this));
 			controlHttpServer->listen(config.pushInHttpAddr, config.pushInHttpPort);
 
@@ -1745,7 +1776,7 @@ private:
 		log_debug("%s", qPrintable(msg));
 	}
 
-	void publishSend(const std::shared_ptr<ClientSession> &target, const PublishItem &item, const QList<QByteArray> &exposeHeaders)
+	void publishSend(const std::shared_ptr<QObject> &target, const PublishItem &item, const QList<QByteArray> &exposeHeaders)
 	{
 		if(auto hs = std::dynamic_pointer_cast<HttpSession>(target))
 			hs->publish(item, exposeHeaders);
@@ -1888,11 +1919,8 @@ private:
 		if(!req)
 			return;
 
-		InspectWorker *w = new InspectWorker(req, stateClient.get(), config.shareAll);
-
-		// safe to not track, since w can't outlive this
-		w->finished.connect(boost::bind(&Private::inspectWorker_finished, this, w, boost::placeholders::_1));
-
+		InspectWorker *w = new InspectWorker(req, stateClient, config.shareAll, this);
+		finishedConnection[w] = w->finished.connect(boost::bind(&Private::inspectWorker_finished, this, boost::placeholders::_1, w));
 		inspectWorkers += w;
 	}
 
@@ -1912,13 +1940,10 @@ private:
 			// accept request immediately before returning to the event loop.
 			// the start() call will do this
 
-			AcceptWorker *w = new AcceptWorker(req, stateClient.get(), &cs, zhttpIn.get(), zhttpOut.get(), stats.get(), updateLimiter.get(), filterLimiter, httpSessionUpdateManager, config.connectionSubscriptionMax);
-
-			// safe to not track, since w can't outlive this
-			w->finished.connect(boost::bind(&Private::acceptWorker_finished, this, w, boost::placeholders::_1));
-			w->sessionsReady.connect(boost::bind(&Private::acceptWorker_sessionsReady, this, w));
-			w->retryPacketReady.connect(boost::bind(&Private::acceptWorker_retryPacketReady, this, boost::placeholders::_1, boost::placeholders::_2));
-
+			AcceptWorker *w = new AcceptWorker(req, stateClient, &cs, zhttpIn, zhttpOut, stats, updateLimiter.get(), filterLimiter, httpSessionUpdateManager, config.connectionSubscriptionMax, this);
+			finishedConnection[w] = w->finished.connect(boost::bind(&Private::acceptWorker_finished, this, boost::placeholders::_1, w));
+			sessionsReadyConnection[w] = w->sessionsReady.connect(boost::bind(&Private::acceptWorker_sessionsReady, this, w));
+			retryPacketReadyConnection[w] =  w->retryPacketReady.connect(boost::bind(&Private::acceptWorker_retryPacketReady, this, boost::placeholders::_1, boost::placeholders::_2));
 			acceptWorkers += w;
 
 			w->start();
@@ -1964,12 +1989,9 @@ private:
 
 		if(req->method() == "conncheck")
 		{
-			auto d = std::make_unique<ConnCheckWorker>(req, proxyControlClient.get(), stats.get());
-
-			// safe to not track, since d can't outlive this
-			d->finished.connect(boost::bind(&Private::deferred_finished, this, d.get(), boost::placeholders::_1));
-
-			deferreds[d.get()] = std::move(d);
+			auto w = std::make_unique<ConnCheckWorker>(req, proxyControlClient, stats);
+			finishedConnection[w.get()] = w->finished.connect(boost::bind(&Private::deferred_finished, this, boost::placeholders::_1, w.get()));
+			deferredMap[w.get()] = std::move(w);
 		}
 		else if(req->method() == "get-zmq-uris")
 		{
@@ -1991,12 +2013,9 @@ private:
 		}
 		else if(req->method() == "refresh")
 		{
-			auto d = std::make_unique<RefreshWorker>(req, proxyControlClient.get(), &cs.wsSessionsByChannel);
-
-			// safe to not track, since d can't outlive this
-			d->finished.connect(boost::bind(&Private::deferred_finished, this, d.get(), boost::placeholders::_1));
-
-			deferreds[d.get()] = std::move(d);
+			auto w = std::make_unique<RefreshWorker>(req, proxyControlClient, &cs.wsSessionsByChannel);
+			finishedConnection[w.get()] = w->finished.connect(boost::bind(&Private::deferred_finished, this, boost::placeholders::_1, w.get()));
+			deferredMap[w.get()] = std::move(w);
 		}
 		else if(req->method() == "publish")
 		{
@@ -2252,12 +2271,9 @@ private:
 				sidLastIds[sid] = lastIds;
 			}
 
-			auto d = std::unique_ptr<Deferred>(SessionRequest::updateMany(stateClient.get(), sidLastIds));
-
-			// safe to not track, since d can't outlive this
-			d->finished.connect(boost::bind(&Private::sessionUpdateMany_finished, this, d.get(), boost::placeholders::_1));
-
-			deferreds[d.get()] = std::move(d);
+			Deferred *d = SessionRequest::updateMany(stateClient, sidLastIds, this);
+			finishedConnection[d] = d->finished.connect(boost::bind(&Private::sessionUpdateMany_finished, this, boost::placeholders::_1, d));
+			deferreds += d;
 		}
 	}
 
@@ -2266,52 +2282,63 @@ private:
 	{
 		Q_UNUSED(result);
 
-		report.reset();
+		finishedConnection.erase(report);
+		deferreds.remove(report);
+		deferredMap.erase(report);
+		report = 0;
 	}
 
-	void sessionUpdateMany_finished(Deferred *d, const DeferredResult &result)
+	void sessionUpdateMany_finished(const DeferredResult &result, Deferred *d)
 	{
-		deferreds.erase(d);
+		finishedConnection.erase(d);
+		deferreds.remove(d);
+		deferredMap.erase(d);
 
 		if(!result.success)
 			log_error("couldn't update session: condition=%d", result.value.toInt());
 	}
 
-	void sessionCreateOrUpdate_finished(Deferred *d, const DeferredResult &result)
+	void sessionCreateOrUpdate_finished(const DeferredResult &result, Deferred *d)
 	{
-		deferreds.erase(d);
+		finishedConnection.erase(d);
+		deferreds.remove(d);
+		deferredMap.erase(d);
 
 		if(!result.success)
 			log_error("couldn't create/update session: condition=%d", result.value.toInt());
 	}
 
-	void inspectWorker_finished(InspectWorker *w, const DeferredResult &result)
+	void inspectWorker_finished(const DeferredResult &result, InspectWorker *w)
 	{
 		Q_UNUSED(result);
 
+		finishedConnection.erase(w);
 		inspectWorkers.remove(w);
-		delete w;
 
 		// try to read again
 		inspectServer_requestReady();
 	}
 
-	void acceptWorker_finished(AcceptWorker *w, const DeferredResult &result)
+	void acceptWorker_finished(const DeferredResult &result, AcceptWorker *w )
 	{
 		Q_UNUSED(result);
 
+		finishedConnection.erase(w);
+		sessionsReadyConnection.erase(w);
+		retryPacketReadyConnection.erase(w);
 		acceptWorkers.remove(w);
-		delete w;
 
 		// try to read again
 		acceptServer_requestReady();
 	}
 
-	void deferred_finished(Deferred *d, const DeferredResult &result)
+	void deferred_finished(const DeferredResult &result, Deferred *w)
 	{
 		Q_UNUSED(result);
 
-		deferreds.erase(d);
+		finishedConnection.erase(w);
+		deferreds.remove(w);
+		deferredMap.erase(w);
 	}
 	
 	void sub_subscribed(Subscription *sub)
@@ -2361,12 +2388,9 @@ private:
 
 			if(!sidLastIds.isEmpty())
 			{
-				auto d = std::unique_ptr<Deferred>(SessionRequest::updateMany(stateClient.get(), sidLastIds));
-
-				// safe to not track, since d can't outlive this
-				d->finished.connect(boost::bind(&Private::sessionUpdateMany_finished, this, d.get(), boost::placeholders::_1));
-
-				deferreds[d.get()] = std::move(d);
+				Deferred *d = SessionRequest::updateMany(stateClient, sidLastIds, this);
+				finishedConnection[d] = d->finished.connect(boost::bind(&Private::sessionUpdateMany_finished, this, boost::placeholders::_1, d));
+				deferreds += d;
 			}
 		}
 	}
@@ -2405,10 +2429,9 @@ private:
 			all.httpResponseMessagesSent += qMax(p.httpResponseMessagesSent, 0);
 		}
 
-		report = std::unique_ptr<Deferred>(ControlRequest::report(proxyControlClient.get(), all));
-
-		// safe to not track, since report can't outlive this
-		report->finished.connect(boost::bind(&Private::report_finished, this, boost::placeholders::_1));
+		report = ControlRequest::report(proxyControlClient, all, this);
+		finishedConnection[report] = report->finished.connect(boost::bind(&Private::report_finished, this, boost::placeholders::_1));
+		deferreds += report;
 	}
 
 	QVariant parseJsonOrTnetstring(const QByteArray &message, bool *ok = 0, QString *errorMessage = 0) {
@@ -2598,7 +2621,7 @@ private:
 					s->cid = QString::fromUtf8(item.cid);
 					s->ttl = item.ttl;
 					s->requestData.uri = item.uri;
-					s->zhttpOut = zhttpOut.get();
+					s->zhttpOut = zhttpOut;
 					s->filterLimiter = filterLimiter;
 					s->refreshExpiration();
 					cs.wsSessions.insert(s->cid, s);
@@ -2838,22 +2861,16 @@ private:
 		{
 			foreach(const QString &sid, createOrUpdateSids)
 			{
-				auto d = std::unique_ptr<Deferred>(SessionRequest::createOrUpdate(stateClient.get(), sid, LastIds()));
-
-				// safe to not track, since d can't outlive this
-				d->finished.connect(boost::bind(&Private::sessionCreateOrUpdate_finished, this, d.get(), boost::placeholders::_1));
-
-				deferreds[d.get()] = std::move(d);
+				Deferred *d = SessionRequest::createOrUpdate(stateClient, sid, LastIds(), this);
+				finishedConnection[d] = d->finished.connect(boost::bind(&Private::sessionCreateOrUpdate_finished, this, boost::placeholders::_1, d));
+				deferreds += d;
 			}
 
 			if(!updateSids.isEmpty())
 			{
-				auto d = std::unique_ptr<Deferred>(SessionRequest::updateMany(stateClient.get(), updateSids));
-
-				// safe to not track, since d can't outlive this
-				d->finished.connect(boost::bind(&Private::sessionUpdateMany_finished, this, d.get(), boost::placeholders::_1));
-
-				deferreds[d.get()] = std::move(d);
+				Deferred *d = SessionRequest::updateMany(stateClient, updateSids, this);
+				finishedConnection[d] = d->finished.connect(boost::bind(&Private::sessionUpdateMany_finished, this, boost::placeholders::_1, d));
+				deferreds += d;
 			}
 		}
 	}
@@ -3167,7 +3184,8 @@ private:
 	}
 };
 
-HandlerEngine::HandlerEngine()
+HandlerEngine::HandlerEngine(QObject *parent) :
+	QObject(parent)
 {
 	d = std::make_shared<Private>(this);
 }
@@ -3183,3 +3201,5 @@ void HandlerEngine::reload()
 {
 	d->reload();
 }
+
+#include "handlerengine.moc"

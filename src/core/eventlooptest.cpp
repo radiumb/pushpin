@@ -21,110 +21,94 @@
 */
 
 #include <unistd.h>
+#include <QtTest/QtTest>
 #include <boost/signals2.hpp>
-#include "test.h"
 #include "defercall.h"
 #include "eventloop.h"
 #include "socketnotifier.h"
 #include "timer.h"
 
-static void socketNotifier()
+class EventLoopTest : public QObject
 {
-	EventLoop loop(1);
+	Q_OBJECT
 
-	int fds[2];
-	TEST_ASSERT_EQ(pipe(fds), 0);
-
-	SocketNotifier *sn = new SocketNotifier(fds[0], SocketNotifier::Read);
-	sn->clearReadiness(SocketNotifier::Read);
-
-	int activatedFd = -1;
-	uint8_t activatedReadiness = -1;
-	sn->activated.connect([&](int fd, uint8_t readiness) {
-		activatedFd = fd;
-		activatedReadiness = readiness;
-		loop.exit(123);
-	});
-
-	unsigned char c = 1;
-	TEST_ASSERT_EQ(write(fds[1], &c, 1), 1);
-
-	TEST_ASSERT_EQ(loop.exec(), 123);
-	TEST_ASSERT_EQ(activatedFd, fds[0]);
-	TEST_ASSERT_EQ(activatedReadiness, SocketNotifier::Read);
-
-	delete sn;
-	close(fds[1]);
-	close(fds[0]);
-}
-
-static void timer()
-{
-	EventLoop loop(2);
-
-	Timer *t1 = new Timer;
-	Timer *t2 = new Timer;
-
-	int timeoutCount = 0;
-
-	t1->timeout.connect([&] {
-		++timeoutCount;
-	});
-
-	t2->timeout.connect([&] {
-		++timeoutCount;
-		loop.exit(123);
-	});
-
-	t1->setSingleShot(true);
-	t1->start(0);
-
-	t2->setSingleShot(true);
-	t2->start(0);
-
-	TEST_ASSERT_EQ(loop.exec(), 123);
-	TEST_ASSERT_EQ(timeoutCount, 2);
-
-	delete t2;
-	delete t1;
-}
-
-static void custom()
-{
-	class State
+private slots:
+	void cleanupTestCase()
 	{
-	public:
-		EventLoop loop;
-		uint8_t activatedReadiness;
+		DeferCall::cleanup();
+	}
 
-		State() :
-			loop(EventLoop(1)),
-			activatedReadiness(-1)
-		{
-		}
-	};
+	void socketNotifier()
+	{
+		EventLoop loop(1);
 
-	State state;
+		int fds[2];
+		QCOMPARE(pipe(fds), 0);
 
-	auto [id, sr] = state.loop.registerCustom([](void *ctx, uint8_t readiness) {
-		State *state = (State *)ctx;
-		state->activatedReadiness = readiness;
-		state->loop.exit(123);
-	}, (void *)&state);
+		SocketNotifier *sn = new SocketNotifier(fds[0], SocketNotifier::Read);
 
-	TEST_ASSERT(id >= 0);
-	TEST_ASSERT_EQ(sr->setReadiness(Event::Readable), 0);
-	TEST_ASSERT_EQ(state.loop.exec(), 123);
-	TEST_ASSERT_EQ(state.activatedReadiness, Event::Readable);
+		int activatedFd = -1;
+		sn->activated.connect([&](int fd) {
+			activatedFd = fd;
+			loop.exit(123);
+		});
 
-	state.loop.deregister(id);
+		unsigned char c = 1;
+		QCOMPARE(write(fds[1], &c, 1), 1);
+
+		QCOMPARE(loop.exec(), 123);
+		QCOMPARE(activatedFd, fds[0]);
+
+		delete sn;
+		close(fds[1]);
+		close(fds[0]);
+	}
+
+	void timer()
+	{
+		EventLoop loop(2);
+
+		Timer *t1 = new Timer;
+		Timer *t2 = new Timer;
+
+		int timeoutCount = 0;
+
+		t1->timeout.connect([&] {
+			++timeoutCount;
+		});
+
+		t2->timeout.connect([&] {
+			++timeoutCount;
+			loop.exit(123);
+		});
+
+		t1->setSingleShot(true);
+		t1->start(0);
+
+		t2->setSingleShot(true);
+		t2->start(0);
+
+		QCOMPARE(loop.exec(), 123);
+		QCOMPARE(timeoutCount, 2);
+
+		delete t2;
+		delete t1;
+	}
+};
+
+namespace {
+namespace Main {
+QTEST_MAIN(EventLoopTest)
+}
 }
 
-extern "C" int eventloop_test(ffi::TestException *out_ex)
+extern "C" {
+
+int eventloop_test(int argc, char **argv)
 {
-	TEST_CATCH(socketNotifier());
-	TEST_CATCH(timer());
-	TEST_CATCH(custom());
-
-	return 0;
+	return Main::main(argc, argv);
 }
+
+}
+
+#include "eventlooptest.moc"
